@@ -949,9 +949,10 @@ export default function OpportunitiesPage() {
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
                     <Flame className="h-4 w-4 text-[#00AAFF]" />
-                    <span className="text-xs font-semibold uppercase tracking-wider text-[#00AAFF]">Best Opportunity Right Now</span>
-                  </div>
-                  <h2 className="text-xl font-bold text-white mb-1">{topOpportunity.niche_name}</h2>
+<span className="text-xs font-semibold uppercase tracking-wider text-[#00AAFF]">Best Opportunity Right Now</span>
+  </div>
+  <p className="text-xs text-white/50 mb-2">Based on engagement signals and success patterns</p>
+  <h2 className="text-xl font-bold text-white mb-1">{topOpportunity.niche_name}</h2>
                   <p className="text-sm text-white/60">{topOpportunity.industry_name}</p>
                   <div className="flex items-center gap-3 mt-3">
                     <span className="text-xs px-2 py-1 rounded-full bg-white/10 text-white/70">
@@ -1387,16 +1388,26 @@ export default function OpportunitiesPage() {
                     </div>
                   </div>
 
-                  {/* Why This Works Section */}
+{/* Why This Works Section */}
                   <div className="bg-white/[0.03] border border-white/10 rounded-xl p-5 space-y-3">
                     <div className="flex items-center gap-2">
                       <Lightbulb className="h-5 w-5 text-[#00AAFF]" />
                       <h3 className="text-sm font-semibold text-white">Why this works</h3>
                     </div>
-                    <p className="text-sm text-white/70 leading-relaxed">
-                      {selectedNiche.industry_name} businesses typically have large customer databases that go dormant over time. 
-                      They respond well to AI-powered revival campaigns because the ROI is immediate and measurable.
-                    </p>
+                    <ul className="text-sm text-white/70 leading-relaxed space-y-2">
+                      <li className="flex items-start gap-2">
+                        <span className="text-[#00AAFF] mt-1">•</span>
+                        <span><strong className="text-white/90">Pain point:</strong> {selectedNiche.industry_name} businesses have dormant customer lists they struggle to reactivate</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-[#00AAFF] mt-1">•</span>
+                        <span><strong className="text-white/90">Revenue opportunity:</strong> Reactivating just 5-10% of dormant leads can generate significant recurring revenue</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-[#00AAFF] mt-1">•</span>
+                        <span><strong className="text-white/90">Why AI fits:</strong> Automated follow-up at scale with personalized messaging delivers immediate, measurable ROI</span>
+                      </li>
+                    </ul>
                   </div>
 
                   {/* Suggested Angle Section */}
@@ -1410,31 +1421,36 @@ export default function OpportunitiesPage() {
                     </p>
                   </div>
 
-                  {/* Next Step Section */}
+{/* Next Step Section */}
                   <div className="bg-[#00AAFF]/10 border border-[#00AAFF]/30 rounded-xl p-5 space-y-4">
                     <div className="flex items-center gap-2">
                       <ChevronRight className="h-5 w-5 text-[#00AAFF]" />
                       <h3 className="text-sm font-semibold text-white">Next Step</h3>
                     </div>
                     <p className="text-sm text-white/70">
-                      {selectedNiche.user_state?.status === "Research" 
-                        ? "Add research notes and prepare your messaging to move forward."
-                        : selectedNiche.user_state?.status === "Shortlisted"
-                        ? "Prepare your outreach messaging and scripts."
-                        : selectedNiche.user_state?.status === "Outreach in Progress"
-                        ? "Continue your outreach and track responses."
-                        : selectedNiche.user_state?.status === "Coffee Date Demo"
-                        ? "Schedule and complete a demo to close the deal."
-                        : "Start your outreach campaign to engage this niche."}
+                      Send your first 20 outreach messages to begin generating replies
                     </p>
+                    <div className="space-y-2">
+                      <Button
+                        asChild
+                        className="w-full bg-[#00AAFF] hover:bg-[#0099EE] text-white shadow-lg shadow-[#00AAFF]/30"
+                      >
+                        <Link href="/revival">
+                          Start Outreach
+                          <ChevronRight className="h-4 w-4 ml-1" />
+                        </Link>
+                      </Button>
+                      <p className="text-xs text-white/40 text-center">This creates your first pipeline entry</p>
+                    </div>
                     <Button
-                      asChild
-                      className="w-full bg-[#00AAFF] hover:bg-[#0099EE] text-white shadow-lg shadow-[#00AAFF]/30"
+                      variant="outline"
+                      className="w-full border-white/20 text-white hover:bg-white/10"
+                      onClick={() => {
+                        // Scroll to details or expand research section
+                        setResearchOpen(true)
+                      }}
                     >
-                      <Link href="/revival">
-                        Start Outreach
-                        <ChevronRight className="h-4 w-4 ml-1" />
-                      </Link>
+                      View Details
                     </Button>
                   </div>
 
@@ -1951,9 +1967,9 @@ export default function OpportunitiesPage() {
                   <div className="w-16 h-16 rounded-full bg-[#00AAFF]/10 flex items-center justify-center mb-4">
                     <Target className="h-8 w-8 text-[#00AAFF]/60" />
                   </div>
-                  <h3 className="text-lg font-medium text-white">Choose a niche to start your outreach</h3>
+                  <h3 className="text-lg font-medium text-white">Choose a niche to see why it works and start outreach</h3>
                   <p className="text-sm text-white/50 mt-2 max-w-sm">
-                    Select a niche from the list to see why it could work for you and get started with outreach.
+                    Select a niche from the list to understand why it could be a great opportunity and take action immediately.
                   </p>
                 </Card>
               )}
