@@ -941,7 +941,7 @@ export default function OpportunitiesPage() {
         </div>
 
         {/* Best Opportunity Right Now */}
-        {topOpportunity && !showAddNiche && (
+        {topOpportunity && (
           <div className="mb-6">
             <div className="relative overflow-hidden rounded-xl border border-[#00AAFF]/30 bg-gradient-to-r from-[#00AAFF]/10 to-transparent p-6">
               <div className="absolute top-0 right-0 w-64 h-64 bg-[#00AAFF]/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
