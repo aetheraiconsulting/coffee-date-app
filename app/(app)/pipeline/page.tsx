@@ -279,7 +279,10 @@ export default function PipelinePage() {
                       Next Step: Start your first outreach campaign
                     </h2>
                     <p className="text-white/60">
-                      Send your first 20 messages to begin generating replies
+                      Send your first 20 messages to begin generating replies.
+                    </p>
+                    <p className="text-white/40 text-sm mt-1">
+                      This is how your pipeline starts.
                     </p>
                   </div>
                 </div>
@@ -311,6 +314,7 @@ export default function PipelinePage() {
               value={metrics.leadsContacted}
               active={metrics.leadsContacted > 0}
               helperText="Start outreach to begin tracking"
+              targetText="Target: 20 messages"
             />
             <MetricCard
               icon={MessageSquare}
@@ -383,11 +387,11 @@ export default function PipelinePage() {
             </div>
             <div className="flex gap-2 flex-wrap">
               {[
-                { id: "all", label: "All" },
-                { id: "outreach", label: "Outreach" },
-                { id: "replied", label: "Replied" },
-                { id: "coffee_date", label: "Coffee Date" },
-                { id: "won", label: "Won" },
+                { id: "all", label: "All", count: pipelineItems.length },
+                { id: "outreach", label: "Outreach", count: pipelineItems.filter(i => i.visibleStage === "outreach").length },
+                { id: "replied", label: "Replied", count: pipelineItems.filter(i => i.visibleStage === "replied").length },
+                { id: "coffee_date", label: "Coffee Date", count: pipelineItems.filter(i => i.visibleStage === "coffee_date").length },
+                { id: "won", label: "Won", count: pipelineItems.filter(i => i.visibleStage === "won").length },
               ].map((filter) => (
                 <Button
                   key={filter.id}
@@ -402,6 +406,12 @@ export default function PipelinePage() {
                   )}
                 >
                   {filter.label}
+                  <span className={cn(
+                    "ml-1.5 text-xs",
+                    activeFilter === filter.id ? "text-white/80" : "text-white/40"
+                  )}>
+                    ({filter.count})
+                  </span>
                 </Button>
               ))}
             </div>
@@ -429,7 +439,7 @@ export default function PipelinePage() {
                 <p className="text-white/50 mb-8 max-w-md mx-auto leading-relaxed">
                   {"You don't have any active prospects yet. Your first step is choosing a niche and sending outreach."}
                 </p>
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                <div className="flex flex-col items-center justify-center gap-3">
                   <Button
                     asChild
                     className="bg-[#00AAFF] hover:bg-[#0099EE] text-white font-semibold h-12 px-8 shadow-lg shadow-[#00AAFF]/30"
@@ -439,6 +449,9 @@ export default function PipelinePage() {
                       <ChevronRight className="h-4 w-4 ml-1" />
                     </Link>
                   </Button>
+                  <p className="text-xs text-white/40">
+                    Choose a niche, then start outreach
+                  </p>
                 </div>
               </CardContent>
             </Card>
@@ -539,6 +552,7 @@ function MetricCard({
   active: boolean
   helperText: string
   estimated?: boolean
+  targetText?: string
 }) {
   return (
     <Card
@@ -585,6 +599,9 @@ function MetricCard({
         </p>
         {value === 0 && (
           <p className="text-xs text-white/30 mt-2">{helperText}</p>
+        )}
+        {targetText && !active && (
+          <p className="text-[11px] text-[#00AAFF]/60 mt-2 font-medium">{targetText}</p>
         )}
       </CardContent>
     </Card>
