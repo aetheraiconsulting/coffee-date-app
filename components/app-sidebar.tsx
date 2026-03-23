@@ -12,6 +12,7 @@ import {
   Settings2,
   Target,
   ChevronLeft,
+  TrendingUp,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import Image from "next/image"
@@ -23,7 +24,7 @@ const menuSections = [
     label: "Core",
     items: [
       { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
-      { icon: Target, label: "Pipeline", href: "/revival/opportunities" },
+      { icon: TrendingUp, label: "Pipeline", href: "/pipeline" },
       { icon: Target, label: "Opportunities", href: "/revival/opportunities" },
     ],
   },
