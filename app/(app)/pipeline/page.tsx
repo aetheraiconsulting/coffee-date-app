@@ -14,10 +14,9 @@ import {
   Search,
   Clock,
   AlertCircle,
-  CheckCircle2,
-  Users,
   Phone,
-  Handshake,
+  Sparkles,
+  Target,
 } from "lucide-react"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
@@ -25,7 +24,7 @@ import { cn } from "@/lib/utils"
 // Pipeline stages for deals
 const PIPELINE_STAGES = [
   { id: "outreach", label: "Outreach", dbStatus: "Outreach in Progress" },
-  { id: "replied", label: "Replied", dbStatus: null }, // Derived from conversation status
+  { id: "replied", label: "Replied", dbStatus: null },
   { id: "coffee_date", label: "Coffee Date", dbStatus: "Coffee Date Demo" },
   { id: "won", label: "Won", dbStatus: "Win" },
 ]
@@ -33,7 +32,7 @@ const PIPELINE_STAGES = [
 type PipelineItem = {
   id: string
   name: string
-visibleStage: string
+  visibleStage: string
   lastActivity: string
   nextAction: string
   nicheId: string
@@ -75,7 +74,7 @@ export default function PipelinePage() {
       return
     }
 
-    // Fetch niches that are in active pipeline stages (not Research or Shortlisted)
+    // Fetch niches that are in active pipeline stages
     const { data: nicheStates } = await supabase
       .from("niche_user_state")
       .select(`
@@ -234,69 +233,106 @@ export default function PipelinePage() {
     return matchesSearch && matchesFilter
   })
 
-  // Group by stage for display
-  const groupedItems = {
-    outreach: filteredItems.filter((i) => i.visibleStage === "outreach"),
-    replied: filteredItems.filter((i) => i.visibleStage === "replied"),
-    coffee_date: filteredItems.filter((i) => i.visibleStage === "coffee_date"),
-    won: filteredItems.filter((i) => i.visibleStage === "won"),
-  }
+  const isEmptyPipeline = pipelineItems.length === 0 && !loading
 
   return (
-    <div className="min-h-screen bg-[#080B0F]">
-      <div className="max-w-6xl mx-auto p-6 md:p-10 space-y-8">
-        {/* Subtle background glow */}
-        <div className="absolute inset-0 bg-gradient-to-b from-[#00AAFF]/5 to-transparent pointer-events-none" />
-
+    <div className="min-h-screen bg-[#080B0F] relative">
+      {/* Subtle background glow */}
+      <div className="absolute top-0 left-1/4 w-96 h-96 bg-[#00AAFF]/8 blur-[120px] rounded-full pointer-events-none" />
+      
+      <div className="max-w-6xl mx-auto p-6 md:p-10 space-y-8 relative">
+        
         {/* Header */}
-        <section className="space-y-4 relative">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <h1 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight">
-                Pipeline
-              </h1>
-              <p className="text-white/50 text-lg mt-1">
-                Track prospects from outreach to closed deals
-              </p>
-            </div>
-            <Button
-              asChild
-              className="bg-[#00AAFF] hover:bg-[#0099EE] text-white font-semibold shadow-lg shadow-[#00AAFF]/30 hover:shadow-xl hover:shadow-[#00AAFF]/40 transition-all duration-200 active:scale-[0.98] h-11 px-6"
-            >
-              <Link href="/revival">
-                Start Outreach
-                <ChevronRight className="h-4 w-4 ml-1" />
-              </Link>
-            </Button>
+        <section className="flex flex-col md:flex-row md:items-start md:justify-between gap-6">
+          <div>
+            <h1 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight font-sans">
+              Pipeline
+            </h1>
+            <p className="text-white/50 text-lg mt-1">
+              Track prospects from outreach to closed deals
+            </p>
           </div>
+          <Button
+            asChild
+            className="relative bg-[#00AAFF] hover:bg-[#0099EE] text-white font-semibold h-12 px-6 shadow-lg shadow-[#00AAFF]/30 hover:shadow-xl hover:shadow-[#00AAFF]/50 transition-all duration-200 active:scale-[0.98] group overflow-hidden"
+          >
+            <Link href="/revival">
+              <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+              Start your first outreach
+              <ChevronRight className="h-4 w-4 ml-1" />
+            </Link>
+          </Button>
+        </section>
+
+        {/* Next Step Strip - Critical Guidance */}
+        <section>
+          <Card className="bg-gradient-to-r from-[#00AAFF]/10 via-[#00AAFF]/5 to-transparent border border-[#00AAFF]/20 overflow-hidden relative">
+            <div className="absolute top-0 left-0 w-1 h-full bg-[#00AAFF]" />
+            <CardContent className="p-6 md:p-8">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+                <div className="flex items-start gap-4">
+                  <div className="h-12 w-12 rounded-xl bg-[#00AAFF]/20 flex items-center justify-center shrink-0">
+                    <Sparkles className="h-6 w-6 text-[#00AAFF]" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-white mb-1">
+                      Next Step: Start your first outreach campaign
+                    </h2>
+                    <p className="text-white/60">
+                      Send your first 20 messages to begin generating replies
+                    </p>
+                  </div>
+                </div>
+                <div className="flex flex-col items-start md:items-end gap-2">
+                  <Button
+                    asChild
+                    className="bg-[#00AAFF] hover:bg-[#0099EE] text-white font-semibold h-11 px-6 shadow-lg shadow-[#00AAFF]/20"
+                  >
+                    <Link href="/revival">
+                      Start Outreach
+                      <ChevronRight className="h-4 w-4 ml-1" />
+                    </Link>
+                  </Button>
+                  <p className="text-xs text-white/40">
+                    Most users get their first reply within 24-72 hours
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </section>
 
         {/* Metrics Row */}
-        <section className="space-y-4">
-          <div className="flex flex-wrap gap-3">
-            <MetricChip
+        <section>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <MetricCard
               icon={Send}
               label="Leads Contacted"
               value={metrics.leadsContacted}
               active={metrics.leadsContacted > 0}
+              helperText="Start outreach to begin tracking"
             />
-            <MetricChip
+            <MetricCard
               icon={MessageSquare}
               label="Replies"
               value={metrics.replies}
               active={metrics.replies > 0}
+              helperText="Appears after first responses"
+              estimated
             />
-            <MetricChip
+            <MetricCard
               icon={Coffee}
               label="Calls (Coffee Dates)"
               value={metrics.calls}
               active={metrics.calls > 0}
+              helperText="Booked from replies"
             />
-            <MetricChip
+            <MetricCard
               icon={Trophy}
               label="Deals Closed"
               value={metrics.dealsClosed}
               active={metrics.dealsClosed > 0}
+              helperText="Closed clients"
             />
           </div>
         </section>
@@ -311,7 +347,7 @@ export default function PipelinePage() {
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
               {needsAttention.slice(0, 6).map((item) => (
                 <Link key={item.id} href={item.href}>
-                  <Card className="bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/15 transition-all cursor-pointer">
+                  <Card className="bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/15 transition-all cursor-pointer group">
                     <CardContent className="p-4">
                       <div className="flex items-start gap-3">
                         <div className="h-8 w-8 rounded-lg bg-amber-500/20 flex items-center justify-center shrink-0">
@@ -323,7 +359,7 @@ export default function PipelinePage() {
                           <p className="font-medium text-white truncate">{item.name}</p>
                           <p className="text-sm text-amber-400/80">{item.message}</p>
                         </div>
-                        <ChevronRight className="h-4 w-4 text-amber-400/50 shrink-0" />
+                        <ChevronRight className="h-4 w-4 text-amber-400/50 group-hover:text-amber-400 transition-colors shrink-0" />
                       </div>
                     </CardContent>
                   </Card>
@@ -333,8 +369,8 @@ export default function PipelinePage() {
           </section>
         )}
 
-        {/* Filters */}
-        <section className="space-y-4">
+        {/* Filters + Search */}
+        <section>
           <div className="flex flex-col md:flex-row md:items-center gap-4">
             <div className="relative flex-1 max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
@@ -342,74 +378,101 @@ export default function PipelinePage() {
                 placeholder="Search pipeline..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 bg-white/[0.05] border-white/10 text-white placeholder:text-white/40 focus:border-[#00AAFF]/50 focus:ring-[#00AAFF]/20"
+                className="pl-10 bg-white/[0.05] border-white/10 text-white placeholder:text-white/40 focus:border-[#00AAFF]/50 focus:ring-[#00AAFF]/20 h-11"
               />
             </div>
             <div className="flex gap-2 flex-wrap">
-              {["all", "outreach", "replied", "coffee_date", "won"].map((filter) => (
+              {[
+                { id: "all", label: "All" },
+                { id: "outreach", label: "Outreach" },
+                { id: "replied", label: "Replied" },
+                { id: "coffee_date", label: "Coffee Date" },
+                { id: "won", label: "Won" },
+              ].map((filter) => (
                 <Button
-                  key={filter}
+                  key={filter.id}
                   variant="ghost"
                   size="sm"
-                  onClick={() => setActiveFilter(filter)}
+                  onClick={() => setActiveFilter(filter.id)}
                   className={cn(
-                    "transition-all",
-                    activeFilter === filter
-                      ? "bg-[#00AAFF]/20 text-[#00AAFF] hover:bg-[#00AAFF]/30"
+                    "transition-all h-9 px-4",
+                    activeFilter === filter.id
+                      ? "bg-[#00AAFF] text-white hover:bg-[#0099EE]"
                       : "text-white/60 hover:text-white hover:bg-white/10"
                   )}
                 >
-                  {filter === "all" && "All"}
-                  {filter === "outreach" && "Outreach"}
-                  {filter === "replied" && "Replied"}
-                  {filter === "coffee_date" && "Coffee Date"}
-                  {filter === "won" && "Won"}
+                  {filter.label}
                 </Button>
               ))}
             </div>
           </div>
         </section>
 
-        {/* Pipeline List */}
-        <section className="space-y-6">
+        {/* Pipeline List / Empty State */}
+        <section>
           {loading ? (
             <div className="flex items-center justify-center py-20">
               <div className="h-8 w-8 border-2 border-[#00AAFF] border-t-transparent rounded-full animate-spin" />
             </div>
+          ) : isEmptyPipeline ? (
+            /* Enhanced Empty State */
+            <Card className="bg-white/[0.03] border border-white/10 relative overflow-hidden">
+              {/* Subtle glow */}
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-[#00AAFF]/10 blur-[100px] rounded-full pointer-events-none" />
+              <CardContent className="p-12 md:p-16 text-center relative">
+                <div className="h-20 w-20 rounded-full bg-[#00AAFF]/10 border border-[#00AAFF]/20 flex items-center justify-center mx-auto mb-6">
+                  <Target className="h-10 w-10 text-[#00AAFF]" />
+                </div>
+                <h3 className="text-2xl font-bold text-white mb-3">
+                  {"Let's get your first client into the pipeline"}
+                </h3>
+                <p className="text-white/50 mb-8 max-w-md mx-auto leading-relaxed">
+                  {"You don't have any active prospects yet. Start by choosing a niche and sending your first outreach."}
+                </p>
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                  <Button
+                    asChild
+                    className="bg-[#00AAFF] hover:bg-[#0099EE] text-white font-semibold h-12 px-8 shadow-lg shadow-[#00AAFF]/30"
+                  >
+                    <Link href="/revival">
+                      Start Outreach
+                      <ChevronRight className="h-4 w-4 ml-1" />
+                    </Link>
+                  </Button>
+                  <Button
+                    asChild
+                    variant="outline"
+                    className="border-white/20 text-white hover:bg-white/10 h-12 px-8"
+                  >
+                    <Link href="/revival/opportunities">
+                      Browse Opportunities
+                      <ChevronRight className="h-4 w-4 ml-1" />
+                    </Link>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           ) : filteredItems.length === 0 ? (
+            /* No results for filter */
             <Card className="bg-white/[0.03] border border-white/10">
               <CardContent className="p-12 text-center">
-                <div className="h-16 w-16 rounded-full bg-white/[0.05] flex items-center justify-center mx-auto mb-4">
-                  <Users className="h-8 w-8 text-white/30" />
-                </div>
-                <h3 className="text-lg font-semibold text-white mb-2">No prospects in pipeline</h3>
-                <p className="text-white/50 mb-6 max-w-md mx-auto">
-                  Start reaching out to prospects to see them here. Your pipeline tracks everyone from first contact to closed deal.
-                </p>
-                <Button
-                  asChild
-                  className="bg-[#00AAFF] hover:bg-[#0099EE] text-white"
-                >
-                  <Link href="/revival">
-                    Start Outreach
-                    <ChevronRight className="h-4 w-4 ml-1" />
-                  </Link>
-                </Button>
+                <p className="text-white/50">No prospects match your search or filter.</p>
               </CardContent>
             </Card>
           ) : (
+            /* Pipeline List */
             <Card className="bg-white/[0.03] border border-white/10 overflow-hidden">
               <div className="divide-y divide-white/10">
                 {filteredItems.map((item) => (
                   <Link
                     key={item.id}
                     href={item.conversationId ? "/revival" : "/revival/opportunities"}
-                    className="flex items-center gap-4 p-4 hover:bg-white/[0.03] transition-all group"
+                    className="flex items-center gap-4 p-4 md:p-5 hover:bg-white/[0.03] transition-all group"
                   >
                     {/* Stage indicator */}
                     <div
                       className={cn(
-                        "h-10 w-10 rounded-full flex items-center justify-center shrink-0",
+                        "h-11 w-11 rounded-full flex items-center justify-center shrink-0",
                         item.visibleStage === "won" && "bg-green-500/20 text-green-400",
                         item.visibleStage === "coffee_date" && "bg-[#00AAFF]/20 text-[#00AAFF]",
                         item.visibleStage === "replied" && "bg-purple-500/20 text-purple-400",
@@ -424,10 +487,10 @@ export default function PipelinePage() {
 
                     {/* Name and stage */}
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-white truncate group-hover:text-[#00AAFF] transition-colors">
+                      <p className="font-semibold text-white truncate group-hover:text-[#00AAFF] transition-colors">
                         {item.name}
                       </p>
-                      <div className="flex items-center gap-2 mt-0.5">
+                      <div className="flex items-center gap-2 mt-1">
                         <span
                           className={cn(
                             "text-xs font-medium px-2 py-0.5 rounded-full",
@@ -447,11 +510,19 @@ export default function PipelinePage() {
                     </div>
 
                     {/* Next action */}
-                    <div className="hidden md:block text-right">
-                      <p className="text-sm text-white/50">{item.nextAction}</p>
+                    <div className="hidden md:block text-right max-w-[180px]">
+                      <p className="text-sm text-white/50 truncate">{item.nextAction}</p>
                     </div>
 
-                    <ChevronRight className="h-4 w-4 text-white/30 group-hover:text-[#00AAFF] transition-colors shrink-0" />
+                    {/* Open button */}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-white/50 hover:text-[#00AAFF] hover:bg-[#00AAFF]/10 transition-colors shrink-0"
+                    >
+                      Open
+                      <ChevronRight className="h-4 w-4 ml-1" />
+                    </Button>
                   </Link>
                 ))}
               </div>
@@ -463,35 +534,70 @@ export default function PipelinePage() {
   )
 }
 
-// Helper components
-function MetricChip({
+// Metric Card Component
+function MetricCard({
   icon: Icon,
   label,
   value,
   active,
+  helperText,
+  estimated,
 }: {
   icon: React.ElementType
   label: string
   value: number
   active: boolean
+  helperText: string
+  estimated?: boolean
 }) {
   return (
-    <div
+    <Card
       className={cn(
-        "flex items-center gap-3 px-4 py-3 rounded-xl border transition-all",
-        active ? "bg-[#00AAFF]/10 border-[#00AAFF]/30" : "bg-white/[0.03] border-white/10"
+        "border transition-all",
+        active
+          ? "bg-[#00AAFF]/10 border-[#00AAFF]/30"
+          : "bg-white/[0.03] border-white/10"
       )}
     >
-      <Icon
-        className={cn("h-5 w-5", active ? "text-[#00AAFF]" : "text-white/40")}
-      />
-      <span className={cn("text-2xl font-bold", active ? "text-[#00AAFF]" : "text-white/40")}>
-        {value}
-      </span>
-      <span className={cn("text-sm font-medium", active ? "text-white" : "text-white/50")}>
-        {label}
-      </span>
-    </div>
+      <CardContent className="p-4 md:p-5">
+        <div className="flex items-center gap-3 mb-3">
+          <div
+            className={cn(
+              "h-9 w-9 rounded-lg flex items-center justify-center",
+              active ? "bg-[#00AAFF]/20" : "bg-white/[0.05]"
+            )}
+          >
+            <Icon
+              className={cn("h-5 w-5", active ? "text-[#00AAFF]" : "text-white/40")}
+            />
+          </div>
+          {estimated && value === 0 && (
+            <span className="text-[10px] uppercase tracking-wider text-white/30 bg-white/[0.05] px-1.5 py-0.5 rounded">
+              est.
+            </span>
+          )}
+        </div>
+        <p
+          className={cn(
+            "text-3xl font-bold mb-1",
+            active ? "text-[#00AAFF]" : "text-white/40"
+          )}
+        >
+          {value}
+        </p>
+        <p
+          className={cn(
+            "text-sm font-medium mb-1",
+            active ? "text-white" : "text-white/50"
+          )}
+        >
+          {label}
+        </p>
+        {value === 0 && (
+          <p className="text-xs text-white/30 mt-2">{helperText}</p>
+        )}
+      </CardContent>
+    </Card>
   )
 }
 
