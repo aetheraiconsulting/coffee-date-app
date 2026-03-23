@@ -1,9 +1,33 @@
+"use client"
+
+import { useState } from 'react'
 import Link from 'next/link'
 import { FileText, Clock, MessageCircle, Check, Play } from 'lucide-react'
+import { AuthModal } from '@/components/auth-modal'
 
 export default function LandingPage() {
+  const [authModalOpen, setAuthModalOpen] = useState(false)
+  const [authModalTab, setAuthModalTab] = useState<"signin" | "signup">("signin")
+
+  const openSignIn = () => {
+    setAuthModalTab("signin")
+    setAuthModalOpen(true)
+  }
+
+  const openSignUp = () => {
+    setAuthModalTab("signup")
+    setAuthModalOpen(true)
+  }
+
   return (
     <div className="min-h-screen bg-[#080B0F] text-white">
+      {/* Auth Modal */}
+      <AuthModal 
+        open={authModalOpen} 
+        onOpenChange={setAuthModalOpen}
+        defaultTab={authModalTab}
+      />
+
       {/* SECTION 1 — NAV */}
       <nav className="border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
         <div className="max-w-[1200px] mx-auto px-6 py-4 flex items-center justify-between">
@@ -11,19 +35,19 @@ export default function LandingPage() {
             AETHER <span className="text-[#00AAFF]">AI</span> LAB
           </div>
           <div className="flex items-center gap-3">
-            <Link
-              href="/login"
+            <button
+              onClick={openSignIn}
               className="px-5 py-2.5 text-sm font-medium text-white rounded-lg transition-colors hover:bg-white/5"
               style={{ border: '0.5px solid rgba(255,255,255,0.06)' }}
             >
               Sign in
-            </Link>
-            <Link
-              href="/signup"
+            </button>
+            <button
+              onClick={openSignUp}
               className="px-5 py-2.5 text-sm font-medium text-black bg-[#00AAFF] rounded-lg hover:bg-[#00AAFF]/90 transition-colors"
             >
               Get started
-            </Link>
+            </button>
           </div>
         </div>
       </nav>
@@ -92,12 +116,12 @@ export default function LandingPage() {
 
           {/* CTAs */}
           <div className="flex flex-wrap items-center justify-center gap-4 mb-6">
-            <Link
-              href="/signup"
+            <button
+              onClick={openSignUp}
               className="px-8 py-3.5 text-sm font-medium text-black bg-[#00AAFF] rounded-lg hover:bg-[#00AAFF]/90 transition-colors"
             >
               Start free
-            </Link>
+            </button>
             <button 
               className="flex items-center gap-2 px-6 py-3.5 text-sm font-medium text-white rounded-lg hover:bg-white/5 transition-colors"
               style={{ border: '0.5px solid rgba(255,255,255,0.15)' }}
@@ -350,12 +374,12 @@ export default function LandingPage() {
             No experience needed. Just follow the system.
           </p>
           
-          <Link
-            href="/signup"
+          <button
+            onClick={openSignUp}
             className="inline-block px-10 py-3.5 text-sm font-medium text-black bg-[#00AAFF] rounded-lg hover:bg-[#00AAFF]/90 transition-colors"
           >
             Get started free
-          </Link>
+          </button>
           
           <p className="text-[11px] mt-6" style={{ color: 'rgba(255,255,255,0.2)' }}>
             No credit card required · No tech setup required · Cancel anytime
