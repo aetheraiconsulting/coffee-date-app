@@ -1,20 +1,20 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { Syne, DM_Sans } from 'next/font/google'
+import { Manrope, DM_Sans } from 'next/font/google'
 import "./globals.css"
 
-const syne = Syne({
+const manrope = Manrope({
   subsets: ["latin"],
-  variable: "--font-syne",
+  variable: "--font-manrope",
   display: "swap",
-  weight: ["700", "800"],
+  weight: ["800"],
 })
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
   variable: "--font-dm-sans",
   display: "swap",
-  weight: ["300", "400", "500"],
+  weight: ["400", "500"],
 })
 
 export const metadata: Metadata = {
@@ -30,7 +30,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning className="dark">
-      <body className={`${syne.variable} ${dmSans.variable} font-sans antialiased`}>{children}</body>
+      <body className={`${manrope.variable} ${dmSans.variable} font-sans antialiased`}>{children}</body>
     </html>
   )
 }
