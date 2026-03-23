@@ -1,11 +1,7 @@
-import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { FileText, Clock, MessageCircle, Check, Play } from 'lucide-react'
 
 export default function LandingPage() {
-  // TEMPORARY: Redirect to dashboard for preview - remove this line later
-  redirect('/dashboard')
-  
   return (
     <div className="min-h-screen bg-[#080B0F] text-white">
       {/* SECTION 1 — NAV */}

@@ -51,64 +51,31 @@ export default async function DashboardPage() {
     data: { user },
   } = await supabase.auth.getUser()
 
-  // TEMPORARY: Allow preview without auth - remove this block later
-  const isPreviewMode = !user
-  const mockUser = {
-    id: "preview-user",
-    email: "preview@aetherailab.com",
+  if (!user) {
+    redirect("/login")
   }
-  const activeUser = user || mockUser
 
-  // Original auth redirect - commented out for preview
-  // if (!user) {
-  //   redirect("/login")
-  // }
+  // Fetch user profile
+  const { data: profile } = await supabase.from("profiles").select("full_name, email").eq("id", user.id).single()
 
-  // Fetch user profile (use mock data in preview mode)
-  let profile = null
-  let ghlConnections: { id: string }[] | null = []
-  let sessions: { id: string }[] | null = []
-  let androids: { id: string }[] | null = []
-  let quizzes: { id: string }[] | null = []
-  let nichesData: { id: string; is_favourite: boolean; status: string }[] | null = []
-  let campaigns: { id: string; metrics: unknown }[] | null = []
-  let conversations: { id: string; status: string }[] | null = []
-
-  if (!isPreviewMode && user) {
-    const { data: profileData } = await supabase.from("profiles").select("full_name, email").eq("id", user.id).single()
-    profile = profileData
-
-    // Fetch all metrics in parallel
-    const results = await Promise.all([
-      supabase.from("ghl_connections").select("id").eq("user_id", user.id),
-      supabase.from("sessions").select("id").eq("user_id", user.id),
-      supabase.from("androids").select("id").eq("user_id", user.id),
-      supabase.from("quiz_templates").select("id").eq("user_id", user.id),
-      supabase.from("niche_user_state").select("id, is_favourite, status").eq("user_id", user.id),
-      supabase.from("revival_campaigns").select("id, metrics").eq("user_id", user.id),
-      supabase.from("revival_conversations").select("id, status").eq("user_id", user.id),
-    ])
-    ghlConnections = results[0].data
-    sessions = results[1].data
-    androids = results[2].data
-    quizzes = results[3].data
-    nichesData = results[4].data
-    campaigns = results[5].data
-    conversations = results[6].data
-  } else {
-    // Mock data for preview
-    profile = { full_name: "Alex Demo", email: "preview@aetherailab.com" }
-    ghlConnections = [{ id: "1" }]
-    androids = [{ id: "1" }, { id: "2" }]
-    quizzes = [{ id: "1" }]
-    nichesData = [
-      { id: "1", is_favourite: true, status: "Active" },
-      { id: "2", is_favourite: true, status: "Win" },
-      { id: "3", is_favourite: false, status: "Active" },
-    ]
-    campaigns = [{ id: "1", metrics: {} }]
-    conversations = [{ id: "1", status: "active" }, { id: "2", status: "completed" }]
-  }
+  // Fetch all metrics in parallel
+  const [
+    { data: ghlConnections },
+    { data: sessions },
+    { data: androids },
+    { data: quizzes },
+    { data: nichesData },
+    { data: campaigns },
+    { data: conversations },
+  ] = await Promise.all([
+    supabase.from("ghl_connections").select("id").eq("user_id", user.id),
+    supabase.from("sessions").select("id").eq("user_id", user.id),
+    supabase.from("androids").select("id").eq("user_id", user.id),
+    supabase.from("quiz_templates").select("id").eq("user_id", user.id),
+    supabase.from("niche_user_state").select("id, is_favourite, status").eq("user_id", user.id),
+    supabase.from("revival_campaigns").select("id, metrics").eq("user_id", user.id),
+    supabase.from("revival_conversations").select("id, status").eq("user_id", user.id),
+  ])
 
   // Calculate counts
   const ghlCount = ghlConnections?.length || 0
