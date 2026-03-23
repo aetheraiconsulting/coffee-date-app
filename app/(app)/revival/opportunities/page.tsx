@@ -2,7 +2,8 @@
 
 import type React from "react"
 
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useCallback, useRef, useMemo } from "react"
+import Link from "next/link"
 import { createClient } from "@/lib/supabase/client"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -921,9 +922,69 @@ export default function OpportunitiesPage() {
   const selectedNicheTier = selectedNicheScore ? getPriorityTier(selectedNicheScore.pipelineScore) : "cold"
   const selectedNicheAlerts = selectedNiche ? getAutomationAlerts(selectedNiche.user_state) : []
 
+  // Get top opportunity (highest scoring niche that's not already Won)
+  const topOpportunity = useMemo(() => {
+    const scored = allNiches
+      .filter((n) => n.user_state?.status !== "Win")
+      .map((n) => ({ ...n, score: calculateNicheScore(n) }))
+      .sort((a, b) => b.score.pipelineScore - a.score.pipelineScore)
+    return scored[0] || null
+  }, [allNiches])
+
   return (
     <TooltipProvider>
       <div className="min-h-screen bg-black p-6">
+        {/* Page Header */}
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold text-white mb-2">Opportunities</h1>
+          <p className="text-white/60">Find high-potential niches and start outreach</p>
+        </div>
+
+        {/* Best Opportunity Right Now */}
+        {topOpportunity && !showAddNiche && (
+          <div className="mb-6">
+            <div className="relative overflow-hidden rounded-xl border border-[#00AAFF]/30 bg-gradient-to-r from-[#00AAFF]/10 to-transparent p-6">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-[#00AAFF]/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+              <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Flame className="h-4 w-4 text-[#00AAFF]" />
+                    <span className="text-xs font-semibold uppercase tracking-wider text-[#00AAFF]">Best Opportunity Right Now</span>
+                  </div>
+                  <h2 className="text-xl font-bold text-white mb-1">{topOpportunity.niche_name}</h2>
+                  <p className="text-sm text-white/60">{topOpportunity.industry_name}</p>
+                  <div className="flex items-center gap-3 mt-3">
+                    <span className="text-xs px-2 py-1 rounded-full bg-white/10 text-white/70">
+                      Score: {topOpportunity.score.pipelineScore}
+                    </span>
+                    <span className="text-xs px-2 py-1 rounded-full bg-white/10 text-white/70">
+                      {topOpportunity.user_state?.status || "Research"}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <Button
+                    variant="outline"
+                    onClick={() => setSelectedNiche(topOpportunity)}
+                    className="border-white/20 text-white hover:bg-white/10"
+                  >
+                    View Details
+                  </Button>
+                  <Button
+                    asChild
+                    className="bg-[#00AAFF] hover:bg-[#0099EE] text-white shadow-lg shadow-[#00AAFF]/30"
+                  >
+                    <Link href="/revival">
+                      Start Outreach
+                      <ChevronRight className="h-4 w-4 ml-1" />
+                    </Link>
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Filter Bar */}
         <div className="flex items-center gap-4 p-4 bg-zinc-900/50 rounded-xl border border-white/10 mb-6">
           <div className="relative flex-1 min-w-[200px]">
@@ -1101,22 +1162,35 @@ export default function OpportunitiesPage() {
                             <span className="text-xs text-[#808080]">Score: {score.pipelineScore}</span>
                           </div>
                         </div>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            toggleFavourite(niche)
-                          }}
-                          className="shrink-0"
-                        >
-                          <Star
-                            className={cn(
-                              "h-4 w-4 transition-colors",
-                              niche.user_state?.is_favourite
-                                ? "fill-yellow-400 text-yellow-400"
-                                : "text-white/30 hover:text-white/50",
-                            )}
-                          />
-                        </button>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <Button
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              // Navigate to outreach with this niche pre-selected
+                              window.location.href = "/revival"
+                            }}
+                            className="h-7 px-3 text-xs bg-[#00AAFF] hover:bg-[#0099EE] text-white"
+                          >
+                            Start Outreach
+                          </Button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              toggleFavourite(niche)
+                            }}
+                            className="shrink-0"
+                          >
+                            <Star
+                              className={cn(
+                                "h-4 w-4 transition-colors",
+                                niche.user_state?.is_favourite
+                                  ? "fill-yellow-400 text-yellow-400"
+                                  : "text-white/30 hover:text-white/50",
+                              )}
+                            />
+                          </button>
+                        </div>
                       </div>
                     </Card>
                   )
@@ -1313,6 +1387,57 @@ export default function OpportunitiesPage() {
                     </div>
                   </div>
 
+                  {/* Why This Works Section */}
+                  <div className="bg-white/[0.03] border border-white/10 rounded-xl p-5 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Lightbulb className="h-5 w-5 text-[#00AAFF]" />
+                      <h3 className="text-sm font-semibold text-white">Why this works</h3>
+                    </div>
+                    <p className="text-sm text-white/70 leading-relaxed">
+                      {selectedNiche.industry_name} businesses typically have large customer databases that go dormant over time. 
+                      They respond well to AI-powered revival campaigns because the ROI is immediate and measurable.
+                    </p>
+                  </div>
+
+                  {/* Suggested Angle Section */}
+                  <div className="bg-white/[0.03] border border-white/10 rounded-xl p-5 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <MessageSquare className="h-5 w-5 text-purple-400" />
+                      <h3 className="text-sm font-semibold text-white">Suggested angle</h3>
+                    </div>
+                    <p className="text-sm text-white/70 leading-relaxed italic">
+                      {aiSuggestions?.messageIdea || `"I help ${selectedNiche.industry_name.toLowerCase()} businesses reactivate their dormant leads using AI-powered conversations. Would you be open to seeing how it works?"`}
+                    </p>
+                  </div>
+
+                  {/* Next Step Section */}
+                  <div className="bg-[#00AAFF]/10 border border-[#00AAFF]/30 rounded-xl p-5 space-y-4">
+                    <div className="flex items-center gap-2">
+                      <ChevronRight className="h-5 w-5 text-[#00AAFF]" />
+                      <h3 className="text-sm font-semibold text-white">Next Step</h3>
+                    </div>
+                    <p className="text-sm text-white/70">
+                      {selectedNiche.user_state?.status === "Research" 
+                        ? "Add research notes and prepare your messaging to move forward."
+                        : selectedNiche.user_state?.status === "Shortlisted"
+                        ? "Prepare your outreach messaging and scripts."
+                        : selectedNiche.user_state?.status === "Outreach in Progress"
+                        ? "Continue your outreach and track responses."
+                        : selectedNiche.user_state?.status === "Coffee Date Demo"
+                        ? "Schedule and complete a demo to close the deal."
+                        : "Start your outreach campaign to engage this niche."}
+                    </p>
+                    <Button
+                      asChild
+                      className="w-full bg-[#00AAFF] hover:bg-[#0099EE] text-white shadow-lg shadow-[#00AAFF]/30"
+                    >
+                      <Link href="/revival">
+                        Start Outreach
+                        <ChevronRight className="h-4 w-4 ml-1" />
+                      </Link>
+                    </Button>
+                  </div>
+
                   {/* AI Insights Panel */}
                   <div className="bg-gradient-to-br from-purple-500/10 to-blue-500/10 border border-purple-500/20 rounded-xl p-5 space-y-4">
                     <div className="flex items-center gap-2">
@@ -1334,16 +1459,6 @@ export default function OpportunitiesPage() {
                           </div>
                           <p className="text-sm text-white/80 bg-white/5 rounded-lg px-3 py-2">
                             {aiSuggestions.topPriorityAction}
-                          </p>
-                        </div>
-
-                        <div className="space-y-1.5">
-                          <div className="flex items-center gap-2 text-xs font-medium text-blue-300">
-                            <MessageSquare className="h-3.5 w-3.5" />
-                            Message Idea
-                          </div>
-                          <p className="text-sm text-white/80 bg-white/5 rounded-lg px-3 py-2 italic">
-                            {aiSuggestions.messageIdea}
                           </p>
                         </div>
 
@@ -1833,13 +1948,12 @@ export default function OpportunitiesPage() {
                 </Card>
               ) : (
                 <Card className="border border-white/10 bg-zinc-900/50 h-full min-h-[400px] flex flex-col items-center justify-center text-center p-8 rounded-xl">
-                  <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
-                    <Search className="h-8 w-8 text-white/20" />
+                  <div className="w-16 h-16 rounded-full bg-[#00AAFF]/10 flex items-center justify-center mb-4">
+                    <Target className="h-8 w-8 text-[#00AAFF]/60" />
                   </div>
-                  <h3 className="text-lg font-medium text-white/60">Select a niche to view details</h3>
-                  <p className="text-sm text-white/40 mt-2 max-w-sm">
-                    Click on any niche from the list to view its pipeline score, automation alerts, and manage the
-                    workflow.
+                  <h3 className="text-lg font-medium text-white">Choose a niche to start your outreach</h3>
+                  <p className="text-sm text-white/50 mt-2 max-w-sm">
+                    Select a niche from the list to see why it could work for you and get started with outreach.
                   </p>
                 </Card>
               )}
