@@ -1,18 +1,25 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { Inter } from 'next/font/google'
+import { Syne, DM_Sans } from 'next/font/google'
 import "./globals.css"
 
-const inter = Inter({
+const syne = Syne({
   subsets: ["latin"],
-  variable: "--font-sans",
+  variable: "--font-syne",
   display: "swap",
-  weight: ["400", "500", "600", "700"],
+  weight: ["700", "800"],
+})
+
+const dmSans = DM_Sans({
+  subsets: ["latin"],
+  variable: "--font-dm-sans",
+  display: "swap",
+  weight: ["300", "400", "500"],
 })
 
 export const metadata: Metadata = {
-  title: "Aether AI Consulting - Agency Platform",
-  description: "AI agency platform for Coffee Date demos, lead revival, and client tools",
+  title: "Aether AI Lab - Land Your First AI Client in 14 Days",
+  description: "AI client acquisition system for young entrepreneurs. Send outreach, run audits, close clients. Everything in one place.",
   generator: 'v0.app'
 }
 
@@ -23,7 +30,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning className="dark">
-      <body className={`${inter.variable} font-sans antialiased`}>{children}</body>
+      <body className={`${syne.variable} ${dmSans.variable} font-sans antialiased`}>{children}</body>
     </html>
   )
 }
