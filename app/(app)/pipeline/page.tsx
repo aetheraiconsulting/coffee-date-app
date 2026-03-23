@@ -538,15 +538,7 @@ export default function PipelinePage() {
 }
 
 // Metric Card Component
-function MetricCard({
-  icon: Icon,
-  label,
-  value,
-  active,
-  helperText,
-  estimated,
-  targetText,
-}: {
+function MetricCard(props: {
   icon: React.ElementType
   label: string
   value: number
@@ -555,6 +547,7 @@ function MetricCard({
   estimated?: boolean
   targetText?: string
 }) {
+  const { icon: Icon, label, value, active, helperText, estimated, targetText } = props
   return (
     <Card
       className={cn(
