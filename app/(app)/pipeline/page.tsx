@@ -294,7 +294,7 @@ export default function PipelinePage() {
                     </Link>
                   </Button>
                   <p className="text-xs text-white/40">
-                    Most users get their first reply within 24-72 hours
+                    Most users who send 20 messages get 2-5 replies
                   </p>
                 </div>
               </div>
@@ -427,22 +427,12 @@ export default function PipelinePage() {
                   {"Let's get your first client into the pipeline"}
                 </h3>
                 <p className="text-white/50 mb-8 max-w-md mx-auto leading-relaxed">
-                  {"You don't have any active prospects yet. Start by choosing a niche and sending your first outreach."}
+                  {"You don't have any active prospects yet. Your first step is choosing a niche and sending outreach."}
                 </p>
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                   <Button
                     asChild
                     className="bg-[#00AAFF] hover:bg-[#0099EE] text-white font-semibold h-12 px-8 shadow-lg shadow-[#00AAFF]/30"
-                  >
-                    <Link href="/revival">
-                      Start Outreach
-                      <ChevronRight className="h-4 w-4 ml-1" />
-                    </Link>
-                  </Button>
-                  <Button
-                    asChild
-                    variant="outline"
-                    className="border-white/20 text-white hover:bg-white/10 h-12 px-8"
                   >
                     <Link href="/revival/opportunities">
                       Browse Opportunities
