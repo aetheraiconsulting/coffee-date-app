@@ -32,6 +32,7 @@ const menuSections = [
     label: "Execution",
     items: [
       { icon: MessageSquareHeart, label: "Outreach", href: "/revival", exact: true },
+      { icon: Coffee, label: "Coffee Date Demo", href: "/demo" },
       { icon: FileSearch, label: "AI Audit", href: "/audit" },
       { icon: ClipboardList, label: "Quiz", href: "/quiz" },
     ],
