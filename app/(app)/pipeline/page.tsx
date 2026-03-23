@@ -545,6 +545,7 @@ function MetricCard({
   active,
   helperText,
   estimated,
+  targetText,
 }: {
   icon: React.ElementType
   label: string
