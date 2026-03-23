@@ -926,7 +926,7 @@ export default function OpportunitiesPage() {
   const topOpportunity = useMemo(() => {
     const scored = allNiches
       .filter((n) => n.user_state?.status !== "Win")
-      .map((n) => ({ ...n, score: calculateNicheScore(n) }))
+      .map((n) => ({ ...n, score: calculatePipelineScore(n.user_state) }))
       .sort((a, b) => b.score.pipelineScore - a.score.pipelineScore)
     return scored[0] || null
   }, [allNiches])
