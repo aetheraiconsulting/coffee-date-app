@@ -57,7 +57,25 @@ export default async function DashboardPage() {
   const currentDay = 3 // For demo purposes
 
   // Determine user's current stage and today's mission (DYNAMIC NEXT ACTION ENGINE)
+  // 5 MISSION STATES based on user progress
+  const activeConversations = conversations?.filter(c => c.status === "active").length || 0
+  const repliesCount = Math.floor(conversationsCount * 0.3)
+  const callsBooked = Math.floor(repliesCount * 0.2)
+  
+  type MissionState = "no_outreach" | "messages_sent_no_replies" | "replies_received" | "call_booked" | "call_completed"
+  
+  const getMissionState = (): MissionState => {
+    if (ghlCount === 0 || favouritesCount === 0 || conversationsCount === 0) return "no_outreach"
+    if (conversationsCount > 0 && repliesCount === 0) return "messages_sent_no_replies"
+    if (repliesCount > 0 && callsBooked === 0) return "replies_received"
+    if (callsBooked > 0 && winsCount === 0) return "call_booked"
+    return "call_completed"
+  }
+  
+  const missionState = getMissionState()
+
   const getMissionData = () => {
+    // Pre-GHL setup states
     if (ghlCount === 0) {
       return {
         mission: "Connect Your GHL Account",
@@ -66,6 +84,7 @@ export default async function DashboardPage() {
         cta: "Connect Now",
         href: "/revival/connect",
         timeEstimate: "~5 minutes",
+        progress: null,
       }
     }
     if (favouritesCount === 0) {
@@ -76,36 +95,87 @@ export default async function DashboardPage() {
         cta: "Pick Your Niche",
         href: "/revival/opportunities",
         timeEstimate: "~10 minutes",
+        progress: null,
       }
     }
-    if (conversationsCount < 20) {
+    
+    // STATE 1: No outreach started
+    if (missionState === "no_outreach") {
       return {
         mission: "Send Your First 20 Messages",
-        subtext: "We'll generate your messages. You'll send them in minutes.",
+        subtext: "We'll generate your messages. You just click send.",
         why: "This is the step that creates your first replies. Without this, nothing moves.",
         cta: "Send Messages",
         href: "/revival",
         timeEstimate: "~15 minutes",
+        progress: {
+          current: conversationsCount,
+          target: 20,
+          label: "messages sent",
+        },
       }
     }
-    const activeConversations = conversations?.filter(c => c.status === "active").length || 0
-    if (activeConversations > 0) {
+    
+    // STATE 2: Messages sent, no replies yet
+    if (missionState === "messages_sent_no_replies") {
+      return {
+        mission: "Follow Up With Your Leads",
+        subtext: "Your messages are out there. Now follow up to get replies.",
+        why: "Follow-ups double your reply rate. Most leads respond on the 2nd or 3rd touch.",
+        cta: "Send Follow-ups",
+        href: "/revival",
+        timeEstimate: "~10 minutes",
+        progress: {
+          current: conversationsCount,
+          target: 20,
+          label: "leads contacted",
+        },
+      }
+    }
+    
+    // STATE 3: Replies received, no call booked
+    if (missionState === "replies_received") {
       return {
         mission: "Book Your First Call",
-        subtext: `You have ${activeConversations} active conversation${activeConversations > 1 ? "s" : ""} waiting`,
+        subtext: `You have ${activeConversations} active conversation${activeConversations !== 1 ? "s" : ""} waiting`,
         why: "Replies without calls don't close deals. This is where revenue starts.",
         cta: "View Conversations",
         href: "/revival",
         timeEstimate: "~10 minutes",
+        progress: {
+          current: repliesCount,
+          target: repliesCount,
+          label: "replies received",
+        },
       }
     }
+    
+    // STATE 4: Call booked, need to run demo
+    if (missionState === "call_booked") {
+      return {
+        mission: "Run Your First Demo",
+        subtext: `You have ${callsBooked} call${callsBooked !== 1 ? "s" : ""} booked. Time to close.`,
+        why: "The demo is where deals happen. Show them the value, ask for the close.",
+        cta: "Prepare Demo",
+        href: "/demo",
+        timeEstimate: "~30 minutes",
+        progress: {
+          current: callsBooked,
+          target: callsBooked,
+          label: "calls booked",
+        },
+      }
+    }
+    
+    // STATE 5: Call completed, close the deal
     return {
-      mission: "Close Your First Deal",
-      subtext: "You're in the final stretch",
-      why: "Everything you've done leads here. Focus on delivering value in your calls.",
+      mission: "Close Your First Client",
+      subtext: "You're in the final stretch. Send the proposal.",
+      why: "Everything you've done leads here. Focus on delivering value and asking for the close.",
       cta: "View Pipeline",
       href: "/pipeline",
-      timeEstimate: "~30 minutes",
+      timeEstimate: "~15 minutes",
+      progress: null,
     }
   }
 
@@ -174,13 +244,11 @@ export default async function DashboardPage() {
 
   // Pipeline metrics (4 cards only as per spec)
   const leadsContacted = conversationsCount
-  const replies = Math.floor(conversationsCount * 0.3)
-  const callsBooked = Math.floor(replies * 0.2)
   const dealsClosed = winsCount
 
   const pipelineStats = [
     { label: "Leads Contacted", value: leadsContacted, icon: Send },
-    { label: "Replies", value: replies, icon: MessageSquare },
+    { label: "Replies", value: repliesCount, icon: MessageSquare },
     { label: "Calls Booked", value: callsBooked, icon: Phone },
     { label: "Deals Closed", value: dealsClosed, icon: Handshake },
   ]
@@ -217,6 +285,30 @@ export default async function DashboardPage() {
                     </p>
                   </div>
                 </div>
+
+                {/* Micro Progress Tracking (when applicable) */}
+                {missionData.progress && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-white/70">
+                        <span className="text-[#00AAFF] font-bold">{missionData.progress.current}</span>
+                        {" / "}
+                        <span className="text-white/50">{missionData.progress.target}</span>
+                        {" "}
+                        <span className="text-white/50">{missionData.progress.label}</span>
+                      </span>
+                      <span className="text-white/40 text-xs">
+                        {Math.round((missionData.progress.current / missionData.progress.target) * 100)}%
+                      </span>
+                    </div>
+                    <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-[#00AAFF] rounded-full transition-all duration-500"
+                        style={{ width: `${Math.min((missionData.progress.current / missionData.progress.target) * 100, 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
 
                 {/* CTA */}
                 <div className="space-y-2">
