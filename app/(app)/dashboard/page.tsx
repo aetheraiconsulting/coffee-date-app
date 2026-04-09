@@ -1,35 +1,20 @@
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import {
-  MessageSquare,
-  PlayCircle,
-  Sparkles,
-  Zap,
-  Target,
-  CheckCircle2,
-  Lock,
   ChevronRight,
-  FileText,
-  Users,
+  Target,
+  Send,
   Phone,
   Handshake,
-  Send,
-  Coffee,
-  Library,
+  MessageSquare,
+  CheckCircle2,
+  Circle,
+  Loader2,
 } from "lucide-react"
 import Link from "next/link"
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import { cn } from "@/lib/utils"
-
-// Journey steps configuration - updated for client acquisition focus
-const JOURNEY_STEPS = [
-  { id: "ghl", label: "Connect GHL", href: "/revival", icon: MessageSquare },
-  { id: "audit", label: "Generate AI Audit", href: "/audit", icon: FileText },
-  { id: "niche", label: "Choose Target Niche", href: "/revival/opportunities", icon: Target },
-  { id: "outreach", label: "Launch Outreach", href: "/revival", icon: Send },
-  { id: "deal", label: "Close First Deal", href: "/revival/opportunities", icon: Handshake },
-]
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -48,15 +33,11 @@ export default async function DashboardPage() {
   // Fetch all metrics in parallel
   const [
     { data: ghlConnections },
-    { data: androids },
-    { data: quizzes },
     { data: nichesData },
     { data: campaigns },
     { data: conversations },
   ] = await Promise.all([
     supabase.from("ghl_connections").select("id").eq("user_id", user.id),
-    supabase.from("androids").select("id").eq("user_id", user.id),
-    supabase.from("quiz_templates").select("id").eq("user_id", user.id),
     supabase.from("niche_user_state").select("id, is_favourite, status").eq("user_id", user.id),
     supabase.from("revival_campaigns").select("id, metrics").eq("user_id", user.id),
     supabase.from("revival_conversations").select("id, status").eq("user_id", user.id),
@@ -64,335 +45,358 @@ export default async function DashboardPage() {
 
   // Calculate counts
   const ghlCount = ghlConnections?.length || 0
-  const androidsCount = androids?.length || 0
-  const quizzesCount = quizzes?.length || 0
   const favouritesCount = nichesData?.filter((n) => n.is_favourite).length || 0
   const campaignsCount = campaigns?.length || 0
   const conversationsCount = conversations?.length || 0
   const winsCount = nichesData?.filter((n) => n.status === "Win").length || 0
 
-  // Get first name from profile or email
+  // Get first name
   const firstName = profile?.full_name?.split(" ")[0] || user.email?.split("@")[0] || "there"
 
-  // Calculate journey progress
-  const journeyProgress = {
-    ghl: ghlCount > 0,
-    audit: androidsCount > 0, // Using androids as proxy for audit generation
-    niche: favouritesCount > 0,
-    outreach: campaignsCount > 0,
-    deal: winsCount > 0,
+  // Determine current day in the 14-day sprint (simulated - would come from user onboarding date)
+  const currentDay = 3 // For demo purposes
+
+  // Determine user's current stage and today's mission
+  const getMissionData = () => {
+    if (ghlCount === 0) {
+      return {
+        mission: "Connect your GHL account to access your leads",
+        why: "This unlocks your dead lead database for revival campaigns",
+        cta: "Connect GHL",
+        href: "/revival/connect",
+      }
+    }
+    if (favouritesCount === 0) {
+      return {
+        mission: "Choose your target niche to focus your outreach",
+        why: "A focused niche converts 3x better than generic outreach",
+        cta: "Browse Niches",
+        href: "/revival/opportunities",
+      }
+    }
+    if (conversationsCount < 20) {
+      return {
+        mission: "Send 20 revival messages to your selected niche",
+        why: "Most users who send 20 messages get 2-5 replies within 48 hours",
+        cta: "Start Outreach",
+        href: "/revival",
+      }
+    }
+    return {
+      mission: "Follow up with your active conversations",
+      why: "Quick responses increase booking rates by 40%",
+      cta: "View Conversations",
+      href: "/revival",
+    }
   }
 
-  const completedSteps = Object.values(journeyProgress).filter(Boolean).length
-  const totalSteps = JOURNEY_STEPS.length
+  const missionData = getMissionData()
 
-  // Find first incomplete step
-  const firstIncompleteStep = JOURNEY_STEPS.find((step) => !journeyProgress[step.id as keyof typeof journeyProgress])
+  // Calculate next steps checklist
+  const getNextSteps = () => {
+    const steps = []
 
-  // Pipeline metrics - simulate for now, would come from real data
+    // Step 1: Create your offer / Choose niche
+    if (favouritesCount === 0) {
+      steps.push({
+        label: "Choose your target niche",
+        status: "not_started" as const,
+        href: "/revival/opportunities",
+      })
+    } else {
+      steps.push({
+        label: "Choose your target niche",
+        status: "complete" as const,
+        href: "/revival/opportunities",
+      })
+    }
+
+    // Step 2: Send outreach messages
+    if (conversationsCount === 0) {
+      steps.push({
+        label: "Send outreach messages",
+        status: favouritesCount > 0 ? "in_progress" as const : "not_started" as const,
+        href: "/revival",
+      })
+    } else if (conversationsCount < 20) {
+      steps.push({
+        label: `Send outreach messages (${conversationsCount}/20)`,
+        status: "in_progress" as const,
+        href: "/revival",
+      })
+    } else {
+      steps.push({
+        label: "Send outreach messages",
+        status: "complete" as const,
+        href: "/revival",
+      })
+    }
+
+    // Step 3: Book your first call
+    const callsBooked = Math.floor(conversationsCount * 0.3 * 0.2) // Simulated
+    if (callsBooked === 0) {
+      steps.push({
+        label: "Book your first call",
+        status: "not_started" as const,
+        href: "/pipeline",
+      })
+    } else {
+      steps.push({
+        label: "Book your first call",
+        status: "complete" as const,
+        href: "/pipeline",
+      })
+    }
+
+    return steps.slice(0, 3) // Max 3 items
+  }
+
+  const nextSteps = getNextSteps()
+
+  // Pipeline metrics (4 cards only as per spec)
   const leadsContacted = conversationsCount
   const replies = Math.floor(conversationsCount * 0.3)
-  const activeConversations = conversations?.filter((c) => c.status === "active").length || 0
   const callsBooked = Math.floor(replies * 0.2)
   const dealsClosed = winsCount
 
   const pipelineStats = [
-    { label: "Leads Contacted", value: leadsContacted, active: leadsContacted > 0 },
-    { label: "Replies", value: replies, active: replies > 0 },
-    { label: "Conversations", value: activeConversations, active: activeConversations > 0 },
-    { label: "Calls Booked", value: callsBooked, active: callsBooked > 0 },
-    { label: "Deals Closed", value: dealsClosed, active: dealsClosed > 0 },
+    { label: "Leads Contacted", value: leadsContacted, icon: Send },
+    { label: "Replies", value: replies, icon: MessageSquare },
+    { label: "Calls Booked", value: callsBooked, icon: Phone },
+    { label: "Deals Closed", value: dealsClosed, icon: Handshake },
   ]
-
-  // Get the next action based on progress
-  const getNextAction = () => {
-    if (ghlCount === 0) return { action: "Connect your GHL account", href: "/revival" }
-    if (androidsCount === 0) return { action: "Generate your first AI audit", href: "/audit" }
-    if (favouritesCount === 0) return { action: "Choose your target niche", href: "/revival/opportunities" }
-    if (campaignsCount === 0) return { action: "Send your first 20 outreach messages", href: "/revival" }
-    return { action: "Follow up with active conversations", href: "/revival" }
-  }
-
-  const nextAction = getNextAction()
 
   return (
     <div className="min-h-screen bg-[#080B0F]">
-      <div className="max-w-6xl mx-auto p-6 md:p-10 space-y-10">
-        {/* Subtle background glow */}
-        <div className="absolute inset-0 bg-gradient-to-b from-[#00AAFF]/5 to-transparent pointer-events-none" />
-
+      <div className="max-w-4xl mx-auto p-6 md:p-10 space-y-8">
         {/* ============================================
-            MISSION CONTROL - TOP SECTION
+            1. TODAY'S MISSION (PRIMARY FOCUS)
         ============================================ */}
-        <section className="space-y-8 relative">
-          {/* Main heading */}
-          <div className="space-y-2">
-            <h1 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight">
-              Let's get you your first client
-            </h1>
-            <p className="text-white/50 text-lg">
-              You're one step away from booking your first call
-            </p>
-          </div>
-
-          {/* Primary Mission Card */}
+        <section>
           <Card className="bg-gradient-to-br from-[#00AAFF]/15 via-[#00AAFF]/5 to-transparent border-2 border-[#00AAFF]/30 rounded-2xl shadow-xl shadow-[#00AAFF]/10 overflow-hidden">
             <CardContent className="p-6 md:p-8">
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Target className="h-5 w-5 text-[#00AAFF]" />
-                    <span className="text-sm font-semibold text-[#00AAFF] uppercase tracking-wide">Objective</span>
-                  </div>
-                  <p className="text-xl md:text-2xl font-bold text-white">Book your first client call</p>
-                  <div className="flex items-center gap-2 text-white/60">
-                    <ChevronRight className="h-4 w-4 text-[#00AAFF]" />
-                    <span className="text-sm">Next Action: <span className="text-white font-medium">{nextAction.action}</span></span>
-                  </div>
+              <div className="space-y-6">
+                {/* Label */}
+                <div className="flex items-center gap-2">
+                  <Target className="h-5 w-5 text-[#00AAFF]" />
+                  <span className="text-sm font-semibold text-[#00AAFF] uppercase tracking-wide">
+                    Today&apos;s Mission
+                  </span>
                 </div>
-                <div className="flex flex-col items-start md:items-end gap-3">
-                  <Button
-                    asChild
-                    size="lg"
-                    className="bg-[#00AAFF] hover:bg-[#0099EE] text-white font-semibold shadow-lg shadow-[#00AAFF]/30 hover:shadow-xl hover:shadow-[#00AAFF]/40 transition-all duration-200 active:scale-[0.98] h-12 px-8 text-base"
-                  >
-                    <Link href={nextAction.href}>
-                      Start Outreach
-                      <ChevronRight className="h-5 w-5 ml-2" />
-                    </Link>
-                  </Button>
-                  <p className="text-xs text-white/40">Most users get their first reply within 24–72 hours</p>
+
+                {/* Mission text */}
+                <div className="space-y-2">
+                  <h1 className="text-2xl md:text-3xl font-bold text-white leading-tight">
+                    {missionData.mission}
+                  </h1>
+                  <p className="text-white/60">
+                    {missionData.why}
+                  </p>
                 </div>
+
+                {/* CTA */}
+                <Button
+                  asChild
+                  size="lg"
+                  className="bg-[#00AAFF] hover:bg-[#0099EE] text-white font-semibold shadow-lg shadow-[#00AAFF]/30 hover:shadow-xl hover:shadow-[#00AAFF]/40 transition-all duration-200 h-12 px-8 text-base"
+                >
+                  <Link href={missionData.href}>
+                    {missionData.cta}
+                    <ChevronRight className="h-5 w-5 ml-2" />
+                  </Link>
+                </Button>
               </div>
             </CardContent>
           </Card>
         </section>
 
         {/* ============================================
-            PIPELINE SECTION
+            2. PROGRESS TRACKER (14-day sprint)
+        ============================================ */}
+        <section className="space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-white/70">
+              Day {currentDay} of 14 – First Client Sprint
+            </span>
+            <span className="text-xs text-white/40">
+              {Math.round((currentDay / 14) * 100)}% complete
+            </span>
+          </div>
+          <div className="relative h-2 bg-white/10 rounded-full overflow-hidden">
+            <div
+              className="absolute inset-y-0 left-0 bg-gradient-to-r from-[#00AAFF] to-[#00AAFF]/70 rounded-full transition-all duration-500"
+              style={{ width: `${(currentDay / 14) * 100}%` }}
+            />
+            {/* Day markers */}
+            <div className="absolute inset-0 flex justify-between px-1">
+              {Array.from({ length: 14 }, (_, i) => (
+                <div
+                  key={i}
+                  className={cn(
+                    "w-1 h-full",
+                    i + 1 <= currentDay ? "bg-transparent" : "bg-white/5"
+                  )}
+                />
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ============================================
+            3. NEXT STEPS PANEL (Checklist)
         ============================================ */}
         <section className="space-y-4">
-          <h2 className="text-lg font-semibold text-white/80">Your Pipeline</h2>
-          <div className="flex flex-wrap gap-3">
-            {pipelineStats.map((stat) => (
-              <div
-                key={stat.label}
-                className={cn(
-                  "flex items-center gap-3 px-4 py-3 rounded-xl border transition-all",
-                  stat.active
-                    ? "bg-[#00AAFF]/10 border-[#00AAFF]/30"
-                    : "bg-white/[0.03] border-white/10"
-                )}
-              >
-                <span className={cn(
-                  "text-2xl font-bold",
-                  stat.active ? "text-[#00AAFF]" : "text-white/40"
-                )}>
-                  {stat.value}
-                </span>
-                <span className={cn(
-                  "text-sm font-medium",
-                  stat.active ? "text-white" : "text-white/50"
-                )}>
-                  {stat.label}
-                </span>
-              </div>
-            ))}
-          </div>
-        </section>
+          <h2 className="text-sm font-semibold text-white/50 uppercase tracking-wide">
+            Next Steps
+          </h2>
+          <Card className="bg-white/[0.03] border border-white/10 rounded-xl">
+            <CardContent className="p-0">
+              {nextSteps.map((step, index) => (
+                <Link
+                  key={index}
+                  href={step.href}
+                  className={cn(
+                    "flex items-center gap-4 p-4 transition-all hover:bg-white/[0.03]",
+                    index !== nextSteps.length - 1 && "border-b border-white/10"
+                  )}
+                >
+                  {/* Status icon */}
+                  <div className="shrink-0">
+                    {step.status === "complete" ? (
+                      <CheckCircle2 className="h-5 w-5 text-green-400" />
+                    ) : step.status === "in_progress" ? (
+                      <Loader2 className="h-5 w-5 text-[#00AAFF] animate-spin" />
+                    ) : (
+                      <Circle className="h-5 w-5 text-white/30" />
+                    )}
+                  </div>
 
-        <div className="w-full h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-
-        {/* ============================================
-            JOURNEY SECTION
-        ============================================ */}
-        <section className="space-y-6">
-          <div>
-            <h2 className="text-lg font-semibold text-white/80">Your Journey to First Client</h2>
-            <p className="text-white/40 text-sm mt-1">Complete each step to close your first deal</p>
-          </div>
-
-          <Card className="bg-white/[0.03] border border-white/10 rounded-2xl">
-            <CardContent className="p-6 md:p-8">
-              {/* Journey Steps */}
-              <div className="space-y-1">
-                {JOURNEY_STEPS.map((step, index) => {
-                  const isComplete = journeyProgress[step.id as keyof typeof journeyProgress]
-                  const isNext = step.id === firstIncompleteStep?.id
-                  const isLocked = !isComplete && !isNext
-                  const Icon = step.icon
-
-                  return (
-                    <Link
-                      key={step.id}
-                      href={isLocked ? "#" : step.href}
-                      className={cn(
-                        "flex items-center gap-4 p-4 rounded-xl transition-all duration-200",
-                        isComplete && "bg-[#00AAFF]/10 hover:bg-[#00AAFF]/15",
-                        isNext && "bg-[#00AAFF]/5 border border-[#00AAFF]/30 hover:bg-[#00AAFF]/10",
-                        isLocked && "opacity-40 cursor-not-allowed",
-                        !isLocked && "hover:scale-[1.01] active:scale-[0.99]"
-                      )}
-                    >
-                      {/* Step indicator */}
-                      <div
-                        className={cn(
-                          "h-10 w-10 rounded-full flex items-center justify-center shrink-0 transition-all",
-                          isComplete && "bg-[#00AAFF] text-white",
-                          isNext && "bg-[#00AAFF]/20 text-[#00AAFF] border-2 border-[#00AAFF]",
-                          isLocked && "bg-white/10 text-white/40"
-                        )}
-                      >
-                        {isComplete ? (
-                          <CheckCircle2 className="h-5 w-5" />
-                        ) : isLocked ? (
-                          <Lock className="h-4 w-4" />
-                        ) : (
-                          <Icon className="h-5 w-5" />
-                        )}
-                      </div>
-
-                      {/* Step label */}
-                      <div className="flex-1">
-                        <span
-                          className={cn(
-                            "font-medium",
-                            isComplete && "text-white",
-                            isNext && "text-[#00AAFF]",
-                            isLocked && "text-white/40"
-                          )}
-                        >
-                          {index + 1}. {step.label}
-                        </span>
-                        {isComplete && (
-                          <span className="ml-2 text-xs text-green-400 font-medium">Complete</span>
-                        )}
-                        {isNext && (
-                          <span className="ml-2 text-xs text-[#00AAFF] font-medium">Next Step</span>
-                        )}
-                      </div>
-
-                      {/* Action indicator */}
-                      {(isComplete || isNext) && (
-                        <ChevronRight className={cn(
-                          "h-5 w-5",
-                          isComplete ? "text-white/50" : "text-[#00AAFF]"
-                        )} />
-                      )}
-                    </Link>
-                  )
-                })}
-              </div>
-
-              {/* Next step CTA */}
-              {firstIncompleteStep && (
-                <div className="flex items-center justify-between pt-6 mt-6 border-t border-white/10">
-                  <span className="text-white/60 text-sm">
-                    Next Step: <span className="text-[#00AAFF] font-medium">{firstIncompleteStep.label}</span>
-                  </span>
-                  <Button
-                    asChild
-                    className="bg-[#00AAFF] hover:bg-[#0099EE] text-white transition-all duration-200 active:scale-[0.98]"
+                  {/* Label */}
+                  <span
+                    className={cn(
+                      "flex-1 font-medium",
+                      step.status === "complete" && "text-white/50 line-through",
+                      step.status === "in_progress" && "text-white",
+                      step.status === "not_started" && "text-white/70"
+                    )}
                   >
-                    <Link href={firstIncompleteStep.href}>
-                      Start Now
-                      <ChevronRight className="h-4 w-4 ml-1" />
-                    </Link>
-                  </Button>
-                </div>
-              )}
+                    {step.label}
+                  </span>
+
+                  {/* Arrow for actionable items */}
+                  {step.status !== "complete" && (
+                    <ChevronRight className="h-4 w-4 text-white/30" />
+                  )}
+                </Link>
+              ))}
             </CardContent>
           </Card>
         </section>
 
-        <div className="w-full h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+        {/* ============================================
+            4. PIPELINE SNAPSHOT (4 metrics)
+        ============================================ */}
+        <section className="space-y-4">
+          <h2 className="text-sm font-semibold text-white/50 uppercase tracking-wide">
+            Pipeline
+          </h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {pipelineStats.map((stat) => {
+              const Icon = stat.icon
+              const isActive = stat.value > 0
+              return (
+                <Card
+                  key={stat.label}
+                  className={cn(
+                    "border transition-all",
+                    isActive
+                      ? "bg-[#00AAFF]/10 border-[#00AAFF]/30"
+                      : "bg-white/[0.03] border-white/10"
+                  )}
+                >
+                  <CardContent className="p-4 text-center">
+                    <Icon
+                      className={cn(
+                        "h-5 w-5 mx-auto mb-2",
+                        isActive ? "text-[#00AAFF]" : "text-white/30"
+                      )}
+                    />
+                    <p
+                      className={cn(
+                        "text-2xl font-bold",
+                        isActive ? "text-white" : "text-white/40"
+                      )}
+                    >
+                      {stat.value}
+                    </p>
+                    <p className="text-xs text-white/50 mt-1">{stat.label}</p>
+                  </CardContent>
+                </Card>
+              )
+            })}
+          </div>
+        </section>
 
         {/* ============================================
-            TOOLS SECTION (SECONDARY)
+            5. QUICK ACTIONS (2-3 buttons)
         ============================================ */}
-        <section className="space-y-6">
-          <h2 className="text-lg font-semibold text-white/80">Tools</h2>
-          
-          <div className="grid md:grid-cols-2 gap-6">
-            {/* Outreach Tools */}
-            <div className="space-y-3">
-              <h3 className="text-sm font-medium text-white/50 uppercase tracking-wide">Outreach</h3>
-              <div className="space-y-2">
-                <Link href="/demo">
-                  <div className="flex items-center gap-3 p-4 rounded-xl bg-white/[0.03] border border-white/10 hover:bg-white/[0.06] hover:border-white/20 transition-all group">
-                    <div className="h-10 w-10 rounded-lg bg-[#00AAFF]/10 flex items-center justify-center">
-                      <Coffee className="h-5 w-5 text-[#00AAFF]" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-medium text-white group-hover:text-[#00AAFF] transition-colors">Coffee Date Demo</p>
-                      <p className="text-xs text-white/40">Test conversations instantly</p>
-                    </div>
-                    <ChevronRight className="h-4 w-4 text-white/30 group-hover:text-[#00AAFF] transition-colors" />
-                  </div>
-                </Link>
-                <Link href="/revival">
-                  <div className="flex items-center gap-3 p-4 rounded-xl bg-white/[0.03] border border-white/10 hover:bg-white/[0.06] hover:border-white/20 transition-all group">
-                    <div className="h-10 w-10 rounded-lg bg-[#00AAFF]/10 flex items-center justify-center">
-                      <MessageSquare className="h-5 w-5 text-[#00AAFF]" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-medium text-white group-hover:text-[#00AAFF] transition-colors">GHL Dead Lead Revival</p>
-                      <p className="text-xs text-white/40">Revive dormant leads</p>
-                    </div>
-                    <ChevronRight className="h-4 w-4 text-white/30 group-hover:text-[#00AAFF] transition-colors" />
-                  </div>
-                </Link>
-              </div>
-            </div>
-
-            {/* Strategy Tools */}
-            <div className="space-y-3">
-              <h3 className="text-sm font-medium text-white/50 uppercase tracking-wide">Strategy</h3>
-              <div className="space-y-2">
-                <Link href="/quiz">
-                  <div className="flex items-center gap-3 p-4 rounded-xl bg-white/[0.03] border border-white/10 hover:bg-white/[0.06] hover:border-white/20 transition-all group">
-                    <div className="h-10 w-10 rounded-lg bg-[#00AAFF]/10 flex items-center justify-center">
-                      <Sparkles className="h-5 w-5 text-[#00AAFF]" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-medium text-white group-hover:text-[#00AAFF] transition-colors">AI Readiness Quiz</p>
-                      <p className="text-xs text-white/40">Qualify leads automatically</p>
-                    </div>
-                    <ChevronRight className="h-4 w-4 text-white/30 group-hover:text-[#00AAFF] transition-colors" />
-                  </div>
-                </Link>
-                <Link href="/audit">
-                  <div className="flex items-center gap-3 p-4 rounded-xl bg-white/[0.03] border border-white/10 hover:bg-white/[0.06] hover:border-white/20 transition-all group">
-                    <div className="h-10 w-10 rounded-lg bg-[#00AAFF]/10 flex items-center justify-center">
-                      <FileText className="h-5 w-5 text-[#00AAFF]" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-medium text-white group-hover:text-[#00AAFF] transition-colors">AI Audit</p>
-                      <p className="text-xs text-white/40">Generate business insights</p>
-                    </div>
-                    <ChevronRight className="h-4 w-4 text-white/30 group-hover:text-[#00AAFF] transition-colors" />
-                  </div>
-                </Link>
-              </div>
-            </div>
+        <section className="space-y-4">
+          <h2 className="text-sm font-semibold text-white/50 uppercase tracking-wide">
+            Quick Actions
+          </h2>
+          <div className="flex flex-wrap gap-3">
+            <Button
+              asChild
+              className="bg-[#00AAFF] hover:bg-[#0099EE] text-white"
+            >
+              <Link href="/revival">
+                <Send className="h-4 w-4 mr-2" />
+                Go to Outreach
+              </Link>
+            </Button>
+            <Button
+              asChild
+              variant="outline"
+              className="border-white/20 text-white hover:bg-white/10"
+            >
+              <Link href="/revival/opportunities">
+                <Target className="h-4 w-4 mr-2" />
+                Edit Niche
+              </Link>
+            </Button>
+            <Button
+              asChild
+              variant="outline"
+              className="border-white/20 text-white hover:bg-white/10"
+            >
+              <Link href="/pipeline">
+                <Handshake className="h-4 w-4 mr-2" />
+                View Pipeline
+              </Link>
+            </Button>
           </div>
+        </section>
 
-          {/* Resources */}
-          <div className="space-y-3">
-            <h3 className="text-sm font-medium text-white/50 uppercase tracking-wide">Resources</h3>
-            <Link href="/library">
-              <div className="flex items-center gap-3 p-4 rounded-xl bg-white/[0.03] border border-white/10 hover:bg-white/[0.06] hover:border-white/20 transition-all group max-w-md">
-                <div className="h-10 w-10 rounded-lg bg-[#00AAFF]/10 flex items-center justify-center">
-                  <Library className="h-5 w-5 text-[#00AAFF]" />
-                </div>
-                <div className="flex-1">
-                  <p className="font-medium text-white group-hover:text-[#00AAFF] transition-colors">Prompt Library</p>
-                  <p className="text-xs text-white/40">Ready-to-use AI prompts</p>
-                </div>
-                <ChevronRight className="h-4 w-4 text-white/30 group-hover:text-[#00AAFF] transition-colors" />
+        {/* ============================================
+            6. MOMENTUM / FEEDBACK SECTION
+        ============================================ */}
+        <section>
+          <Card className="bg-white/[0.02] border border-white/10 rounded-xl">
+            <CardContent className="p-4 flex items-center gap-3">
+              <div className="h-8 w-8 rounded-full bg-green-500/20 flex items-center justify-center shrink-0">
+                <CheckCircle2 className="h-4 w-4 text-green-400" />
               </div>
-            </Link>
-          </div>
+              <p className="text-sm text-white/60">
+                {conversationsCount === 0
+                  ? "You're on track. Start your outreach today to get your first reply within 24-48 hours."
+                  : conversationsCount < 20
+                  ? `Keep going! You've contacted ${conversationsCount} leads. Most users get their first reply after 20 messages.`
+                  : replies > 0
+                  ? `Great momentum! You have ${replies} replies. Focus on booking calls to close your first deal.`
+                  : "You're on track. Most users get their first reply within 24-48 hours."}
+              </p>
+            </CardContent>
+          </Card>
         </section>
       </div>
     </div>
