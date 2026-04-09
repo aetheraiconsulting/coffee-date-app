@@ -56,37 +56,56 @@ export default async function DashboardPage() {
   // Determine current day in the 14-day sprint (simulated - would come from user onboarding date)
   const currentDay = 3 // For demo purposes
 
-  // Determine user's current stage and today's mission
+  // Determine user's current stage and today's mission (DYNAMIC NEXT ACTION ENGINE)
   const getMissionData = () => {
     if (ghlCount === 0) {
       return {
-        mission: "Connect your GHL account to access your leads",
-        why: "This unlocks your dead lead database for revival campaigns",
-        cta: "Connect GHL",
+        mission: "Connect Your GHL Account",
+        subtext: "We'll pull in your contacts automatically",
+        why: "This is the step that unlocks everything. Without this, you have no leads to work with.",
+        cta: "Connect Now",
         href: "/revival/connect",
+        timeEstimate: "~5 minutes",
       }
     }
     if (favouritesCount === 0) {
       return {
-        mission: "Choose your target niche to focus your outreach",
-        why: "A focused niche converts 3x better than generic outreach",
-        cta: "Browse Niches",
+        mission: "Choose Your Target Niche",
+        subtext: "We'll show you the best opportunities",
+        why: "A focused niche converts 3x better. This decision shapes all your messaging.",
+        cta: "Pick Your Niche",
         href: "/revival/opportunities",
+        timeEstimate: "~10 minutes",
       }
     }
     if (conversationsCount < 20) {
       return {
-        mission: "Send 20 revival messages to your selected niche",
-        why: "Most users who send 20 messages get 2-5 replies within 48 hours",
-        cta: "Start Outreach",
+        mission: "Send Your First 20 Messages",
+        subtext: "We'll generate your messages. You'll send them in minutes.",
+        why: "This is the step that creates your first replies. Without this, nothing moves.",
+        cta: "Send Messages",
         href: "/revival",
+        timeEstimate: "~15 minutes",
+      }
+    }
+    const activeConversations = conversations?.filter(c => c.status === "active").length || 0
+    if (activeConversations > 0) {
+      return {
+        mission: "Book Your First Call",
+        subtext: `You have ${activeConversations} active conversation${activeConversations > 1 ? "s" : ""} waiting`,
+        why: "Replies without calls don't close deals. This is where revenue starts.",
+        cta: "View Conversations",
+        href: "/revival",
+        timeEstimate: "~10 minutes",
       }
     }
     return {
-      mission: "Follow up with your active conversations",
-      why: "Quick responses increase booking rates by 40%",
-      cta: "View Conversations",
-      href: "/revival",
+      mission: "Close Your First Deal",
+      subtext: "You're in the final stretch",
+      why: "Everything you've done leads here. Focus on delivering value in your calls.",
+      cta: "View Pipeline",
+      href: "/pipeline",
+      timeEstimate: "~30 minutes",
     }
   }
 
@@ -185,26 +204,36 @@ export default async function DashboardPage() {
                 </div>
 
                 {/* Mission text */}
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <h1 className="text-2xl md:text-3xl font-bold text-white leading-tight">
                     {missionData.mission}
                   </h1>
-                  <p className="text-white/60">
-                    {missionData.why}
-                  </p>
+                  <div className="space-y-1">
+                    <p className="text-white/80 text-base">
+                      {missionData.subtext}
+                    </p>
+                    <p className="text-white/50 text-sm">
+                      {missionData.why}
+                    </p>
+                  </div>
                 </div>
 
                 {/* CTA */}
-                <Button
-                  asChild
-                  size="lg"
-                  className="bg-[#00AAFF] hover:bg-[#0099EE] text-white font-semibold shadow-lg shadow-[#00AAFF]/30 hover:shadow-xl hover:shadow-[#00AAFF]/40 transition-all duration-200 h-12 px-8 text-base"
-                >
-                  <Link href={missionData.href}>
-                    {missionData.cta}
-                    <ChevronRight className="h-5 w-5 ml-2" />
-                  </Link>
-                </Button>
+                <div className="space-y-2">
+                  <Button
+                    asChild
+                    size="lg"
+                    className="bg-[#00AAFF] hover:bg-[#0099EE] text-white font-semibold shadow-lg shadow-[#00AAFF]/30 hover:shadow-xl hover:shadow-[#00AAFF]/40 transition-all duration-200 h-12 px-8 text-base"
+                  >
+                    <Link href={missionData.href}>
+                      {missionData.cta}
+                      <ChevronRight className="h-5 w-5 ml-2" />
+                    </Link>
+                  </Button>
+                  <p className="text-xs text-white/40">
+                    This should take you {missionData.timeEstimate}
+                  </p>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -243,11 +272,11 @@ export default async function DashboardPage() {
         </section>
 
         {/* ============================================
-            3. NEXT STEPS PANEL (Checklist)
+            3. YOUR PATH TO FIRST CLIENT (Dynamic checklist)
         ============================================ */}
         <section className="space-y-4">
           <h2 className="text-sm font-semibold text-white/50 uppercase tracking-wide">
-            Next Steps
+            Your Path to First Client
           </h2>
           <Card className="bg-white/[0.03] border border-white/10 rounded-xl">
             <CardContent className="p-0">
@@ -294,51 +323,73 @@ export default async function DashboardPage() {
         </section>
 
         {/* ============================================
-            4. PIPELINE SNAPSHOT (4 metrics)
+            4. PIPELINE SNAPSHOT (4 metrics with empty state guidance)
         ============================================ */}
         <section className="space-y-4">
           <h2 className="text-sm font-semibold text-white/50 uppercase tracking-wide">
             Pipeline
           </h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {pipelineStats.map((stat) => {
-              const Icon = stat.icon
-              const isActive = stat.value > 0
-              return (
-                <Card
-                  key={stat.label}
-                  className={cn(
-                    "border transition-all",
-                    isActive
-                      ? "bg-[#00AAFF]/10 border-[#00AAFF]/30"
-                      : "bg-white/[0.03] border-white/10"
-                  )}
+          {leadsContacted === 0 ? (
+            <Card className="bg-white/[0.03] border border-white/10 rounded-xl">
+              <CardContent className="p-6 text-center">
+                <Send className="h-8 w-8 text-white/20 mx-auto mb-3" />
+                <p className="text-white/60 mb-1">Your pipeline is empty</p>
+                <p className="text-sm text-white/40 mb-4">
+                  Send your first 20 messages to start building your pipeline.
+                </p>
+                <Button
+                  asChild
+                  size="sm"
+                  className="bg-[#00AAFF] hover:bg-[#0099EE] text-white"
                 >
-                  <CardContent className="p-4 text-center">
-                    <Icon
-                      className={cn(
-                        "h-5 w-5 mx-auto mb-2",
-                        isActive ? "text-[#00AAFF]" : "text-white/30"
-                      )}
-                    />
-                    <p
-                      className={cn(
-                        "text-2xl font-bold",
-                        isActive ? "text-white" : "text-white/40"
-                      )}
-                    >
-                      {stat.value}
-                    </p>
-                    <p className="text-xs text-white/50 mt-1">{stat.label}</p>
-                  </CardContent>
-                </Card>
-              )
-            })}
-          </div>
+                  <Link href="/revival">
+                    Send Messages
+                    <ChevronRight className="h-4 w-4 ml-1" />
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {pipelineStats.map((stat) => {
+                const Icon = stat.icon
+                const isActive = stat.value > 0
+                return (
+                  <Card
+                    key={stat.label}
+                    className={cn(
+                      "border transition-all",
+                      isActive
+                        ? "bg-[#00AAFF]/10 border-[#00AAFF]/30"
+                        : "bg-white/[0.03] border-white/10"
+                    )}
+                  >
+                    <CardContent className="p-4 text-center">
+                      <Icon
+                        className={cn(
+                          "h-5 w-5 mx-auto mb-2",
+                          isActive ? "text-[#00AAFF]" : "text-white/30"
+                        )}
+                      />
+                      <p
+                        className={cn(
+                          "text-2xl font-bold",
+                          isActive ? "text-white" : "text-white/40"
+                        )}
+                      >
+                        {stat.value}
+                      </p>
+                      <p className="text-xs text-white/50 mt-1">{stat.label}</p>
+                    </CardContent>
+                  </Card>
+                )
+              })}
+            </div>
+          )}
         </section>
 
         {/* ============================================
-            5. QUICK ACTIONS (2-3 buttons)
+            5. QUICK ACTIONS (Action-focused, not navigation)
         ============================================ */}
         <section className="space-y-4">
           <h2 className="text-sm font-semibold text-white/50 uppercase tracking-wide">
@@ -351,7 +402,17 @@ export default async function DashboardPage() {
             >
               <Link href="/revival">
                 <Send className="h-4 w-4 mr-2" />
-                Go to Outreach
+                Send Messages
+              </Link>
+            </Button>
+            <Button
+              asChild
+              variant="outline"
+              className="border-white/20 text-white hover:bg-white/10"
+            >
+              <Link href="/revival">
+                <MessageSquare className="h-4 w-4 mr-2" />
+                View Conversations
               </Link>
             </Button>
             <Button
@@ -361,17 +422,7 @@ export default async function DashboardPage() {
             >
               <Link href="/revival/opportunities">
                 <Target className="h-4 w-4 mr-2" />
-                Edit Niche
-              </Link>
-            </Button>
-            <Button
-              asChild
-              variant="outline"
-              className="border-white/20 text-white hover:bg-white/10"
-            >
-              <Link href="/pipeline">
-                <Handshake className="h-4 w-4 mr-2" />
-                View Pipeline
+                Generate Messages
               </Link>
             </Button>
           </div>
