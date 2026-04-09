@@ -23,13 +23,22 @@ export default function LoginPage() {
     e.preventDefault()
     setLoading(true)
 
+    console.log("[v0] Login attempt with email:", email)
+
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
 
-      if (error) throw error
+      console.log("[v0] Supabase auth response:", { data, error })
+
+      if (error) {
+        console.log("[v0] Auth error:", error.message, error.status, error.name)
+        throw error
+      }
+
+      console.log("[v0] Login successful, user:", data.user?.email)
 
       toast({
         title: "Welcome back!",
@@ -39,6 +48,7 @@ export default function LoginPage() {
       router.push("/dashboard")
       router.refresh()
     } catch (error: any) {
+      console.log("[v0] Caught error:", error.message)
       toast({
         title: "Authentication Error",
         description: error.message || "Invalid email or password",
