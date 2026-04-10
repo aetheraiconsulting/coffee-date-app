@@ -12,6 +12,7 @@ import {
   Settings2,
   Target,
   ChevronLeft,
+  TrendingUp,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import Image from "next/image"
@@ -23,16 +24,17 @@ const menuSections = [
     label: "Core",
     items: [
       { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
+      { icon: TrendingUp, label: "Pipeline", href: "/pipeline" },
       { icon: Target, label: "Opportunities", href: "/revival/opportunities" },
     ],
   },
   {
-    label: "Tools",
+    label: "Execution",
     items: [
+      { icon: MessageSquareHeart, label: "Outreach", href: "/revival", exact: true },
       { icon: Coffee, label: "Coffee Date Demo", href: "/demo" },
-      { icon: ClipboardList, label: "AI Readiness Quiz", href: "/quiz" },
-      { icon: MessageSquareHeart, label: "GHL Dead Lead Accounts", href: "/revival", exact: true },
       { icon: FileSearch, label: "AI Audit", href: "/audit" },
+      { icon: ClipboardList, label: "Quiz", href: "/quiz" },
     ],
   },
   {
