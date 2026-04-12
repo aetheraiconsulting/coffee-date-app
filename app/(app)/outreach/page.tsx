@@ -29,7 +29,7 @@ type OutreachMessage = {
   id: string
   contact_name: string | null
   business_name: string | null
-  message_body: string
+  message_text: string
   status: "draft" | "sent" | "replied" | "no_reply"
   created_at: string
 }
@@ -348,7 +348,7 @@ export default function OutreachPage() {
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex-1 space-y-2">
                             <p className="text-white text-sm leading-relaxed">
-                              {message.message_body}
+                              {message.message_text}
                             </p>
                             {(message.contact_name || message.business_name) && (
                               <div className="flex items-center gap-2 text-xs text-white/40">
@@ -362,7 +362,7 @@ export default function OutreachPage() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => handleCopy(message.message_body)}
+                              onClick={() => handleCopy(message.message_text)}
                               className="h-8 w-8 p-0 text-white/40 hover:text-white hover:bg-white/10"
                             >
                               <Copy className="h-4 w-4" />
@@ -419,7 +419,7 @@ export default function OutreachPage() {
                       className="flex items-center justify-between p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/20"
                     >
                       <p className="text-sm text-white/70 truncate flex-1 mr-4">
-                        {message.message_body}
+                        {message.message_text}
                       </p>
                       <div className="flex items-center gap-2">
                         <button

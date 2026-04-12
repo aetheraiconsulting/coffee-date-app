@@ -65,7 +65,7 @@ ${offerContext ? `The sender's offer:\n${offerContext}` : ""}
 Return ONLY a JSON array of objects with this exact structure:
 [
   {
-    "message_body": "the message text"
+    "message_text": "the message text"
   }
 ]
 
@@ -111,7 +111,7 @@ Niche: ${niche || "small business"}`,
       user_id: user.id,
       contact_name: contact_name || null,
       business_name: business_name || null,
-      message_body: msg.message_body,
+      message_text: msg.message_text,
       status: "draft",
     }))
 

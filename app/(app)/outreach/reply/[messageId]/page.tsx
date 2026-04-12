@@ -141,7 +141,7 @@ export default function ReplyPage() {
                 Your original message
               </p>
               <p className="text-white/70 text-sm leading-relaxed">
-                {originalMessage.message_body}
+                {originalMessage.message_text}
               </p>
             </CardContent>
           </Card>
