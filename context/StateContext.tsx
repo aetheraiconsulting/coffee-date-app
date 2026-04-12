@@ -8,6 +8,7 @@ interface StateContextType {
   loading: boolean
   error: string | null
   refetch: () => Promise<void>
+  refreshState: () => Promise<void> // Alias for refetch
 }
 
 const StateContext = createContext<StateContextType | undefined>(undefined)
@@ -47,7 +48,7 @@ export function StateProvider({
   }, [fetchState, initialState])
 
   return (
-    <StateContext.Provider value={{ state, loading, error, refetch: fetchState }}>
+    <StateContext.Provider value={{ state, loading, error, refetch: fetchState, refreshState: fetchState }}>
       {children}
     </StateContext.Provider>
   )
@@ -74,16 +75,7 @@ export function useMissionData() {
 
   const getMissionData = () => {
     switch (state.missionState) {
-      case "no_ghl":
-        return {
-          mission: "Connect Your GHL Account",
-          subtext: "We'll pull in your contacts automatically",
-          why: "This is the step that unlocks everything. Without this, you have no leads to work with.",
-          cta: "Connect Now",
-          href: "/revival/connect",
-          timeEstimate: "~5 minutes",
-          progress: null,
-        }
+      // PROGRESSION STATES
       case "no_niche":
         return {
           mission: "Choose Your Target Niche",
@@ -92,6 +84,16 @@ export function useMissionData() {
           cta: "Pick Your Niche",
           href: "/revival/opportunities",
           timeEstimate: "~10 minutes",
+          progress: null,
+        }
+      case "no_offer":
+        return {
+          mission: "Build Your Offer",
+          subtext: "Create the pitch that gets replies",
+          why: "Your offer is what makes them say yes. Without it, outreach falls flat.",
+          cta: "Build Offer",
+          href: "/offer/builder",
+          timeEstimate: "~15 minutes",
           progress: null,
         }
       case "no_outreach":
@@ -106,20 +108,6 @@ export function useMissionData() {
             current: state.outreachCount,
             target: 20,
             label: "messages sent",
-          },
-        }
-      case "messages_sent_no_replies":
-        return {
-          mission: "Follow Up With Your Leads",
-          subtext: "Your messages are out there. Now follow up to get replies.",
-          why: "Follow-ups double your reply rate. Most leads respond on the 2nd or 3rd touch.",
-          cta: "Send Follow-ups",
-          href: "/revival",
-          timeEstimate: "~10 minutes",
-          progress: {
-            current: state.outreachCount,
-            target: 20,
-            label: "leads contacted",
           },
         }
       case "replies_received":
@@ -151,14 +139,104 @@ export function useMissionData() {
           },
         }
       case "call_completed":
-      default:
         return {
-          mission: "Close Your First Client",
-          subtext: "You're in the final stretch. Send the proposal.",
-          why: "Everything you've done leads here. Focus on delivering value and asking for the close.",
+          mission: "Send Your Proposal",
+          subtext: "You've done the demo. Now close the deal.",
+          why: "Proposals that go out within 24 hours close 3x more often.",
+          cta: "Create Proposal",
+          href: "/pipeline",
+          timeEstimate: "~20 minutes",
+          progress: null,
+        }
+      case "proposal_sent":
+        return {
+          mission: "Follow Up on Your Proposal",
+          subtext: "Your proposal is out. Time to close.",
+          why: "Most deals close after the first follow-up. Don't leave money on the table.",
           cta: "View Pipeline",
           href: "/pipeline",
+          timeEstimate: "~10 minutes",
+          progress: null,
+        }
+      
+      // STALL STATES
+      case "stall_no_replies":
+        return {
+          mission: "Improve Your Messaging",
+          subtext: "You've sent messages but haven't gotten replies yet",
+          why: "Let's review your offer and messaging to increase your reply rate.",
+          cta: "Review Messages",
+          href: "/revival",
           timeEstimate: "~15 minutes",
+          progress: {
+            current: state.outreachCount,
+            target: 20,
+            label: "messages sent (no replies)",
+          },
+        }
+      case "stall_low_volume":
+        return {
+          mission: "Send More Messages",
+          subtext: `You've only sent ${state.outreachCount} messages. Most replies come after 20.`,
+          why: "Volume matters. The more conversations you start, the more replies you'll get.",
+          cta: "Continue Outreach",
+          href: "/revival",
+          timeEstimate: "~15 minutes",
+          progress: {
+            current: state.outreachCount,
+            target: 20,
+            label: "messages sent",
+          },
+        }
+      case "stall_thread_cold":
+        return {
+          mission: "Re-engage Cold Threads",
+          subtext: "Some conversations have gone quiet",
+          why: "A well-timed follow-up can revive a dead thread. Don't give up yet.",
+          cta: "View Conversations",
+          href: "/revival",
+          timeEstimate: "~10 minutes",
+          progress: null,
+        }
+      case "stall_call_noshow":
+        return {
+          mission: "Reschedule Your Call",
+          subtext: "Your scheduled call didn't happen",
+          why: "No-shows happen. A quick reschedule message often gets them back.",
+          cta: "Follow Up",
+          href: "/pipeline",
+          timeEstimate: "~5 minutes",
+          progress: null,
+        }
+      case "stall_proposal_ghosted":
+        return {
+          mission: "Follow Up on Proposal",
+          subtext: "Your proposal hasn't gotten a response yet",
+          why: "Proposals need follow-up. A gentle nudge often closes the deal.",
+          cta: "Send Follow-up",
+          href: "/pipeline",
+          timeEstimate: "~5 minutes",
+          progress: null,
+        }
+      case "stall_no_outreach_started":
+        return {
+          mission: "Start Your Outreach",
+          subtext: "You've been preparing but haven't started yet",
+          why: "Preparation is good, but action is better. Time to send your first message.",
+          cta: "Start Outreach",
+          href: "/revival",
+          timeEstimate: "~15 minutes",
+          progress: null,
+        }
+      
+      default:
+        return {
+          mission: "Continue Your Journey",
+          subtext: "Keep making progress",
+          why: "Every step brings you closer to your first client.",
+          cta: "View Dashboard",
+          href: "/dashboard",
+          timeEstimate: "~5 minutes",
           progress: null,
         }
     }
