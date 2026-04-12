@@ -22,6 +22,7 @@ import {
   ChevronRight,
 } from "lucide-react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 
 type CallScript = {
   id: string
@@ -56,6 +57,7 @@ export default function CallPrepPage() {
   const { toast } = useToast()
   const supabase = createClient()
   const { refreshState } = useUserState()
+  const router = useRouter()
 
   useEffect(() => {
     fetchScript()
@@ -63,7 +65,7 @@ export default function CallPrepPage() {
 
   const fetchScript = async () => {
     try {
-      const res = await fetch("/api/demo/script")
+      const res = await fetch("/api/call/script")
       const data = await res.json()
       if (data.script) {
         setScript(data.script)
@@ -79,7 +81,7 @@ export default function CallPrepPage() {
   const generateScript = async () => {
     setGenerating(true)
     try {
-      const res = await fetch("/api/demo/script", { method: "POST" })
+      const res = await fetch("/api/call/script", { method: "POST" })
       const data = await res.json()
 
       if (data.error) {
@@ -141,8 +143,10 @@ export default function CallPrepPage() {
 
       toast({
         title: "Call completed",
-        description: "Great work! Your progress has been updated.",
+        description: "Great work! Now let's create your proposal.",
       })
+
+      router.push("/proposal/builder")
     } catch (error: any) {
       toast({
         title: "Error",

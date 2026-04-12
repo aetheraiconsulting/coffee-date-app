@@ -61,20 +61,20 @@ export async function getUserState(): Promise<UserState | null> {
     { data: nichesData },
     { data: outreachMessagesData },
     { count: replyCount },
-    { data: callsData },
     { data: proposalsData },
     { data: conversations },
-    { data: callScriptsData },
+    { count: callScriptCount },
+    { count: completedCallCount },
   ] = await Promise.all([
     supabase.from("profiles").select("full_name, email, sprint_start_date, offer_id").eq("id", user.id).single(),
     supabase.from("ghl_connections").select("id").eq("user_id", user.id),
     supabase.from("niche_user_state").select("id, is_favourite, status").eq("user_id", user.id),
     supabase.from("outreach_messages").select("id, status").eq("user_id", user.id),
     supabase.from("reply_threads").select("*", { count: "exact", head: true }).eq("user_id", user.id),
-    supabase.from("calls").select("id, status").eq("user_id", user.id),
     supabase.from("proposals").select("id, status").eq("user_id", user.id),
     supabase.from("revival_conversations").select("id, status").eq("user_id", user.id),
-    supabase.from("call_scripts").select("id, call_completed").eq("user_id", user.id),
+    supabase.from("call_scripts").select("*", { count: "exact", head: true }).eq("user_id", user.id),
+    supabase.from("call_scripts").select("*", { count: "exact", head: true }).eq("user_id", user.id).eq("call_completed", true),
   ])
 
   // Calculate counts
@@ -83,7 +83,7 @@ export async function getUserState(): Promise<UserState | null> {
   const favouritesCount = nichesData?.filter((n) => n.is_favourite)?.length || 0
   const outreachCount = outreachMessagesData?.filter((m) => m.status === "sent")?.length || 0
   const repliesCount = replyCount ?? 0
-  const callsCount = callsData?.length || 0
+  const callsCount = callScriptCount ?? 0
   const proposalsCount = proposalsData?.length || 0
   const winsCount = nichesData?.filter((n) => n.status === "Win")?.length || 0
   const conversationsCount = conversations?.length || 0
@@ -102,7 +102,7 @@ export async function getUserState(): Promise<UserState | null> {
   // Note: Would need to fetch created_at from outreach table for real stall detection
   
   // Completed calls from call_scripts table (call_completed = true)
-  const completedCalls = callScriptsData?.filter((c) => c.call_completed)?.length || 0
+  const completedCalls = completedCallCount ?? 0
   const sentProposals = proposalsData?.filter((p) => p.status === "sent" || p.status === "pending")?.length || 0
   const closedProposals = proposalsData?.filter((p) => p.status === "won" || p.status === "lost")?.length || 0
 
@@ -121,10 +121,10 @@ export async function getUserState(): Promise<UserState | null> {
       return "stall_no_replies"
     }
     
-    // Have replies, need to book calls
+    // Have replies, need to book calls (no call scripts generated yet)
     if (repliesCount > 0 && callsCount === 0) return "replies_received"
     
-    // Have calls booked but none completed
+    // Have call scripts generated but none completed
     if (callsCount > 0 && completedCalls === 0) return "call_booked"
     
     // Completed calls but no proposals sent
