@@ -5,168 +5,127 @@ import { useRouter } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
-import { useToast } from "@/hooks/use-toast"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Loader2, Sparkles, ChevronRight, CheckCircle2 } from "lucide-react"
 import { useUserState } from "@/context/StateContext"
-import { ChevronRight, ChevronLeft, Sparkles, CheckCircle2, Loader2 } from "lucide-react"
-import { cn } from "@/lib/utils"
 
-const STEPS = [
-  {
-    id: "headline",
-    title: "Your Headline",
-    description: "What's the bold promise you make to clients?",
-    placeholder: "e.g., 'I help gyms reactivate 50+ dead leads in 30 days using AI'",
-    field: "headline",
-    required: true,
-  },
-  {
-    id: "subheadline",
-    title: "Supporting Statement",
-    description: "Add context or credibility to your headline (optional)",
-    placeholder: "e.g., 'Without hiring staff or spending on ads'",
-    field: "subheadline",
-    required: false,
-  },
-  {
-    id: "problem",
-    title: "The Problem You Solve",
-    description: "What pain point does your ideal client face?",
-    placeholder: "e.g., 'Most gyms have hundreds of leads sitting in their CRM that never converted. They're leaving money on the table.'",
-    field: "problem",
-    required: true,
-    multiline: true,
-  },
-  {
-    id: "solution",
-    title: "Your Solution",
-    description: "How do you solve this problem?",
-    placeholder: "e.g., 'I use AI-powered conversations to re-engage dormant leads and book them into your calendar automatically.'",
-    field: "solution",
-    required: true,
-    multiline: true,
-  },
-  {
-    id: "proof",
-    title: "Proof or Credibility",
-    description: "Why should they trust you? (optional)",
-    placeholder: "e.g., 'I've helped 12 gym owners book 200+ calls in the last 90 days'",
-    field: "proof",
-    required: false,
-    multiline: true,
-  },
-  {
-    id: "cta",
-    title: "Your Call to Action",
-    description: "What do you want them to do next?",
-    placeholder: "e.g., 'Book a 15-minute call to see it in action'",
-    field: "cta",
-    required: true,
-  },
+// Popular niches for the dropdown
+const NICHES = [
+  "Real Estate Agents",
+  "Insurance Brokers",
+  "Financial Advisors",
+  "Mortgage Brokers",
+  "Auto Dealerships",
+  "Home Services",
+  "Medical Practices",
+  "Dental Offices",
+  "Law Firms",
+  "Fitness Studios",
+  "Salons & Spas",
+  "Restaurants",
+  "E-commerce",
+  "SaaS Companies",
+  "Marketing Agencies",
+  "Coaches & Consultants",
+  "Other",
 ]
+
+const INDUSTRIES = [
+  "Real Estate",
+  "Finance & Insurance",
+  "Healthcare",
+  "Legal",
+  "Home Services",
+  "Fitness & Wellness",
+  "Beauty & Personal Care",
+  "Food & Hospitality",
+  "Retail & E-commerce",
+  "Technology",
+  "Professional Services",
+  "Education",
+  "Other",
+]
+
+interface GeneratedOffer {
+  id: string
+  headline: string
+  subheadline: string | null
+  problem: string | null
+  solution: string | null
+  proof: string | null
+  cta: string | null
+  niche: string
+  industry: string
+}
 
 export default function OfferBuilderPage() {
   const router = useRouter()
-  const { toast } = useToast()
   const { refreshState } = useUserState()
   
-  const [currentStep, setCurrentStep] = useState(0)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [formData, setFormData] = useState({
-    headline: "",
-    subheadline: "",
-    problem: "",
-    solution: "",
-    proof: "",
-    cta: "",
-  })
+  const [step, setStep] = useState<"input" | "generating" | "preview">("input")
+  const [niche, setNiche] = useState("")
+  const [customNiche, setCustomNiche] = useState("")
+  const [industry, setIndustry] = useState("")
+  const [customIndustry, setCustomIndustry] = useState("")
+  const [error, setError] = useState<string | null>(null)
+  const [offer, setOffer] = useState<GeneratedOffer | null>(null)
 
-  const currentStepData = STEPS[currentStep]
-  const isLastStep = currentStep === STEPS.length - 1
-  const isFirstStep = currentStep === 0
+  const effectiveNiche = niche === "Other" ? customNiche : niche
+  const effectiveIndustry = industry === "Other" ? customIndustry : industry
+  const canGenerate = effectiveNiche && effectiveIndustry
 
-  const handleInputChange = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
-  }
+  const handleGenerate = async () => {
+    if (!canGenerate) return
 
-  const canProceed = () => {
-    const step = STEPS[currentStep]
-    if (!step.required) return true
-    return formData[step.field as keyof typeof formData]?.trim().length > 0
-  }
-
-  const handleNext = () => {
-    if (!canProceed()) {
-      toast({
-        title: "Required Field",
-        description: "Please fill in this field before continuing.",
-        variant: "destructive",
-      })
-      return
-    }
-    if (!isLastStep) {
-      setCurrentStep((prev) => prev + 1)
-    }
-  }
-
-  const handleBack = () => {
-    if (!isFirstStep) {
-      setCurrentStep((prev) => prev - 1)
-    }
-  }
-
-  const handleSubmit = async () => {
-    if (!canProceed()) {
-      toast({
-        title: "Required Field",
-        description: "Please fill in this field before continuing.",
-        variant: "destructive",
-      })
-      return
-    }
-
-    setIsSubmitting(true)
+    setStep("generating")
+    setError(null)
 
     try {
-      const response = await fetch("/api/offers", {
+      const response = await fetch("/api/offers/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          niche: effectiveNiche,
+          industry: effectiveIndustry,
+        }),
       })
-
-      const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error || "Failed to save offer")
+        const data = await response.json()
+        throw new Error(data.error || "Failed to generate offer")
       }
 
-      // Refresh state to update mission state
+      const data = await response.json()
+      setOffer(data.offer)
+      setStep("preview")
+      
+      // Refresh state so mission updates
       await refreshState()
-
-      toast({
-        title: "Offer Created!",
-        description: "Your offer has been saved. Now let's start outreach.",
-      })
-
-      // Redirect to outreach
-      router.push("/revival")
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to save offer. Please try again.",
-        variant: "destructive",
-      })
-    } finally {
-      setIsSubmitting(false)
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "Something went wrong"
+      setError(errorMessage)
+      setStep("input")
     }
   }
 
-  // Calculate progress
-  const progress = ((currentStep + 1) / STEPS.length) * 100
+  const handleContinue = () => {
+    router.push("/revival")
+  }
+
+  const handleRegenerate = () => {
+    setStep("input")
+    setOffer(null)
+  }
 
   return (
-    <div className="min-h-screen bg-[#080B0F] p-6">
+    <div className="min-h-screen bg-black p-6">
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="mb-8">
@@ -176,204 +135,206 @@ export default function OfferBuilderPage() {
               Offer Builder
             </span>
           </div>
-          <h1 className="text-3xl font-bold text-white mb-2">
-            Build Your Irresistible Offer
-          </h1>
+          <h1 className="text-3xl font-bold text-white mb-2">Build Your Offer</h1>
           <p className="text-white/60">
-            Answer these questions to craft your client-winning pitch
+            Tell us who you want to help, and AI will generate a compelling offer for you.
           </p>
         </div>
 
-        {/* Progress Bar */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between text-sm mb-2">
-            <span className="text-white/60">
-              Step {currentStep + 1} of {STEPS.length}
-            </span>
-            <span className="text-white/40">{Math.round(progress)}% complete</span>
-          </div>
-          <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-[#00AAFF] rounded-full transition-all duration-500"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-        </div>
-
-        {/* Step Indicators */}
-        <div className="flex items-center gap-2 mb-8 overflow-x-auto pb-2">
-          {STEPS.map((step, index) => {
-            const isCompleted = index < currentStep
-            const isCurrent = index === currentStep
-            const hasValue = formData[step.field as keyof typeof formData]?.trim().length > 0
-
-            return (
-              <button
-                key={step.id}
-                onClick={() => {
-                  // Allow clicking to previous steps or completed steps
-                  if (index <= currentStep || hasValue) {
-                    setCurrentStep(index)
-                  }
-                }}
-                className={cn(
-                  "flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all whitespace-nowrap",
-                  isCurrent
-                    ? "bg-[#00AAFF] text-white"
-                    : isCompleted || hasValue
-                    ? "bg-white/10 text-white/80 hover:bg-white/20"
-                    : "bg-white/5 text-white/40 cursor-not-allowed"
-                )}
-              >
-                {isCompleted || hasValue ? (
-                  <CheckCircle2 className="h-3 w-3" />
-                ) : (
-                  <span className="h-3 w-3 flex items-center justify-center text-[10px]">
-                    {index + 1}
-                  </span>
-                )}
-                {step.title}
-              </button>
-            )
-          })}
-        </div>
-
-        {/* Current Step Card */}
-        <Card className="border border-white/10 bg-white/[0.03] rounded-xl mb-8">
-          <CardContent className="p-8">
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-xl font-bold text-white mb-2">
-                  {currentStepData.title}
-                  {currentStepData.required && (
-                    <span className="text-[#00AAFF] ml-1">*</span>
-                  )}
-                </h2>
-                <p className="text-white/60">{currentStepData.description}</p>
-              </div>
-
+        {/* Step: Input */}
+        {step === "input" && (
+          <Card className="bg-white/[0.03] border-white/10">
+            <CardContent className="p-6 space-y-6">
+              {/* Niche Selection */}
               <div className="space-y-2">
-                <Label htmlFor={currentStepData.field} className="sr-only">
-                  {currentStepData.title}
-                </Label>
-                {currentStepData.multiline ? (
-                  <Textarea
-                    id={currentStepData.field}
-                    value={formData[currentStepData.field as keyof typeof formData]}
-                    onChange={(e) =>
-                      handleInputChange(currentStepData.field, e.target.value)
-                    }
-                    placeholder={currentStepData.placeholder}
-                    className="min-h-[150px] bg-white/[0.05] border-white/10 text-white placeholder:text-white/30 focus:border-[#00AAFF] focus:ring-[#00AAFF]/20 text-base"
-                    autoFocus
-                  />
-                ) : (
+                <Label className="text-white">Who do you want to help?</Label>
+                <Select value={niche} onValueChange={setNiche}>
+                  <SelectTrigger className="bg-white/[0.05] border-white/10 text-white h-12">
+                    <SelectValue placeholder="Select a niche..." />
+                  </SelectTrigger>
+                  <SelectContent className="bg-zinc-900 border-white/10">
+                    {NICHES.map((n) => (
+                      <SelectItem key={n} value={n} className="text-white hover:bg-white/10">
+                        {n}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {niche === "Other" && (
                   <Input
-                    id={currentStepData.field}
-                    value={formData[currentStepData.field as keyof typeof formData]}
-                    onChange={(e) =>
-                      handleInputChange(currentStepData.field, e.target.value)
-                    }
-                    placeholder={currentStepData.placeholder}
-                    className="h-12 bg-white/[0.05] border-white/10 text-white placeholder:text-white/30 focus:border-[#00AAFF] focus:ring-[#00AAFF]/20 text-base"
-                    autoFocus
+                    placeholder="Enter your niche..."
+                    value={customNiche}
+                    onChange={(e) => setCustomNiche(e.target.value)}
+                    className="bg-white/[0.05] border-white/10 text-white h-12 mt-2"
                   />
                 )}
               </div>
-            </div>
-          </CardContent>
-        </Card>
 
-        {/* Navigation Buttons */}
-        <div className="flex items-center justify-between">
-          <Button
-            variant="outline"
-            onClick={handleBack}
-            disabled={isFirstStep}
-            className={cn(
-              "border-white/20 text-white hover:bg-white/10",
-              isFirstStep && "opacity-50 cursor-not-allowed"
-            )}
-          >
-            <ChevronLeft className="h-4 w-4 mr-2" />
-            Back
-          </Button>
+              {/* Industry Selection */}
+              <div className="space-y-2">
+                <Label className="text-white">What industry are they in?</Label>
+                <Select value={industry} onValueChange={setIndustry}>
+                  <SelectTrigger className="bg-white/[0.05] border-white/10 text-white h-12">
+                    <SelectValue placeholder="Select an industry..." />
+                  </SelectTrigger>
+                  <SelectContent className="bg-zinc-900 border-white/10">
+                    {INDUSTRIES.map((i) => (
+                      <SelectItem key={i} value={i} className="text-white hover:bg-white/10">
+                        {i}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {industry === "Other" && (
+                  <Input
+                    placeholder="Enter the industry..."
+                    value={customIndustry}
+                    onChange={(e) => setCustomIndustry(e.target.value)}
+                    className="bg-white/[0.05] border-white/10 text-white h-12 mt-2"
+                  />
+                )}
+              </div>
 
-          {isLastStep ? (
-            <Button
-              onClick={handleSubmit}
-              disabled={isSubmitting || !canProceed()}
-              className="bg-[#00AAFF] hover:bg-[#0099EE] text-white shadow-lg shadow-[#00AAFF]/30"
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  Save & Start Outreach
-                  <ChevronRight className="h-4 w-4 ml-2" />
-                </>
+              {/* Error */}
+              {error && (
+                <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
+                  <p className="text-red-400 text-sm">{error}</p>
+                </div>
               )}
-            </Button>
-          ) : (
-            <Button
-              onClick={handleNext}
-              disabled={!canProceed()}
-              className="bg-[#00AAFF] hover:bg-[#0099EE] text-white"
-            >
-              Continue
-              <ChevronRight className="h-4 w-4 ml-2" />
-            </Button>
-          )}
-        </div>
 
-        {/* Preview Section */}
-        {(formData.headline || formData.problem || formData.solution) && (
-          <div className="mt-12">
-            <h3 className="text-sm font-semibold text-white/50 uppercase tracking-wide mb-4">
-              Live Preview
-            </h3>
-            <Card className="border border-[#00AAFF]/20 bg-[#00AAFF]/5 rounded-xl">
-              <CardContent className="p-6 space-y-4">
-                {formData.headline && (
-                  <h4 className="text-xl font-bold text-white">{formData.headline}</h4>
-                )}
-                {formData.subheadline && (
-                  <p className="text-white/70 text-sm">{formData.subheadline}</p>
-                )}
-                {formData.problem && (
-                  <div>
-                    <span className="text-xs text-[#00AAFF] uppercase tracking-wider">
-                      Problem
-                    </span>
-                    <p className="text-white/80 mt-1">{formData.problem}</p>
+              {/* Generate Button */}
+              <Button
+                onClick={handleGenerate}
+                disabled={!canGenerate}
+                className="w-full bg-[#00AAFF] hover:bg-[#0099EE] text-white font-semibold h-12 shadow-lg shadow-[#00AAFF]/30"
+              >
+                <Sparkles className="h-4 w-4 mr-2" />
+                Generate My Offer
+              </Button>
+
+              <p className="text-xs text-white/40 text-center">
+                AI will create a tailored offer based on your selections
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Step: Generating */}
+        {step === "generating" && (
+          <Card className="bg-white/[0.03] border-white/10">
+            <CardContent className="p-12 flex flex-col items-center justify-center text-center">
+              <div className="relative mb-6">
+                <div className="absolute inset-0 bg-[#00AAFF]/20 rounded-full blur-xl animate-pulse" />
+                <div className="relative h-16 w-16 rounded-full bg-[#00AAFF]/10 flex items-center justify-center">
+                  <Loader2 className="h-8 w-8 text-[#00AAFF] animate-spin" />
+                </div>
+              </div>
+              <h2 className="text-xl font-bold text-white mb-2">
+                Generating Your Offer...
+              </h2>
+              <p className="text-white/60 max-w-sm">
+                AI is crafting a compelling offer tailored to {effectiveNiche} in the {effectiveIndustry} industry.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Step: Preview */}
+        {step === "preview" && offer && (
+          <div className="space-y-6">
+            {/* Success Badge */}
+            <div className="flex items-center gap-2 text-emerald-400">
+              <CheckCircle2 className="h-5 w-5" />
+              <span className="text-sm font-medium">Offer Generated Successfully</span>
+            </div>
+
+            {/* Offer Preview Card */}
+            <Card className="bg-gradient-to-br from-[#00AAFF]/10 to-transparent border-[#00AAFF]/30 overflow-hidden">
+              <CardContent className="p-6 space-y-6">
+                {/* Headline */}
+                <div className="space-y-1">
+                  <h2 className="text-2xl font-bold text-white leading-tight">
+                    {offer.headline}
+                  </h2>
+                  {offer.subheadline && (
+                    <p className="text-white/70 text-lg">
+                      {offer.subheadline}
+                    </p>
+                  )}
+                </div>
+
+                {/* Problem */}
+                {offer.problem && (
+                  <div className="space-y-1">
+                    <p className="text-xs uppercase tracking-wider text-white/40 font-semibold">
+                      The Problem
+                    </p>
+                    <p className="text-white/80">{offer.problem}</p>
                   </div>
                 )}
-                {formData.solution && (
-                  <div>
-                    <span className="text-xs text-[#00AAFF] uppercase tracking-wider">
-                      Solution
-                    </span>
-                    <p className="text-white/80 mt-1">{formData.solution}</p>
+
+                {/* Solution */}
+                {offer.solution && (
+                  <div className="space-y-1">
+                    <p className="text-xs uppercase tracking-wider text-white/40 font-semibold">
+                      The Solution
+                    </p>
+                    <p className="text-white/80">{offer.solution}</p>
                   </div>
                 )}
-                {formData.proof && (
-                  <div>
-                    <span className="text-xs text-[#00AAFF] uppercase tracking-wider">
-                      Proof
-                    </span>
-                    <p className="text-white/80 mt-1">{formData.proof}</p>
+
+                {/* Proof */}
+                {offer.proof && (
+                  <div className="space-y-1">
+                    <p className="text-xs uppercase tracking-wider text-white/40 font-semibold">
+                      Why It Works
+                    </p>
+                    <p className="text-white/70 italic">{offer.proof}</p>
                   </div>
                 )}
-                {formData.cta && (
-                  <Button className="bg-[#00AAFF] hover:bg-[#0099EE] text-white mt-4">
-                    {formData.cta}
-                  </Button>
+
+                {/* CTA Preview */}
+                {offer.cta && (
+                  <div className="pt-4 border-t border-white/10">
+                    <div className="inline-flex items-center justify-center px-6 py-3 bg-[#00AAFF] text-white font-semibold rounded-lg">
+                      {offer.cta}
+                    </div>
+                  </div>
                 )}
               </CardContent>
             </Card>
+
+            {/* Niche/Industry Tags */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs px-2 py-1 rounded-full bg-white/10 text-white/60">
+                {offer.niche}
+              </span>
+              <span className="text-xs px-2 py-1 rounded-full bg-white/10 text-white/60">
+                {offer.industry}
+              </span>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                onClick={handleRegenerate}
+                className="flex-1 border-white/20 text-white hover:bg-white/10 h-12"
+              >
+                Regenerate
+              </Button>
+              <Button
+                onClick={handleContinue}
+                className="flex-1 bg-[#00AAFF] hover:bg-[#0099EE] text-white font-semibold h-12 shadow-lg shadow-[#00AAFF]/30"
+              >
+                Continue to Outreach
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            </div>
+
+            <p className="text-xs text-white/40 text-center">
+              Your offer has been saved. You can always edit it later.
+            </p>
           </div>
         )}
       </div>
