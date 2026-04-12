@@ -85,8 +85,8 @@ export default async function DashboardPage() {
           mission: "Book Your First Call",
           subtext: `You have ${activeConversationsCount} active conversation${activeConversationsCount !== 1 ? "s" : ""} waiting`,
           why: "Replies without calls don't close deals. This is where revenue starts.",
-          cta: "View Conversations",
-          href: "/revival",
+          cta: "View Replies",
+          href: "/outreach",
           timeEstimate: "~10 minutes",
           progress: {
             current: repliesCount,
@@ -230,19 +230,19 @@ export default async function DashboardPage() {
       steps.push({
         label: "Send outreach messages",
         status: favouritesCount > 0 ? "in_progress" as const : "not_started" as const,
-        href: "/revival",
+        href: "/outreach",
       })
     } else if (outreachCount < 20) {
       steps.push({
         label: `Send outreach messages (${outreachCount}/20)`,
         status: "in_progress" as const,
-        href: "/revival",
+        href: "/outreach",
       })
     } else {
       steps.push({
         label: "Send outreach messages",
         status: "complete" as const,
-        href: "/revival",
+        href: "/outreach",
       })
     }
 
@@ -447,7 +447,7 @@ export default async function DashboardPage() {
                   size="sm"
                   className="bg-[#00AAFF] hover:bg-[#0099EE] text-white"
                 >
-                  <Link href="/revival">
+                  <Link href="/outreach">
                     Send Messages
                     <ChevronRight className="h-4 w-4 ml-1" />
                   </Link>

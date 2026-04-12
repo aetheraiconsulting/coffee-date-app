@@ -91,17 +91,8 @@ export async function getUserState(): Promise<UserState | null> {
   const conversationsCount = conversations?.length || 0
   const activeConversationsCount = conversations?.filter((c) => c.status === "active")?.length || 0
 
-  // TODO: offer builder writes offer_id to profiles on completion
   // Check if user has created an offer by checking profiles.offer_id
   const hasOffer = profile?.offer_id != null
-
-  // Calculate time-based stall conditions
-  const now = new Date()
-  const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000)
-  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
-
-  // Get latest outreach date for stall detection
-  // Note: Would need to fetch created_at from outreach table for real stall detection
   
   // Completed calls from call_scripts table (call_completed = true)
   const completedCalls = completedCallCount ?? 0

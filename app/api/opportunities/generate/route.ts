@@ -1,3 +1,4 @@
+// NOTE: This route uses OpenAI. Scheduled for migration to Claude in Phase 2.
 import type { NextRequest } from "next/server"
 import { generateText } from "ai"
 
