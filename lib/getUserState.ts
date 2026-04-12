@@ -1,13 +1,25 @@
 import { createClient } from "@/lib/supabase/server"
 
-export type MissionState =
-  | "no_ghl"
+// Progression states (7)
+export type ProgressionState =
   | "no_niche"
+  | "no_offer"
   | "no_outreach"
-  | "messages_sent_no_replies"
   | "replies_received"
   | "call_booked"
   | "call_completed"
+  | "proposal_sent"
+
+// Stall states (6)
+export type StallState =
+  | "stall_no_replies"
+  | "stall_thread_cold"
+  | "stall_call_noshow"
+  | "stall_proposal_ghosted"
+  | "stall_no_outreach_started"
+  | "stall_low_volume"
+
+export type MissionState = ProgressionState | StallState
 
 export interface UserState {
   // Counts
@@ -75,18 +87,52 @@ export async function getUserState(): Promise<UserState | null> {
   const conversationsCount = conversations?.length || 0
   const activeConversationsCount = conversations?.filter((c) => c.status === "active")?.length || 0
 
-  // Determine mission state based on funnel progression
+  // Check if user has created an offer (stored in profiles or a future offers table)
+  // For now, we'll check if they have any niche with outreach messaging prepared
+  const hasOffer = favouritesCount > 0 // TODO: Replace with actual offer check when offer builder exists
+
+  // Calculate time-based stall conditions
+  const now = new Date()
+  const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000)
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+
+  // Get latest outreach date for stall detection
+  // Note: Would need to fetch created_at from outreach table for real stall detection
+  
+  // Completed calls and sent proposals
+  const completedCalls = callsData?.filter((c) => c.status === "completed")?.length || 0
+  const sentProposals = proposalsData?.filter((p) => p.status === "sent" || p.status === "pending")?.length || 0
+  const closedProposals = proposalsData?.filter((p) => p.status === "won" || p.status === "lost")?.length || 0
+
+  // Determine mission state based on funnel progression + stall detection
   const getMissionState = (): MissionState => {
-    if (ghlCount === 0) return "no_ghl"
+    // PROGRESSION STATES (in order of funnel)
     if (favouritesCount === 0) return "no_niche"
+    if (!hasOffer) return "no_offer"
     if (outreachCount === 0) return "no_outreach"
-    if (repliesCount === 0) return "messages_sent_no_replies"
-    if (callsCount === 0) return "replies_received"
     
-    const completedCalls = callsData?.filter((c) => c.status === "completed")?.length || 0
-    if (completedCalls === 0) return "call_booked"
+    // STALL: Sent messages but no replies after threshold
+    if (outreachCount > 0 && repliesCount === 0) {
+      // If they've sent < 20 messages, it's low volume stall
+      if (outreachCount < 20) return "stall_low_volume"
+      // Otherwise they've sent enough but no replies
+      return "stall_no_replies"
+    }
     
-    return "call_completed"
+    // Have replies, need to book calls
+    if (repliesCount > 0 && callsCount === 0) return "replies_received"
+    
+    // Have calls booked but none completed
+    if (callsCount > 0 && completedCalls === 0) return "call_booked"
+    
+    // Completed calls but no proposals sent
+    if (completedCalls > 0 && sentProposals === 0) return "call_completed"
+    
+    // Proposal sent, waiting for close
+    if (sentProposals > 0 && closedProposals === 0) return "proposal_sent"
+    
+    // Default: proposal sent (they've completed the funnel)
+    return "proposal_sent"
   }
 
   // Calculate day in sprint
