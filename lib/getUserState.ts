@@ -59,7 +59,7 @@ export async function getUserState(): Promise<UserState | null> {
     { data: profile },
     { data: ghlConnections },
     { data: nichesData },
-    { data: outreachData },
+    { data: outreachMessagesData },
     { data: repliesData },
     { data: callsData },
     { data: proposalsData },
@@ -68,7 +68,7 @@ export async function getUserState(): Promise<UserState | null> {
     supabase.from("profiles").select("full_name, email, sprint_start_date, offer_id").eq("id", user.id).single(),
     supabase.from("ghl_connections").select("id").eq("user_id", user.id),
     supabase.from("niche_user_state").select("id, is_favourite, status").eq("user_id", user.id),
-    supabase.from("outreach").select("id").eq("user_id", user.id),
+    supabase.from("outreach_messages").select("id, status").eq("user_id", user.id),
     supabase.from("replies").select("id").eq("user_id", user.id),
     supabase.from("calls").select("id, status").eq("user_id", user.id),
     supabase.from("proposals").select("id, status").eq("user_id", user.id),
@@ -79,7 +79,7 @@ export async function getUserState(): Promise<UserState | null> {
   const ghlCount = ghlConnections?.length || 0
   const nichesCount = nichesData?.length || 0
   const favouritesCount = nichesData?.filter((n) => n.is_favourite)?.length || 0
-  const outreachCount = outreachData?.length || 0
+  const outreachCount = outreachMessagesData?.filter((m) => m.status === "sent")?.length || 0
   const repliesCount = repliesData?.length || 0
   const callsCount = callsData?.length || 0
   const proposalsCount = proposalsData?.length || 0

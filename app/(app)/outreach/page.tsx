@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Badge } from "@/components/ui/badge"
+
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useToast } from "@/hooks/use-toast"
 import { createClient } from "@/lib/supabase/client"
@@ -15,7 +15,6 @@ import {
   Sparkles,
   Loader2,
   Check,
-  X,
   Copy,
   RefreshCw,
   MessageSquare,
@@ -29,11 +28,8 @@ type OutreachMessage = {
   id: string
   contact_name: string | null
   business_name: string | null
-  niche: string | null
   message_body: string
-  tone: string
-  hook_type: string
-  status: "pending" | "sent" | "skipped"
+  status: "draft" | "sent" | "replied" | "no_reply"
   created_at: string
 }
 
@@ -164,27 +160,6 @@ export default function OutreachPage() {
     }
   }
 
-  const handleSkip = async (messageId: string) => {
-    try {
-      const { error } = await supabase
-        .from("outreach_messages")
-        .update({ status: "skipped" })
-        .eq("id", messageId)
-
-      if (error) throw error
-
-      setMessages((prev) =>
-        prev.map((m) => (m.id === messageId ? { ...m, status: "skipped" as const } : m))
-      )
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      })
-    }
-  }
-
   const handleCopy = (text: string) => {
     navigator.clipboard.writeText(text)
     toast({
@@ -209,36 +184,10 @@ export default function OutreachPage() {
     }
   }
 
-  const pendingMessages = messages.filter((m) => m.status === "pending")
+  const draftMessages = messages.filter((m) => m.status === "draft")
   const sentMessages = messages.filter((m) => m.status === "sent")
 
-  const getToneColor = (tone: string) => {
-    switch (tone) {
-      case "friendly":
-        return "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
-      case "professional":
-        return "bg-blue-500/20 text-blue-400 border-blue-500/30"
-      case "casual":
-        return "bg-amber-500/20 text-amber-400 border-amber-500/30"
-      default:
-        return "bg-white/10 text-white/60 border-white/20"
-    }
-  }
-
-  const getHookColor = (hook: string) => {
-    switch (hook) {
-      case "pain_point":
-        return "bg-red-500/20 text-red-400 border-red-500/30"
-      case "curiosity":
-        return "bg-purple-500/20 text-purple-400 border-purple-500/30"
-      case "value_prop":
-        return "bg-cyan-500/20 text-cyan-400 border-cyan-500/30"
-      case "social_proof":
-        return "bg-yellow-500/20 text-yellow-400 border-yellow-500/30"
-      default:
-        return "bg-white/10 text-white/60 border-white/20"
-    }
-  }
+  
 
   if (loading) {
     return (
@@ -269,8 +218,8 @@ export default function OutreachPage() {
             </div>
             <div className="h-10 w-px bg-white/10" />
             <div className="text-right">
-              <p className="text-2xl font-bold text-[#00AAFF]">{pendingMessages.length}</p>
-              <p className="text-xs text-white/50">In Queue</p>
+              <p className="text-2xl font-bold text-[#00AAFF]">{draftMessages.length}</p>
+              <p className="text-xs text-white/50">Drafts</p>
             </div>
           </div>
         </div>
@@ -378,10 +327,10 @@ export default function OutreachPage() {
               </Button>
             </CardHeader>
             <CardContent>
-              {pendingMessages.length === 0 ? (
+              {draftMessages.length === 0 ? (
                 <div className="text-center py-12">
                   <MessageSquare className="h-12 w-12 text-white/20 mx-auto mb-4" />
-                  <p className="text-white/60 mb-2">No messages in queue</p>
+                  <p className="text-white/60 mb-2">No draft messages</p>
                   <p className="text-sm text-white/40">
                     Generate some messages to get started
                   </p>
@@ -389,7 +338,7 @@ export default function OutreachPage() {
               ) : (
                 <ScrollArea className="h-[500px] pr-4">
                   <div className="space-y-3">
-                    {pendingMessages.map((message) => (
+                    {draftMessages.map((message) => (
                       <div
                         key={message.id}
                         className="p-4 rounded-lg bg-white/[0.02] border border-white/10 hover:border-white/20 transition-colors"
@@ -399,26 +348,13 @@ export default function OutreachPage() {
                             <p className="text-white text-sm leading-relaxed">
                               {message.message_body}
                             </p>
-                            <div className="flex items-center gap-2">
-                              <Badge
-                                variant="outline"
-                                className={cn("text-xs capitalize", getToneColor(message.tone))}
-                              >
-                                {message.tone}
-                              </Badge>
-                              <Badge
-                                variant="outline"
-                                className={cn(
-                                  "text-xs capitalize",
-                                  getHookColor(message.hook_type)
-                                )}
-                              >
-                                {message.hook_type.replace("_", " ")}
-                              </Badge>
-                              {message.niche && (
-                                <span className="text-xs text-white/40">{message.niche}</span>
-                              )}
-                            </div>
+                            {(message.contact_name || message.business_name) && (
+                              <div className="flex items-center gap-2 text-xs text-white/40">
+                                {message.contact_name && <span>{message.contact_name}</span>}
+                                {message.contact_name && message.business_name && <span>·</span>}
+                                {message.business_name && <span>{message.business_name}</span>}
+                              </div>
+                            )}
                           </div>
                           <div className="flex items-center gap-1">
                             <Button
@@ -428,14 +364,6 @@ export default function OutreachPage() {
                               className="h-8 w-8 p-0 text-white/40 hover:text-white hover:bg-white/10"
                             >
                               <Copy className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleSkip(message.id)}
-                              className="h-8 w-8 p-0 text-white/40 hover:text-amber-400 hover:bg-amber-500/10"
-                            >
-                              <X className="h-4 w-4" />
                             </Button>
                             <Button
                               variant="ghost"

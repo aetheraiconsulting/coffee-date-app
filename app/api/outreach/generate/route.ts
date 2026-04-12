@@ -65,9 +65,7 @@ ${offerContext ? `The sender's offer:\n${offerContext}` : ""}
 Return ONLY a JSON array of objects with this exact structure:
 [
   {
-    "message_body": "the message text",
-    "tone": "friendly" | "professional" | "casual",
-    "hook_type": "pain_point" | "curiosity" | "value_prop" | "social_proof"
+    "message_body": "the message text"
   }
 ]
 
@@ -113,11 +111,8 @@ Niche: ${niche || "small business"}`,
       user_id: user.id,
       contact_name: contact_name || null,
       business_name: business_name || null,
-      niche: niche || null,
       message_body: msg.message_body,
-      tone: msg.tone,
-      hook_type: msg.hook_type,
-      status: "pending",
+      status: "draft",
     }))
 
     const { data: insertedMessages, error: insertError } = await supabase
