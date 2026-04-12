@@ -23,6 +23,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 
 type OutreachMessage = {
   id: string
@@ -48,6 +49,7 @@ export default function OutreachPage() {
   const { toast } = useToast()
   const supabase = createClient()
   const { refreshState } = useUserState()
+  const router = useRouter()
 
   useEffect(() => {
     loadMessages()
@@ -419,7 +421,15 @@ export default function OutreachPage() {
                       <p className="text-sm text-white/70 truncate flex-1 mr-4">
                         {message.message_body}
                       </p>
-                      <Check className="h-4 w-4 text-emerald-400 flex-shrink-0" />
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => router.push(`/outreach/reply/${message.id}`)}
+                          className="text-sm text-muted-foreground border border-border rounded px-3 py-1 hover:bg-muted transition-colors"
+                        >
+                          They replied →
+                        </button>
+                        <Check className="h-4 w-4 text-emerald-400 flex-shrink-0" />
+                      </div>
                     </div>
                   ))}
                 </div>

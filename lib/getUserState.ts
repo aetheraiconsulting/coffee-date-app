@@ -60,7 +60,7 @@ export async function getUserState(): Promise<UserState | null> {
     { data: ghlConnections },
     { data: nichesData },
     { data: outreachMessagesData },
-    { data: repliesData },
+    { count: replyCount },
     { data: callsData },
     { data: proposalsData },
     { data: conversations },
@@ -69,7 +69,7 @@ export async function getUserState(): Promise<UserState | null> {
     supabase.from("ghl_connections").select("id").eq("user_id", user.id),
     supabase.from("niche_user_state").select("id, is_favourite, status").eq("user_id", user.id),
     supabase.from("outreach_messages").select("id, status").eq("user_id", user.id),
-    supabase.from("replies").select("id").eq("user_id", user.id),
+    supabase.from("reply_threads").select("*", { count: "exact", head: true }).eq("user_id", user.id),
     supabase.from("calls").select("id, status").eq("user_id", user.id),
     supabase.from("proposals").select("id, status").eq("user_id", user.id),
     supabase.from("revival_conversations").select("id, status").eq("user_id", user.id),
@@ -80,7 +80,7 @@ export async function getUserState(): Promise<UserState | null> {
   const nichesCount = nichesData?.length || 0
   const favouritesCount = nichesData?.filter((n) => n.is_favourite)?.length || 0
   const outreachCount = outreachMessagesData?.filter((m) => m.status === "sent")?.length || 0
-  const repliesCount = repliesData?.length || 0
+  const repliesCount = replyCount ?? 0
   const callsCount = callsData?.length || 0
   const proposalsCount = proposalsData?.length || 0
   const winsCount = nichesData?.filter((n) => n.status === "Win")?.length || 0
