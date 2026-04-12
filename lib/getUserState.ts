@@ -65,7 +65,7 @@ export async function getUserState(): Promise<UserState | null> {
     { data: proposalsData },
     { data: conversations },
   ] = await Promise.all([
-    supabase.from("profiles").select("full_name, email, sprint_start_date").eq("id", user.id).single(),
+    supabase.from("profiles").select("full_name, email, sprint_start_date, offer_id").eq("id", user.id).single(),
     supabase.from("ghl_connections").select("id").eq("user_id", user.id),
     supabase.from("niche_user_state").select("id, is_favourite, status").eq("user_id", user.id),
     supabase.from("outreach").select("id").eq("user_id", user.id),
@@ -87,9 +87,9 @@ export async function getUserState(): Promise<UserState | null> {
   const conversationsCount = conversations?.length || 0
   const activeConversationsCount = conversations?.filter((c) => c.status === "active")?.length || 0
 
-  // Check if user has created an offer (stored in profiles or a future offers table)
-  // For now, we'll check if they have any niche with outreach messaging prepared
-  const hasOffer = favouritesCount > 0 // TODO: Replace with actual offer check when offer builder exists
+  // TODO: offer builder writes offer_id to profiles on completion
+  // Check if user has created an offer by checking profiles.offer_id
+  const hasOffer = profile?.offer_id != null
 
   // Calculate time-based stall conditions
   const now = new Date()
