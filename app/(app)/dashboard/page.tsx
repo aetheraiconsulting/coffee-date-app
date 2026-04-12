@@ -72,7 +72,7 @@ export default async function DashboardPage() {
           subtext: "We'll generate your messages. You just click send.",
           why: "This is the step that creates your first replies. Without this, nothing moves.",
           cta: "Send Messages",
-          href: "/revival",
+          href: "/outreach",
           timeEstimate: "~15 minutes",
           progress: {
             current: outreachCount,
@@ -136,7 +136,7 @@ export default async function DashboardPage() {
           subtext: "You've sent messages but haven't gotten replies yet",
           why: "Let's review your offer and messaging to increase your reply rate.",
           cta: "Review Messages",
-          href: "/revival",
+          href: "/outreach",
           timeEstimate: "~15 minutes",
           progress: {
             current: outreachCount,
@@ -150,7 +150,7 @@ export default async function DashboardPage() {
           subtext: `You've only sent ${outreachCount} messages. Most replies come after 20.`,
           why: "Volume matters. The more conversations you start, the more replies you'll get.",
           cta: "Continue Outreach",
-          href: "/revival",
+          href: "/outreach",
           timeEstimate: "~15 minutes",
           progress: {
             current: outreachCount,
@@ -194,7 +194,7 @@ export default async function DashboardPage() {
           subtext: "You've been preparing but haven't started yet",
           why: "Preparation is good, but action is better. Time to send your first message.",
           cta: "Start Outreach",
-          href: "/revival",
+          href: "/outreach",
           timeEstimate: "~15 minutes",
           progress: null,
         }
@@ -505,7 +505,7 @@ export default async function DashboardPage() {
               asChild
               className="bg-[#00AAFF] hover:bg-[#0099EE] text-white"
             >
-              <Link href="/revival">
+              <Link href="/outreach">
                 <Send className="h-4 w-4 mr-2" />
                 Send Messages
               </Link>
