@@ -1,7 +1,17 @@
 import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
-import { generateText } from "ai"
+import { generateObject } from "ai"
 import { gateway } from "@ai-sdk/gateway"
+import { z } from "zod"
+
+const offerSchema = z.object({
+  service_name: z.string().describe("A clear, specific name for the service (e.g., 'AI Lead Revival System')"),
+  outcome_statement: z.string().describe("One sentence describing the specific outcome delivered (e.g., 'We help real estate agents book 5+ listing appointments per month from their dead leads')"),
+  price_point: z.string().describe("Suggested price point or pricing model (e.g., '$2,000/month' or '$500 setup + $1,500/month')"),
+  guarantee: z.string().describe("A specific, risk-reversing guarantee (e.g., 'Book 3 calls in 30 days or your money back')"),
+  confidence_score: z.number().min(1).max(10).describe("How confident is this offer to convert (1-10)"),
+  confidence_reason: z.string().describe("Brief explanation of why this score (e.g., 'Strong niche with clear pain point and measurable outcome')"),
+})
 
 export async function POST(request: Request) {
   try {
@@ -21,42 +31,27 @@ export async function POST(request: Request) {
       )
     }
 
-    // Generate offer using Claude via AI Gateway
-    const { text } = await generateText({
+    // Generate offer using Claude via AI Gateway with structured output
+    const { object: offer } = await generateObject({
       model: gateway("anthropic/claude-sonnet-4-20250514"),
-      system: `You are an expert at crafting irresistible offers for AI automation services. 
+      schema: offerSchema,
+      system: `You are an expert at crafting irresistible offers for AI automation services.
 You help entrepreneurs create offers that convert cold leads into paying clients.
-Your offers are specific, outcome-focused, and create urgency without being pushy.
-Always respond with valid JSON only, no markdown or explanation.`,
-      prompt: `Generate a compelling offer for an AI automation service targeting the ${niche} niche in the ${industry} industry.
+Your offers are specific, outcome-focused, and include strong guarantees that reduce risk.
+Focus on measurable outcomes and concrete numbers.`,
+      prompt: `Generate a compelling offer for an AI lead revival service targeting ${niche} in the ${industry} industry.
 
-The offer should help business owners revive their dead leads using AI-powered conversations.
+The service helps business owners revive their dead leads using AI-powered conversations to book calls and close deals.
 
-Return a JSON object with these exact fields:
-{
-  "headline": "A bold, attention-grabbing headline (max 10 words)",
-  "subheadline": "Supporting text that adds context (max 20 words)",
-  "problem": "The specific pain point this solves (1-2 sentences)",
-  "solution": "What the AI service does to solve it (1-2 sentences)",
-  "proof": "Social proof or credibility statement (1 sentence)",
-  "cta": "Call-to-action text for a button (max 5 words)"
-}
+Create an offer that:
+1. Has a clear, professional service name
+2. Promises a specific, measurable outcome
+3. Includes realistic pricing for this type of service
+4. Offers a strong guarantee that reverses risk
+5. Would genuinely appeal to ${niche} businesses
 
-Make it specific to ${niche} businesses. Use concrete numbers where possible.`,
+Be specific and use concrete numbers where possible.`,
     })
-
-    // Parse the generated JSON
-    let offer
-    try {
-      // Clean the response - remove any markdown code blocks if present
-      const cleanedText = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim()
-      offer = JSON.parse(cleanedText)
-    } catch {
-      return NextResponse.json(
-        { error: "Failed to parse generated offer" },
-        { status: 500 }
-      )
-    }
 
     // Insert into offers table
     const { data: offerData, error: insertError } = await supabase
@@ -65,12 +60,12 @@ Make it specific to ${niche} businesses. Use concrete numbers where possible.`,
         user_id: user.id,
         niche,
         industry,
-        headline: offer.headline,
-        subheadline: offer.subheadline,
-        problem: offer.problem,
-        solution: offer.solution,
-        proof: offer.proof,
-        cta: offer.cta,
+        service_name: offer.service_name,
+        outcome_statement: offer.outcome_statement,
+        price_point: offer.price_point,
+        guarantee: offer.guarantee,
+        confidence_score: offer.confidence_score,
+        confidence_reason: offer.confidence_reason,
       })
       .select()
       .single()

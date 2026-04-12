@@ -5,12 +5,12 @@ export interface Offer {
   user_id: string
   niche: string
   industry: string
-  headline: string
-  subheadline: string | null
-  problem: string | null
-  solution: string | null
-  proof: string | null
-  cta: string | null
+  service_name: string
+  outcome_statement: string
+  price_point: string
+  guarantee: string
+  confidence_score: number
+  confidence_reason: string
   created_at: string
 }
 

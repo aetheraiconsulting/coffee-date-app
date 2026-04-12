@@ -13,8 +13,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Loader2, Sparkles, ChevronRight, CheckCircle2 } from "lucide-react"
+import { Loader2, Sparkles, ChevronRight, CheckCircle2, RefreshCw, DollarSign, Shield, Target } from "lucide-react"
 import { useUserState } from "@/context/StateContext"
+import { cn } from "@/lib/utils"
 
 // Popular niches for the dropdown
 const NICHES = [
@@ -55,14 +56,14 @@ const INDUSTRIES = [
 
 interface GeneratedOffer {
   id: string
-  headline: string
-  subheadline: string | null
-  problem: string | null
-  solution: string | null
-  proof: string | null
-  cta: string | null
   niche: string
   industry: string
+  service_name: string
+  outcome_statement: string
+  price_point: string
+  guarantee: string
+  confidence_score: number
+  confidence_reason: string
 }
 
 export default function OfferBuilderPage() {
@@ -122,6 +123,13 @@ export default function OfferBuilderPage() {
   const handleRegenerate = () => {
     setStep("input")
     setOffer(null)
+  }
+
+  // Confidence score color
+  const getConfidenceColor = (score: number) => {
+    if (score >= 8) return "text-emerald-400"
+    if (score >= 6) return "text-yellow-400"
+    return "text-orange-400"
   }
 
   return (
@@ -251,56 +259,74 @@ export default function OfferBuilderPage() {
             {/* Offer Preview Card */}
             <Card className="bg-gradient-to-br from-[#00AAFF]/10 to-transparent border-[#00AAFF]/30 overflow-hidden">
               <CardContent className="p-6 space-y-6">
-                {/* Headline */}
+                {/* Service Name */}
                 <div className="space-y-1">
+                  <p className="text-xs uppercase tracking-wider text-[#00AAFF] font-semibold">
+                    Your Service
+                  </p>
                   <h2 className="text-2xl font-bold text-white leading-tight">
-                    {offer.headline}
+                    {offer.service_name}
                   </h2>
-                  {offer.subheadline && (
-                    <p className="text-white/70 text-lg">
-                      {offer.subheadline}
-                    </p>
-                  )}
                 </div>
 
-                {/* Problem */}
-                {offer.problem && (
-                  <div className="space-y-1">
+                {/* Outcome Statement */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Target className="h-4 w-4 text-white/40" />
                     <p className="text-xs uppercase tracking-wider text-white/40 font-semibold">
-                      The Problem
+                      Outcome
                     </p>
-                    <p className="text-white/80">{offer.problem}</p>
                   </div>
-                )}
+                  <p className="text-white/90 text-lg leading-relaxed">
+                    {offer.outcome_statement}
+                  </p>
+                </div>
 
-                {/* Solution */}
-                {offer.solution && (
-                  <div className="space-y-1">
+                {/* Price Point */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <DollarSign className="h-4 w-4 text-white/40" />
                     <p className="text-xs uppercase tracking-wider text-white/40 font-semibold">
-                      The Solution
+                      Price Point
                     </p>
-                    <p className="text-white/80">{offer.solution}</p>
                   </div>
-                )}
+                  <p className="text-white font-semibold text-xl">
+                    {offer.price_point}
+                  </p>
+                </div>
 
-                {/* Proof */}
-                {offer.proof && (
-                  <div className="space-y-1">
+                {/* Guarantee */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Shield className="h-4 w-4 text-white/40" />
                     <p className="text-xs uppercase tracking-wider text-white/40 font-semibold">
-                      Why It Works
+                      Guarantee
                     </p>
-                    <p className="text-white/70 italic">{offer.proof}</p>
                   </div>
-                )}
+                  <p className="text-white/80">
+                    {offer.guarantee}
+                  </p>
+                </div>
 
-                {/* CTA Preview */}
-                {offer.cta && (
-                  <div className="pt-4 border-t border-white/10">
-                    <div className="inline-flex items-center justify-center px-6 py-3 bg-[#00AAFF] text-white font-semibold rounded-lg">
-                      {offer.cta}
+                {/* Confidence Score */}
+                <div className="pt-4 border-t border-white/10">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-1">
+                      <p className="text-xs uppercase tracking-wider text-white/40 font-semibold">
+                        Confidence Score
+                      </p>
+                      <p className="text-sm text-white/60">
+                        {offer.confidence_reason}
+                      </p>
+                    </div>
+                    <div className={cn(
+                      "text-3xl font-bold",
+                      getConfidenceColor(offer.confidence_score)
+                    )}>
+                      {offer.confidence_score}/10
                     </div>
                   </div>
-                )}
+                </div>
               </CardContent>
             </Card>
 
@@ -321,6 +347,7 @@ export default function OfferBuilderPage() {
                 onClick={handleRegenerate}
                 className="flex-1 border-white/20 text-white hover:bg-white/10 h-12"
               >
+                <RefreshCw className="h-4 w-4 mr-2" />
                 Regenerate
               </Button>
               <Button
