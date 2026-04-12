@@ -4,12 +4,11 @@ export interface Offer {
   id: string
   user_id: string
   niche: string
-  industry: string
   service_name: string
   outcome_statement: string
   price_point: string
   guarantee: string
-  confidence_score: number
+  confidence_score: "strong" | "needs_work" | "weak"
   confidence_reason: string
   created_at: string
 }

@@ -57,12 +57,11 @@ const INDUSTRIES = [
 interface GeneratedOffer {
   id: string
   niche: string
-  industry: string
   service_name: string
   outcome_statement: string
   price_point: string
   guarantee: string
-  confidence_score: number
+  confidence_score: "strong" | "needs_work" | "weak"
   confidence_reason: string
 }
 
@@ -125,11 +124,18 @@ export default function OfferBuilderPage() {
     setOffer(null)
   }
 
-  // Confidence score color
-  const getConfidenceColor = (score: number) => {
-    if (score >= 8) return "text-emerald-400"
-    if (score >= 6) return "text-yellow-400"
-    return "text-orange-400"
+  // Confidence score color and label
+  const getConfidenceDisplay = (score: "strong" | "needs_work" | "weak") => {
+    switch (score) {
+      case "strong":
+        return { color: "text-emerald-400 bg-emerald-400/10 border-emerald-400/30", label: "Strong" }
+      case "needs_work":
+        return { color: "text-amber-400 bg-amber-400/10 border-amber-400/30", label: "Needs Work" }
+      case "weak":
+        return { color: "text-red-400 bg-red-400/10 border-red-400/30", label: "Weak" }
+      default:
+        return { color: "text-white/60 bg-white/10 border-white/20", label: score }
+    }
   }
 
   return (
@@ -311,7 +317,7 @@ export default function OfferBuilderPage() {
                 {/* Confidence Score */}
                 <div className="pt-4 border-t border-white/10">
                   <div className="flex items-center justify-between">
-                    <div className="space-y-1">
+                    <div className="space-y-1 flex-1 mr-4">
                       <p className="text-xs uppercase tracking-wider text-white/40 font-semibold">
                         Confidence Score
                       </p>
@@ -320,23 +326,20 @@ export default function OfferBuilderPage() {
                       </p>
                     </div>
                     <div className={cn(
-                      "text-3xl font-bold",
-                      getConfidenceColor(offer.confidence_score)
+                      "px-4 py-2 rounded-lg border text-sm font-bold uppercase tracking-wider",
+                      getConfidenceDisplay(offer.confidence_score).color
                     )}>
-                      {offer.confidence_score}/10
+                      {getConfidenceDisplay(offer.confidence_score).label}
                     </div>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Niche/Industry Tags */}
+            {/* Niche Tag */}
             <div className="flex items-center gap-2">
               <span className="text-xs px-2 py-1 rounded-full bg-white/10 text-white/60">
                 {offer.niche}
-              </span>
-              <span className="text-xs px-2 py-1 rounded-full bg-white/10 text-white/60">
-                {offer.industry}
               </span>
             </div>
 

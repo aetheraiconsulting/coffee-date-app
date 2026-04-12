@@ -1,17 +1,5 @@
 import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
-import { generateObject } from "ai"
-import { gateway } from "@ai-sdk/gateway"
-import { z } from "zod"
-
-const offerSchema = z.object({
-  service_name: z.string().describe("A clear, specific name for the service (e.g., 'AI Lead Revival System')"),
-  outcome_statement: z.string().describe("One sentence describing the specific outcome delivered (e.g., 'We help real estate agents book 5+ listing appointments per month from their dead leads')"),
-  price_point: z.string().describe("Suggested price point or pricing model (e.g., '$2,000/month' or '$500 setup + $1,500/month')"),
-  guarantee: z.string().describe("A specific, risk-reversing guarantee (e.g., 'Book 3 calls in 30 days or your money back')"),
-  confidence_score: z.number().min(1).max(10).describe("How confident is this offer to convert (1-10)"),
-  confidence_reason: z.string().describe("Brief explanation of why this score (e.g., 'Strong niche with clear pain point and measurable outcome')"),
-})
 
 export async function POST(request: Request) {
   try {
@@ -31,27 +19,37 @@ export async function POST(request: Request) {
       )
     }
 
-    // Generate offer using Claude via AI Gateway with structured output
-    const { object: offer } = await generateObject({
-      model: gateway("anthropic/claude-sonnet-4-20250514"),
-      schema: offerSchema,
-      system: `You are an expert at crafting irresistible offers for AI automation services.
-You help entrepreneurs create offers that convert cold leads into paying clients.
-Your offers are specific, outcome-focused, and include strong guarantees that reduce risk.
-Focus on measurable outcomes and concrete numbers.`,
-      prompt: `Generate a compelling offer for an AI lead revival service targeting ${niche} in the ${industry} industry.
-
-The service helps business owners revive their dead leads using AI-powered conversations to book calls and close deals.
-
-Create an offer that:
-1. Has a clear, professional service name
-2. Promises a specific, measurable outcome
-3. Includes realistic pricing for this type of service
-4. Offers a strong guarantee that reverses risk
-5. Would genuinely appeal to ${niche} businesses
-
-Be specific and use concrete numbers where possible.`,
+    // Generate offer using direct Anthropic API call
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": process.env.ANTHROPIC_API_KEY || "",
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 500,
+        system: "You are the AI engine inside Aether Revive, an AI client acquisition system. Generate a complete sellable service offer for someone building their first AI agency. Return valid JSON only. No markdown. No explanation. Just the JSON object.",
+        messages: [{
+          role: "user",
+          content: `Generate a complete service offer based on:\nNiche: ${niche}\nIndustry: ${industry}\nProblem they solve: Reviving dead leads using AI-powered conversations\nOutcome they deliver: Booked calls and closed deals from existing contacts\n\nReturn this exact JSON:\n{\n  "service_name": "short specific service name max 6 words",\n  "outcome_statement": "one sentence exact result the client gets",\n  "price_point": "specific price appropriate for a beginner e.g. £500/month or £750 one-off",\n  "guarantee": "simple risk-reducing guarantee statement",\n  "confidence_score": "strong or needs_work or weak",\n  "confidence_reason": "one sentence explaining the score"\n}`
+        }]
+      })
     })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      console.error("Anthropic API error:", errorData)
+      return NextResponse.json(
+        { error: "Failed to generate offer" },
+        { status: 500 }
+      )
+    }
+
+    const data = await response.json()
+    const text = data.content[0].text.replace(/```json|```/g, "").trim()
+    const offer = JSON.parse(text)
 
     // Insert into offers table
     const { data: offerData, error: insertError } = await supabase
@@ -59,7 +57,6 @@ Be specific and use concrete numbers where possible.`,
       .insert({
         user_id: user.id,
         niche,
-        industry,
         service_name: offer.service_name,
         outcome_statement: offer.outcome_statement,
         price_point: offer.price_point,
