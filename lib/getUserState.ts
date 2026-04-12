@@ -62,6 +62,7 @@ export async function getUserState(): Promise<UserState | null> {
     { data: outreachMessagesData },
     { count: replyCount },
     { data: proposalsData },
+    { count: sentProposalCount },
     { data: conversations },
     { count: callScriptCount },
     { count: completedCallCount },
@@ -71,7 +72,8 @@ export async function getUserState(): Promise<UserState | null> {
     supabase.from("niche_user_state").select("id, is_favourite, status").eq("user_id", user.id),
     supabase.from("outreach_messages").select("id, status").eq("user_id", user.id),
     supabase.from("reply_threads").select("*", { count: "exact", head: true }).eq("user_id", user.id),
-    supabase.from("proposals").select("id, status").eq("user_id", user.id),
+    supabase.from("proposals").select("id, sent, deal_status").eq("user_id", user.id),
+    supabase.from("proposals").select("*", { count: "exact", head: true }).eq("user_id", user.id).eq("sent", true),
     supabase.from("revival_conversations").select("id, status").eq("user_id", user.id),
     supabase.from("call_scripts").select("*", { count: "exact", head: true }).eq("user_id", user.id),
     supabase.from("call_scripts").select("*", { count: "exact", head: true }).eq("user_id", user.id).eq("call_completed", true),
@@ -103,8 +105,8 @@ export async function getUserState(): Promise<UserState | null> {
   
   // Completed calls from call_scripts table (call_completed = true)
   const completedCalls = completedCallCount ?? 0
-  const sentProposals = proposalsData?.filter((p) => p.status === "sent" || p.status === "pending")?.length || 0
-  const closedProposals = proposalsData?.filter((p) => p.status === "won" || p.status === "lost")?.length || 0
+  const sentProposals = sentProposalCount ?? 0
+  const closedProposals = proposalsData?.filter((p) => p.deal_status === "won" || p.deal_status === "lost")?.length || 0
 
   // Determine mission state based on funnel progression + stall detection
   const getMissionState = (): MissionState => {

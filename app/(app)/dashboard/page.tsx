@@ -113,8 +113,8 @@ export default async function DashboardPage() {
           mission: "Send Your Proposal",
           subtext: "You've done the demo. Now close the deal.",
           why: "Proposals that go out within 24 hours close 3x more often.",
-          cta: "Create Proposal",
-          href: "/pipeline",
+          cta: "Build Proposal",
+          href: "/proposal/builder",
           timeEstimate: "~20 minutes",
           progress: null,
         }
