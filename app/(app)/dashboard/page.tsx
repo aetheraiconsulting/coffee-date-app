@@ -12,170 +12,126 @@ import {
   Loader2,
 } from "lucide-react"
 import Link from "next/link"
-import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import { cn } from "@/lib/utils"
+import { getUserState, type MissionState } from "@/lib/getUserState"
 
 export default async function DashboardPage() {
-  const supabase = await createClient()
+  const state = await getUserState()
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
+  if (!state) {
     redirect("/login")
   }
 
-  // Fetch user profile
-  const { data: profile } = await supabase.from("profiles").select("full_name, email").eq("id", user.id).single()
-
-  // Fetch all metrics in parallel
-  const [
-    { data: ghlConnections },
-    { data: nichesData },
-    { data: campaigns },
-    { data: conversations },
-  ] = await Promise.all([
-    supabase.from("ghl_connections").select("id").eq("user_id", user.id),
-    supabase.from("niche_user_state").select("id, is_favourite, status").eq("user_id", user.id),
-    supabase.from("revival_campaigns").select("id, metrics").eq("user_id", user.id),
-    supabase.from("revival_conversations").select("id, status").eq("user_id", user.id),
-  ])
-
-  // Calculate counts
-  const ghlCount = ghlConnections?.length || 0
-  const favouritesCount = nichesData?.filter((n) => n.is_favourite).length || 0
-  const campaignsCount = campaigns?.length || 0
-  const conversationsCount = conversations?.length || 0
-  const winsCount = nichesData?.filter((n) => n.status === "Win").length || 0
+  // Destructure state for easier access
+  const {
+    ghlCount,
+    favouritesCount,
+    outreachCount,
+    repliesCount,
+    callsCount,
+    winsCount,
+    conversationsCount,
+    activeConversationsCount,
+    missionState,
+    dayInSprint,
+    fullName,
+    email,
+  } = state
 
   // Get first name
-  const firstName = profile?.full_name?.split(" ")[0] || user.email?.split("@")[0] || "there"
+  const firstName = fullName?.split(" ")[0] || email?.split("@")[0] || "there"
 
-  // Determine current day in the 14-day sprint (simulated - would come from user onboarding date)
-  const currentDay = 3 // For demo purposes
-
-  // Determine user's current stage and today's mission (DYNAMIC NEXT ACTION ENGINE)
-  // 5 MISSION STATES based on user progress
-  const activeConversations = conversations?.filter(c => c.status === "active").length || 0
-  const repliesCount = Math.floor(conversationsCount * 0.3)
-  const callsBooked = Math.floor(repliesCount * 0.2)
-  
-  type MissionState = "no_outreach" | "messages_sent_no_replies" | "replies_received" | "call_booked" | "call_completed"
-  
-  const getMissionState = (): MissionState => {
-    if (ghlCount === 0 || favouritesCount === 0 || conversationsCount === 0) return "no_outreach"
-    if (conversationsCount > 0 && repliesCount === 0) return "messages_sent_no_replies"
-    if (repliesCount > 0 && callsBooked === 0) return "replies_received"
-    if (callsBooked > 0 && winsCount === 0) return "call_booked"
-    return "call_completed"
-  }
-  
-  const missionState = getMissionState()
-
+  // Mission data based on state
   const getMissionData = () => {
-    // Pre-GHL setup states
-    if (ghlCount === 0) {
-      return {
-        mission: "Connect Your GHL Account",
-        subtext: "We'll pull in your contacts automatically",
-        why: "This is the step that unlocks everything. Without this, you have no leads to work with.",
-        cta: "Connect Now",
-        href: "/revival/connect",
-        timeEstimate: "~5 minutes",
-        progress: null,
-      }
-    }
-    if (favouritesCount === 0) {
-      return {
-        mission: "Choose Your Target Niche",
-        subtext: "We'll show you the best opportunities",
-        why: "A focused niche converts 3x better. This decision shapes all your messaging.",
-        cta: "Pick Your Niche",
-        href: "/revival/opportunities",
-        timeEstimate: "~10 minutes",
-        progress: null,
-      }
-    }
-    
-    // STATE 1: No outreach started
-    if (missionState === "no_outreach") {
-      return {
-        mission: "Send Your First 20 Messages",
-        subtext: "We'll generate your messages. You just click send.",
-        why: "This is the step that creates your first replies. Without this, nothing moves.",
-        cta: "Send Messages",
-        href: "/revival",
-        timeEstimate: "~15 minutes",
-        progress: {
-          current: conversationsCount,
-          target: 20,
-          label: "messages sent",
-        },
-      }
-    }
-    
-    // STATE 2: Messages sent, no replies yet
-    if (missionState === "messages_sent_no_replies") {
-      return {
-        mission: "Follow Up With Your Leads",
-        subtext: "Your messages are out there. Now follow up to get replies.",
-        why: "Follow-ups double your reply rate. Most leads respond on the 2nd or 3rd touch.",
-        cta: "Send Follow-ups",
-        href: "/revival",
-        timeEstimate: "~10 minutes",
-        progress: {
-          current: conversationsCount,
-          target: 20,
-          label: "leads contacted",
-        },
-      }
-    }
-    
-    // STATE 3: Replies received, no call booked
-    if (missionState === "replies_received") {
-      return {
-        mission: "Book Your First Call",
-        subtext: `You have ${activeConversations} active conversation${activeConversations !== 1 ? "s" : ""} waiting`,
-        why: "Replies without calls don't close deals. This is where revenue starts.",
-        cta: "View Conversations",
-        href: "/revival",
-        timeEstimate: "~10 minutes",
-        progress: {
-          current: repliesCount,
-          target: repliesCount,
-          label: "replies received",
-        },
-      }
-    }
-    
-    // STATE 4: Call booked, need to run demo
-    if (missionState === "call_booked") {
-      return {
-        mission: "Run Your First Demo",
-        subtext: `You have ${callsBooked} call${callsBooked !== 1 ? "s" : ""} booked. Time to close.`,
-        why: "The demo is where deals happen. Show them the value, ask for the close.",
-        cta: "Prepare Demo",
-        href: "/demo",
-        timeEstimate: "~30 minutes",
-        progress: {
-          current: callsBooked,
-          target: callsBooked,
-          label: "calls booked",
-        },
-      }
-    }
-    
-    // STATE 5: Call completed, close the deal
-    return {
-      mission: "Close Your First Client",
-      subtext: "You're in the final stretch. Send the proposal.",
-      why: "Everything you've done leads here. Focus on delivering value and asking for the close.",
-      cta: "View Pipeline",
-      href: "/pipeline",
-      timeEstimate: "~15 minutes",
-      progress: null,
+    switch (missionState) {
+      case "no_ghl":
+        return {
+          mission: "Connect Your GHL Account",
+          subtext: "We'll pull in your contacts automatically",
+          why: "This is the step that unlocks everything. Without this, you have no leads to work with.",
+          cta: "Connect Now",
+          href: "/revival/connect",
+          timeEstimate: "~5 minutes",
+          progress: null,
+        }
+      case "no_niche":
+        return {
+          mission: "Choose Your Target Niche",
+          subtext: "We'll show you the best opportunities",
+          why: "A focused niche converts 3x better. This decision shapes all your messaging.",
+          cta: "Pick Your Niche",
+          href: "/revival/opportunities",
+          timeEstimate: "~10 minutes",
+          progress: null,
+        }
+      case "no_outreach":
+        return {
+          mission: "Send Your First 20 Messages",
+          subtext: "We'll generate your messages. You just click send.",
+          why: "This is the step that creates your first replies. Without this, nothing moves.",
+          cta: "Send Messages",
+          href: "/revival",
+          timeEstimate: "~15 minutes",
+          progress: {
+            current: outreachCount,
+            target: 20,
+            label: "messages sent",
+          },
+        }
+      case "messages_sent_no_replies":
+        return {
+          mission: "Follow Up With Your Leads",
+          subtext: "Your messages are out there. Now follow up to get replies.",
+          why: "Follow-ups double your reply rate. Most leads respond on the 2nd or 3rd touch.",
+          cta: "Send Follow-ups",
+          href: "/revival",
+          timeEstimate: "~10 minutes",
+          progress: {
+            current: outreachCount,
+            target: 20,
+            label: "leads contacted",
+          },
+        }
+      case "replies_received":
+        return {
+          mission: "Book Your First Call",
+          subtext: `You have ${activeConversationsCount} active conversation${activeConversationsCount !== 1 ? "s" : ""} waiting`,
+          why: "Replies without calls don't close deals. This is where revenue starts.",
+          cta: "View Conversations",
+          href: "/revival",
+          timeEstimate: "~10 minutes",
+          progress: {
+            current: repliesCount,
+            target: repliesCount,
+            label: "replies received",
+          },
+        }
+      case "call_booked":
+        return {
+          mission: "Run Your First Demo",
+          subtext: `You have ${callsCount} call${callsCount !== 1 ? "s" : ""} booked. Time to close.`,
+          why: "The demo is where deals happen. Show them the value, ask for the close.",
+          cta: "Prepare Demo",
+          href: "/demo",
+          timeEstimate: "~30 minutes",
+          progress: {
+            current: callsCount,
+            target: callsCount,
+            label: "calls booked",
+          },
+        }
+      case "call_completed":
+      default:
+        return {
+          mission: "Close Your First Client",
+          subtext: "You're in the final stretch. Send the proposal.",
+          why: "Everything you've done leads here. Focus on delivering value and asking for the close.",
+          cta: "View Pipeline",
+          href: "/pipeline",
+          timeEstimate: "~15 minutes",
+          progress: null,
+        }
     }
   }
 
@@ -185,31 +141,23 @@ export default async function DashboardPage() {
   const getNextSteps = () => {
     const steps = []
 
-    // Step 1: Create your offer / Choose niche
-    if (favouritesCount === 0) {
-      steps.push({
-        label: "Choose your target niche",
-        status: "not_started" as const,
-        href: "/revival/opportunities",
-      })
-    } else {
-      steps.push({
-        label: "Choose your target niche",
-        status: "complete" as const,
-        href: "/revival/opportunities",
-      })
-    }
+    // Step 1: Choose niche
+    steps.push({
+      label: "Choose your target niche",
+      status: favouritesCount > 0 ? "complete" as const : "not_started" as const,
+      href: "/revival/opportunities",
+    })
 
     // Step 2: Send outreach messages
-    if (conversationsCount === 0) {
+    if (outreachCount === 0) {
       steps.push({
         label: "Send outreach messages",
         status: favouritesCount > 0 ? "in_progress" as const : "not_started" as const,
         href: "/revival",
       })
-    } else if (conversationsCount < 20) {
+    } else if (outreachCount < 20) {
       steps.push({
-        label: `Send outreach messages (${conversationsCount}/20)`,
+        label: `Send outreach messages (${outreachCount}/20)`,
         status: "in_progress" as const,
         href: "/revival",
       })
@@ -222,20 +170,11 @@ export default async function DashboardPage() {
     }
 
     // Step 3: Book your first call
-    const callsBooked = Math.floor(conversationsCount * 0.3 * 0.2) // Simulated
-    if (callsBooked === 0) {
-      steps.push({
-        label: "Book your first call",
-        status: "not_started" as const,
-        href: "/pipeline",
-      })
-    } else {
-      steps.push({
-        label: "Book your first call",
-        status: "complete" as const,
-        href: "/pipeline",
-      })
-    }
+    steps.push({
+      label: "Book your first call",
+      status: callsCount > 0 ? "complete" as const : "not_started" as const,
+      href: "/pipeline",
+    })
 
     return steps.slice(0, 3) // Max 3 items
   }
@@ -243,14 +182,11 @@ export default async function DashboardPage() {
   const nextSteps = getNextSteps()
 
   // Pipeline metrics (4 cards only as per spec)
-  const leadsContacted = conversationsCount
-  const dealsClosed = winsCount
-
   const pipelineStats = [
-    { label: "Leads Contacted", value: leadsContacted, icon: Send },
+    { label: "Leads Contacted", value: outreachCount, icon: Send },
     { label: "Replies", value: repliesCount, icon: MessageSquare },
-    { label: "Calls Booked", value: callsBooked, icon: Phone },
-    { label: "Deals Closed", value: dealsClosed, icon: Handshake },
+    { label: "Calls Booked", value: callsCount, icon: Phone },
+    { label: "Deals Closed", value: winsCount, icon: Handshake },
   ]
 
   return (
@@ -337,16 +273,16 @@ export default async function DashboardPage() {
         <section className="space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium text-white/70">
-              Day {currentDay} of 14 – First Client Sprint
+              Day {dayInSprint} of 14 – First Client Sprint
             </span>
             <span className="text-xs text-white/40">
-              {Math.round((currentDay / 14) * 100)}% complete
+              {Math.round((dayInSprint / 14) * 100)}% complete
             </span>
           </div>
           <div className="relative h-2 bg-white/10 rounded-full overflow-hidden">
             <div
               className="absolute inset-y-0 left-0 bg-gradient-to-r from-[#00AAFF] to-[#00AAFF]/70 rounded-full transition-all duration-500"
-              style={{ width: `${(currentDay / 14) * 100}%` }}
+              style={{ width: `${(dayInSprint / 14) * 100}%` }}
             />
             {/* Day markers */}
             <div className="absolute inset-0 flex justify-between px-1">
@@ -355,7 +291,7 @@ export default async function DashboardPage() {
                   key={i}
                   className={cn(
                     "w-1 h-full",
-                    i + 1 <= currentDay ? "bg-transparent" : "bg-white/5"
+                    i + 1 <= dayInSprint ? "bg-transparent" : "bg-white/5"
                   )}
                 />
               ))}
@@ -421,7 +357,7 @@ export default async function DashboardPage() {
           <h2 className="text-sm font-semibold text-white/50 uppercase tracking-wide">
             Pipeline
           </h2>
-          {leadsContacted === 0 ? (
+          {outreachCount === 0 ? (
             <Card className="bg-white/[0.03] border border-white/10 rounded-xl">
               <CardContent className="p-6 text-center">
                 <Send className="h-8 w-8 text-white/20 mx-auto mb-3" />
