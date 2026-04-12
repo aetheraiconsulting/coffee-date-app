@@ -64,6 +64,7 @@ export async function getUserState(): Promise<UserState | null> {
     { data: callsData },
     { data: proposalsData },
     { data: conversations },
+    { data: callScriptsData },
   ] = await Promise.all([
     supabase.from("profiles").select("full_name, email, sprint_start_date, offer_id").eq("id", user.id).single(),
     supabase.from("ghl_connections").select("id").eq("user_id", user.id),
@@ -73,6 +74,7 @@ export async function getUserState(): Promise<UserState | null> {
     supabase.from("calls").select("id, status").eq("user_id", user.id),
     supabase.from("proposals").select("id, status").eq("user_id", user.id),
     supabase.from("revival_conversations").select("id, status").eq("user_id", user.id),
+    supabase.from("call_scripts").select("id, call_completed").eq("user_id", user.id),
   ])
 
   // Calculate counts
@@ -99,8 +101,8 @@ export async function getUserState(): Promise<UserState | null> {
   // Get latest outreach date for stall detection
   // Note: Would need to fetch created_at from outreach table for real stall detection
   
-  // Completed calls and sent proposals
-  const completedCalls = callsData?.filter((c) => c.status === "completed")?.length || 0
+  // Completed calls from call_scripts table (call_completed = true)
+  const completedCalls = callScriptsData?.filter((c) => c.call_completed)?.length || 0
   const sentProposals = proposalsData?.filter((p) => p.status === "sent" || p.status === "pending")?.length || 0
   const closedProposals = proposalsData?.filter((p) => p.status === "won" || p.status === "lost")?.length || 0
 

@@ -100,7 +100,7 @@ export default async function DashboardPage() {
           subtext: `You have ${callsCount} call${callsCount !== 1 ? "s" : ""} booked. Time to close.`,
           why: "The demo is where deals happen. Show them the value, ask for the close.",
           cta: "Prepare Demo",
-          href: "/demo",
+          href: "/call-prep",
           timeEstimate: "~30 minutes",
           progress: {
             current: callsCount,
