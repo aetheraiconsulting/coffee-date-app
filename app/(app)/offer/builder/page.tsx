@@ -6,53 +6,9 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { Loader2, Sparkles, ChevronRight, CheckCircle2, RefreshCw, DollarSign, Shield, Target } from "lucide-react"
 import { useUserState } from "@/context/StateContext"
 import { cn } from "@/lib/utils"
-
-// Popular niches for the dropdown
-const NICHES = [
-  "Real Estate Agents",
-  "Insurance Brokers",
-  "Financial Advisors",
-  "Mortgage Brokers",
-  "Auto Dealerships",
-  "Home Services",
-  "Medical Practices",
-  "Dental Offices",
-  "Law Firms",
-  "Fitness Studios",
-  "Salons & Spas",
-  "Restaurants",
-  "E-commerce",
-  "SaaS Companies",
-  "Marketing Agencies",
-  "Coaches & Consultants",
-  "Other",
-]
-
-const INDUSTRIES = [
-  "Real Estate",
-  "Finance & Insurance",
-  "Healthcare",
-  "Legal",
-  "Home Services",
-  "Fitness & Wellness",
-  "Beauty & Personal Care",
-  "Food & Hospitality",
-  "Retail & E-commerce",
-  "Technology",
-  "Professional Services",
-  "Education",
-  "Other",
-]
 
 interface GeneratedOffer {
   id: string
@@ -71,15 +27,12 @@ export default function OfferBuilderPage() {
   
   const [step, setStep] = useState<"input" | "generating" | "preview">("input")
   const [niche, setNiche] = useState("")
-  const [customNiche, setCustomNiche] = useState("")
-  const [industry, setIndustry] = useState("")
-  const [customIndustry, setCustomIndustry] = useState("")
+  const [problem, setProblem] = useState("")
+  const [outcome, setOutcome] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [offer, setOffer] = useState<GeneratedOffer | null>(null)
 
-  const effectiveNiche = niche === "Other" ? customNiche : niche
-  const effectiveIndustry = industry === "Other" ? customIndustry : industry
-  const canGenerate = effectiveNiche && effectiveIndustry
+  const canGenerate = niche.trim() && problem.trim() && outcome.trim()
 
   const handleGenerate = async () => {
     if (!canGenerate) return
@@ -92,8 +45,9 @@ export default function OfferBuilderPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          niche: effectiveNiche,
-          industry: effectiveIndustry,
+          niche: niche.trim(),
+          problem: problem.trim(),
+          outcome: outcome.trim(),
         }),
       })
 
@@ -159,54 +113,37 @@ export default function OfferBuilderPage() {
         {step === "input" && (
           <Card className="bg-white/[0.03] border-white/10">
             <CardContent className="p-6 space-y-6">
-              {/* Niche Selection */}
+              {/* Niche Input */}
               <div className="space-y-2">
-                <Label className="text-white">Who do you want to help?</Label>
-                <Select value={niche} onValueChange={setNiche}>
-                  <SelectTrigger className="bg-white/[0.05] border-white/10 text-white h-12">
-                    <SelectValue placeholder="Select a niche..." />
-                  </SelectTrigger>
-                  <SelectContent className="bg-zinc-900 border-white/10">
-                    {NICHES.map((n) => (
-                      <SelectItem key={n} value={n} className="text-white hover:bg-white/10">
-                        {n}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {niche === "Other" && (
-                  <Input
-                    placeholder="Enter your niche..."
-                    value={customNiche}
-                    onChange={(e) => setCustomNiche(e.target.value)}
-                    className="bg-white/[0.05] border-white/10 text-white h-12 mt-2"
-                  />
-                )}
+                <Label className="text-white">Your niche</Label>
+                <Input
+                  placeholder="e.g. local restaurants, estate agents, fitness coaches"
+                  value={niche}
+                  onChange={(e) => setNiche(e.target.value)}
+                  className="bg-white/[0.05] border-white/10 text-white h-12"
+                />
               </div>
 
-              {/* Industry Selection */}
+              {/* Problem Input */}
               <div className="space-y-2">
-                <Label className="text-white">What industry are they in?</Label>
-                <Select value={industry} onValueChange={setIndustry}>
-                  <SelectTrigger className="bg-white/[0.05] border-white/10 text-white h-12">
-                    <SelectValue placeholder="Select an industry..." />
-                  </SelectTrigger>
-                  <SelectContent className="bg-zinc-900 border-white/10">
-                    {INDUSTRIES.map((i) => (
-                      <SelectItem key={i} value={i} className="text-white hover:bg-white/10">
-                        {i}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {industry === "Other" && (
-                  <Input
-                    placeholder="Enter the industry..."
-                    value={customIndustry}
-                    onChange={(e) => setCustomIndustry(e.target.value)}
-                    className="bg-white/[0.05] border-white/10 text-white h-12 mt-2"
-                  />
-                )}
+                <Label className="text-white">The problem you fix</Label>
+                <Input
+                  placeholder="e.g. they lose leads because they don't follow up fast enough"
+                  value={problem}
+                  onChange={(e) => setProblem(e.target.value)}
+                  className="bg-white/[0.05] border-white/10 text-white h-12"
+                />
+              </div>
+
+              {/* Outcome Input */}
+              <div className="space-y-2">
+                <Label className="text-white">The outcome you deliver</Label>
+                <Input
+                  placeholder="e.g. booked appointments within 48 hours using AI follow-up"
+                  value={outcome}
+                  onChange={(e) => setOutcome(e.target.value)}
+                  className="bg-white/[0.05] border-white/10 text-white h-12"
+                />
               </div>
 
               {/* Error */}
@@ -247,7 +184,7 @@ export default function OfferBuilderPage() {
                 Generating Your Offer...
               </h2>
               <p className="text-white/60 max-w-sm">
-                AI is crafting a compelling offer tailored to {effectiveNiche} in the {effectiveIndustry} industry.
+                AI is crafting a compelling offer tailored to {niche}.
               </p>
             </CardContent>
           </Card>
