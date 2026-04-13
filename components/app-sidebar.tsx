@@ -30,7 +30,7 @@ const menuSections = [
       { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
       { icon: TrendingUp, label: "Pipeline", href: "/pipeline" },
       { icon: Target, label: "Opportunities", href: "/revival/opportunities" },
-      { icon: Wand2, label: "Build Offer", href: "/offer/builder", indent: true },
+      { icon: Wand2, label: "Build Offer", href: "/offer/builder?mode=new", indent: true },
       { icon: FileText, label: "My Offers", href: "/offer/my-offers", indent: true },
     ],
   },

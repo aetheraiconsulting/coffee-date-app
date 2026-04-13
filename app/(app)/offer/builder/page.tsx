@@ -81,8 +81,18 @@ export default function OfferBuilderPage() {
   const [editingOutcome, setEditingOutcome] = useState(false)
   const [saving, setSaving] = useState(false)
 
+  // Check if mode=new for creating new offer
+  const modeParam = searchParams.get("mode")
+  const isNewMode = modeParam === "new"
+
   // Pre-fill from URL params and auto-generate if all present
   useEffect(() => {
+    // If new mode, show blank form
+    if (isNewMode) {
+      setStep("input")
+      return
+    }
+    
     const nicheParam = searchParams.get("niche")
     const problemParam = searchParams.get("problem")
     const outcomeParam = searchParams.get("outcome")
@@ -103,14 +113,15 @@ export default function OfferBuilderPage() {
     if (nicheParam && problemParam && outcomeParam) {
       setAutoGenerate(true)
     }
-  }, [searchParams])
+  }, [searchParams, isNewMode])
 
-  // Load existing active offer when opened without URL params
+  // Load existing active offer when opened without URL params (edit mode)
   useEffect(() => {
     const nicheParam = searchParams.get("niche")
     const problemParam = searchParams.get("problem")
     
-    if (!nicheParam && !problemParam) {
+    // Only load existing offer if not in new mode and no params
+    if (!isNewMode && !nicheParam && !problemParam) {
       const loadExistingOffer = async () => {
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) return
@@ -138,7 +149,7 @@ export default function OfferBuilderPage() {
       }
       loadExistingOffer()
     }
-  }, [searchParams, supabase])
+  }, [searchParams, supabase, isNewMode])
 
   // Trigger auto-generation
   useEffect(() => {
@@ -229,33 +240,13 @@ export default function OfferBuilderPage() {
 
       const pricePointFormatted = formatPricePoint()
       
-      // Check if user already has an active offer
-      const { data: existingOffer } = await supabase
-        .from("offers")
-        .select("id")
-        .eq("user_id", user.id)
-        .eq("is_active", true)
-        .maybeSingle()
-
-      if (existingOffer) {
-        // Update the existing active offer
-        const { error: updateError } = await supabase
+      if (isNewMode) {
+        // NEW MODE: Always insert new offer, deactivate existing first
+        await supabase
           .from("offers")
-          .update({
-            service_name: serviceName,
-            outcome_statement: outcomeStatement,
-            price_point: pricePointFormatted,
-            guarantee,
-            confidence_score: confidenceScore,
-            confidence_reason: confidenceReason,
-            pricing_model: pricingModel,
-            niche,
-          })
-          .eq("id", existingOffer.id)
+          .update({ is_active: false })
+          .eq("user_id", user.id)
 
-        if (updateError) throw updateError
-      } else {
-        // Insert new offer
         const { data: newOffer, error: insertError } = await supabase
           .from("offers")
           .insert({
@@ -280,6 +271,59 @@ export default function OfferBuilderPage() {
           .from("profiles")
           .update({ offer_id: newOffer.id })
           .eq("id", user.id)
+      } else {
+        // EDIT MODE: Update existing active offer or insert if none exists
+        const { data: existingOffer } = await supabase
+          .from("offers")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("is_active", true)
+          .maybeSingle()
+
+        if (existingOffer) {
+          // Update the existing active offer
+          const { error: updateError } = await supabase
+            .from("offers")
+            .update({
+              service_name: serviceName,
+              outcome_statement: outcomeStatement,
+              price_point: pricePointFormatted,
+              guarantee,
+              confidence_score: confidenceScore,
+              confidence_reason: confidenceReason,
+              pricing_model: pricingModel,
+              niche,
+            })
+            .eq("id", existingOffer.id)
+
+          if (updateError) throw updateError
+        } else {
+          // Insert new offer
+          const { data: newOffer, error: insertError } = await supabase
+            .from("offers")
+            .insert({
+              user_id: user.id,
+              service_name: serviceName,
+              outcome_statement: outcomeStatement,
+              price_point: pricePointFormatted,
+              guarantee,
+              confidence_score: confidenceScore,
+              confidence_reason: confidenceReason,
+              pricing_model: pricingModel,
+              niche,
+              is_active: true,
+            })
+            .select()
+            .single()
+
+          if (insertError) throw insertError
+
+          // Update profiles.offer_id with new offer id
+          await supabase
+            .from("profiles")
+            .update({ offer_id: newOffer.id })
+            .eq("id", user.id)
+        }
       }
 
       await refreshState()
