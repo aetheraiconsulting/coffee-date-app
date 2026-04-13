@@ -497,27 +497,46 @@ export default function OpportunitiesPage() {
     loadData()
   }, [loadData])
 
-  // Fetch active offer directly from database on mount
-  useEffect(() => {
-    async function fetchActiveOffer() {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        setOfferLoading(false)
-        return
-      }
-      
-      const { data } = await supabase
-        .from("offers")
-        .select("id, service_name, price_point, pricing_model")
-        .eq("user_id", user.id)
-        .eq("is_active", true)
-        .maybeSingle()
-      
-      setActiveOffer(data)
+// Fetch active offer - extracted as named function for reuse
+  const fetchActiveOffer = async () => {
+    setOfferLoading(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
       setOfferLoading(false)
+      return
     }
+    
+    const { data } = await supabase
+      .from("offers")
+      .select("id, service_name, price_point, pricing_model")
+      .eq("user_id", user.id)
+      .eq("is_active", true)
+      .maybeSingle()
+    
+    setActiveOffer(data)
+    setOfferLoading(false)
+  }
+
+  // Fetch active offer on mount
+  useEffect(() => {
     fetchActiveOffer()
-  }, [supabase])
+  }, [])
+
+  // Refetch when page becomes visible (user returns from another tab/page)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) fetchActiveOffer()
+    }
+    document.addEventListener("visibilitychange", handleVisibilityChange)
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange)
+  }, [])
+
+  // Refetch when window regains focus
+  useEffect(() => {
+    const handleFocus = () => fetchActiveOffer()
+    window.addEventListener("focus", handleFocus)
+    return () => window.removeEventListener("focus", handleFocus)
+  }, [])
 
   useEffect(() => {
     if (selectedNiche) {

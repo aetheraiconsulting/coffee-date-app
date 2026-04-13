@@ -105,6 +105,41 @@ export default function OfferBuilderPage() {
     }
   }, [searchParams])
 
+  // Load existing active offer when opened without URL params
+  useEffect(() => {
+    const nicheParam = searchParams.get("niche")
+    const problemParam = searchParams.get("problem")
+    
+    if (!nicheParam && !problemParam) {
+      const loadExistingOffer = async () => {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return
+        
+        const { data } = await supabase
+          .from("offers")
+          .select("*")
+          .eq("user_id", user.id)
+          .eq("is_active", true)
+          .maybeSingle()
+        
+        if (data) {
+          setServiceName(data.service_name || "")
+          setOutcomeStatement(data.outcome_statement || "")
+          setPricingModel(data.pricing_model || "50_profit_share")
+          // Parse price value from formatted price_point
+          const priceMatch = data.price_point?.match(/\d+/)
+          if (priceMatch) setPriceValue(priceMatch[0])
+          setGuarantee(data.guarantee || "")
+          setNiche(data.niche || "")
+          setConfidenceScore(data.confidence_score || "strong")
+          setConfidenceReason(data.confidence_reason || "")
+          setStep("preview")
+        }
+      }
+      loadExistingOffer()
+    }
+  }, [searchParams, supabase])
+
   // Trigger auto-generation
   useEffect(() => {
     if (autoGenerate && nicheInput && problemInput && outcomeInput) {
