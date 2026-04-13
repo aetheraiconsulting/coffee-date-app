@@ -17,6 +17,7 @@ import {
   RefreshCcw,
   Send,
   FileText,
+  Palette,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import Image from "next/image"
@@ -57,7 +58,10 @@ const menuSections = [
   },
   {
     label: "Account",
-    items: [{ icon: Settings2, label: "Settings", href: "/settings" }],
+    items: [
+      { icon: Settings2, label: "Settings", href: "/settings" },
+      { icon: Palette, label: "Branding", href: "/settings/branding", indent: true },
+    ],
   },
 ]
 
