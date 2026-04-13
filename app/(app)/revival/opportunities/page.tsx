@@ -1041,15 +1041,6 @@ export default function OpportunitiesPage() {
   const selectedNicheTier = selectedNicheScore ? getPriorityTier(selectedNicheScore.pipelineScore) : "cold"
   const selectedNicheAlerts = selectedNiche ? getAutomationAlerts(selectedNiche.user_state) : []
 
-  // Get top opportunity (highest scoring niche that's not already Won)
-  const topOpportunity = useMemo(() => {
-    const scored = allNiches
-      .filter((n) => n.user_state?.status !== "Win")
-      .map((n) => ({ ...n, score: calculatePipelineScore(n.user_state) }))
-      .sort((a, b) => b.score.pipelineScore - a.score.pipelineScore)
-    return scored[0] || null
-  }, [allNiches])
-
   return (
     <TooltipProvider>
       <div className="min-h-screen bg-black p-6">
@@ -1058,43 +1049,6 @@ export default function OpportunitiesPage() {
           <h1 className="text-3xl font-bold text-white mb-2">Opportunities</h1>
           <p className="text-white/60">Find high-potential niches and start outreach</p>
         </div>
-
-        {/* Best Opportunity Right Now */}
-        {topOpportunity && (
-          <div className="mb-6">
-            <div className="relative overflow-hidden rounded-xl border border-[#00AAFF]/30 bg-gradient-to-r from-[#00AAFF]/10 to-transparent p-6">
-              <div className="absolute top-0 right-0 w-64 h-64 bg-[#00AAFF]/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-              <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Flame className="h-4 w-4 text-[#00AAFF]" />
-<span className="text-xs font-semibold uppercase tracking-wider text-[#00AAFF]">Best Opportunity Right Now</span>
-  </div>
-  <p className="text-xs text-white/50 mb-2">Based on engagement signals and success patterns</p>
-  <h2 className="text-xl font-bold text-white mb-1">{topOpportunity.niche_name}</h2>
-                  <p className="text-sm text-white/60">{topOpportunity.industry_name}</p>
-                  <div className="flex items-center gap-3 mt-3">
-                    <span className="text-xs px-2 py-1 rounded-full bg-white/10 text-white/70">
-                      Score: {topOpportunity.score.pipelineScore}
-                    </span>
-                    <span className="text-xs px-2 py-1 rounded-full bg-white/10 text-white/70">
-                      {topOpportunity.user_state?.status || "Research"}
-                    </span>
-                  </div>
-                </div>
-                <div className="flex gap-3">
-                  <Button
-                    onClick={() => setSelectedNiche(topOpportunity)}
-                    className="bg-[#00AAFF] hover:bg-[#0099EE] text-white shadow-lg shadow-[#00AAFF]/30"
-                  >
-                    Select Niche
-                    <ChevronRight className="h-4 w-4 ml-1" />
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Filter Bar */}
         <div className="flex items-center gap-4 p-4 bg-zinc-900/50 rounded-xl border border-white/10 mb-6">
