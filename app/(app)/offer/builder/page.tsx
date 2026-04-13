@@ -16,6 +16,7 @@ interface GeneratedOffer {
   service_name: string
   outcome_statement: string
   price_point: string
+  pricing_model: "retainer" | "performance" | "project" | "hybrid"
   guarantee: string
   confidence_score: "strong" | "needs_work" | "weak"
   confidence_reason: string
@@ -233,9 +234,14 @@ export default function OfferBuilderPage() {
                       Price Point
                     </p>
                   </div>
-                  <p className="text-white font-semibold text-xl">
-                    {offer.price_point}
-                  </p>
+                  <div className="flex items-center gap-3">
+                    <p className="text-white font-semibold text-xl">
+                      {offer.price_point}
+                    </p>
+                    <span className="text-xs px-2 py-1 rounded-full bg-[#00AAFF]/10 text-[#00AAFF] border border-[#00AAFF]/30 capitalize">
+                      {offer.pricing_model}
+                    </span>
+                  </div>
                 </div>
 
                 {/* Guarantee */}
