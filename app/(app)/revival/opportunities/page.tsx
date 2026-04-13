@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Card } from "@/components/ui/card"
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -37,8 +37,6 @@ import {
   Plus,
   Loader2,
   Target,
-  BookOpen,
-  Send,
   X,
   CheckCircle,
   ChevronRight,
@@ -117,6 +115,64 @@ function EditableCounter({
       title="Click to edit"
     >
       {isUpdating ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : value}
+    </button>
+  )
+}
+
+// Helper to get stage index for comparison (used by SectionHeader)
+function getStageIndexStatic(stage: string) {
+  const stages = ["research", "offer", "outreach", "demo", "revival"]
+  const index = stages.indexOf(stage)
+  return index >= 0 ? index : 0
+}
+
+// Section header component for collapsible sections
+function SectionHeader({ 
+  title, 
+  isExpanded,
+  onToggle,
+  stage, 
+  currentStage, 
+}: { 
+  title: string
+  isExpanded: boolean
+  onToggle: () => void
+  stage?: string
+  currentStage?: string
+}) {
+  const isCompleted = stage && currentStage && getStageIndexStatic(stage) < getStageIndexStatic(currentStage)
+  const isCurrent = stage === currentStage
+
+  return (
+    <button
+      onClick={onToggle}
+      className="w-full flex items-center justify-between py-3 px-4 rounded-lg hover:bg-white/5 transition-colors"
+    >
+      <div className="flex items-center gap-2">
+        {isCompleted && (
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <circle cx="7" cy="7" r="6" fill="rgba(34,197,94,0.2)" stroke="rgba(34,197,94,0.5)" strokeWidth="1"/>
+            <path d="M4 7l2 2 4-4" stroke="rgb(34,197,94)" strokeWidth="1.5" strokeLinecap="round"/>
+          </svg>
+        )}
+        {isCurrent && !isCompleted && (
+          <div className="w-2 h-2 rounded-full bg-[#00AAFF] animate-pulse" />
+        )}
+        <span className={cn(
+          "text-sm font-medium",
+          isCurrent ? "text-white" : 
+          isCompleted ? "text-white/50" : 
+          "text-white/40"
+        )}>
+          {title}
+        </span>
+      </div>
+      <svg 
+        width="14" height="14" viewBox="0 0 14 14" fill="none"
+        className={cn("transition-transform text-white/30", isExpanded && "rotate-180")}
+      >
+        <path d="M3 5l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+      </svg>
     </button>
   )
 }
@@ -404,8 +460,30 @@ export default function OpportunitiesPage() {
   const [whyThisWorksContent, setWhyThisWorksContent] = useState<string | null>(null)
   const [loadingWhyThisWorks, setLoadingWhyThisWorks] = useState(false)
 
-  const [researchOpen, setResearchOpen] = useState(true)
-  const [outreachOpen, setOutreachOpen] = useState(false)
+  // Collapsible sections state
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
+    whyThisWorks: true,
+    research: true,
+    offer: false,
+    outreach: false,
+    outreachTracker: false,
+    demo: false,
+    revival: false,
+    audit: false,
+  })
+
+  const toggleSection = (section: string) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }))
+  }
+
+  // Helper to get stage index for comparison
+  const getStageIndex = (stage: string) => {
+    const index = PIPELINE_STAGES.findIndex(s => s.key === stage)
+    return index >= 0 ? index : 0
+  }
 
   const [savingField, setSavingField] = useState<string | null>(null)
 
@@ -629,6 +707,35 @@ export default function OpportunitiesPage() {
       setWhyThisWorksContent(null)
     }
   }, [selectedNiche?.id, loadWhyThisWorks])
+
+  // Auto-expand sections based on current stage when niche or stage changes
+  useEffect(() => {
+    if (!selectedNiche) return
+    
+    const nicheState = selectedNiche.user_state
+    let currentStage = nicheState?.stage || "research"
+    
+    // Infer stage if not explicitly set
+    if (!nicheState?.stage) {
+      if (nicheState?.ghl_connected) currentStage = "revival"
+      else if (nicheState?.coffee_date_completed) currentStage = "demo"
+      else if (nicheState?.outreach_generated) currentStage = "outreach"
+      else if (nicheState?.offer_id || activeOffer) currentStage = "offer"
+      else if (nicheState?.research_notes_added && nicheState?.customer_profile_generated && nicheState?.aov_calculator_completed) currentStage = "offer"
+      else currentStage = "research"
+    }
+    
+    setExpandedSections({
+      whyThisWorks: true, // always expanded
+      research: currentStage === "research",
+      offer: currentStage === "offer",
+      outreach: currentStage === "outreach",
+      outreachTracker: currentStage === "outreach",
+      demo: currentStage === "demo",
+      revival: currentStage === "revival",
+      audit: false, // audit is special, only visible when ghl_connected
+    })
+  }, [selectedNiche?.id, selectedNiche?.user_state?.stage, activeOffer])
 
   useEffect(() => {
     let filtered = [...allNiches]
@@ -1363,26 +1470,28 @@ export default function OpportunitiesPage() {
                     </div>
                   )}
 
+                  {/* Calculate current stage for use in stage tracker and section headers */}
+                  {(() => {
+                    const nicheState = selectedNiche?.user_state
+                    let currentStage = nicheState?.stage || "research"
+                    
+                    // If no explicit stage, infer from state
+                    if (!nicheState?.stage) {
+                      if (nicheState?.ghl_connected) currentStage = "revival"
+                      else if (nicheState?.coffee_date_completed) currentStage = "demo"
+                      else if (nicheState?.outreach_generated) currentStage = "outreach"
+                      else if (nicheState?.offer_id || activeOffer) currentStage = "offer"
+                      else if (nicheState?.research_notes_added && nicheState?.customer_profile_generated && nicheState?.aov_calculator_completed) currentStage = "offer"
+                      else currentStage = "research"
+                    }
+                    
+                    const stageIndex = PIPELINE_STAGES.findIndex(s => s.key === currentStage)
+                    
+                    return (
+                      <>
                   {/* Pipeline Stage Tracker - Research → Offer → Outreach → Demo → Revival */}
                   <div className="flex items-center gap-0 mb-6">
-                    {(() => {
-                      // Determine current stage from niche_user_state.stage or infer from conditions
-                      const nicheState = selectedNiche?.user_state
-                      let currentStage = nicheState?.stage || "research"
-                      
-                      // If no explicit stage, infer from state
-                      if (!nicheState?.stage) {
-                        if (nicheState?.ghl_connected) currentStage = "revival"
-                        else if (nicheState?.coffee_date_completed) currentStage = "demo"
-                        else if (nicheState?.outreach_generated) currentStage = "outreach"
-                        else if (nicheState?.offer_id || activeOffer) currentStage = "offer"
-                        else if (nicheState?.research_notes_added && nicheState?.customer_profile_generated && nicheState?.aov_calculator_completed) currentStage = "offer"
-                        else currentStage = "research"
-                      }
-                      
-                      const stageIndex = PIPELINE_STAGES.findIndex(s => s.key === currentStage)
-                      
-                      return PIPELINE_STAGES.map((stage, index) => (
+                    {PIPELINE_STAGES.map((stage, index) => (
                         <div key={stage.key} className="flex items-center">
                           <div className={cn(
                             "flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all",
@@ -1408,47 +1517,49 @@ export default function OpportunitiesPage() {
                             <div className={cn("w-6 h-px", index < stageIndex ? "bg-green-500/40" : "bg-white/10")} />
                           )}
                         </div>
-                      ))
-                    })()}
+                      ))}
                   </div>
 
 {/* Why This Works Section - AI Generated */}
-                  <div className="bg-white/[0.03] border-l-4 border-l-[#00AAFF] border border-white/10 rounded-xl p-5 space-y-3">
-                    <p className="text-[10px] font-semibold text-[#00AAFF] uppercase tracking-wider">WHY THIS WORKS</p>
-                    {loadingWhyThisWorks ? (
-                      <div className="flex items-center gap-3 py-2">
-                        <Loader2 className="animate-spin h-4 w-4 text-[#00AAFF]" />
-                        <span className="text-sm text-white/50">Analysing this niche...</span>
+                  <div className="border border-white/[0.08] rounded-lg mb-2 overflow-hidden">
+                    <SectionHeader 
+                      title="Why This Works" 
+                      isExpanded={expandedSections.whyThisWorks}
+                      onToggle={() => toggleSection("whyThisWorks")}
+                    />
+                    {expandedSections.whyThisWorks && (
+                      <div className="px-4 pb-4">
+                        <div className="bg-white/[0.03] border-l-4 border-l-[#00AAFF] border border-white/10 rounded-xl p-5 space-y-3">
+                          {loadingWhyThisWorks ? (
+                            <div className="flex items-center gap-3 py-2">
+                              <Loader2 className="animate-spin h-4 w-4 text-[#00AAFF]" />
+                              <span className="text-sm text-white/50">Analysing this niche...</span>
+                            </div>
+                          ) : whyThisWorksContent ? (
+                            <p className="text-sm text-white/70 leading-relaxed" style={{ lineHeight: 1.7 }}>
+                              {whyThisWorksContent}
+                            </p>
+                          ) : (
+                            <p className="text-sm text-white/50 italic">
+                              Click on a niche to generate AI analysis
+                            </p>
+                          )}
+                        </div>
                       </div>
-                    ) : whyThisWorksContent ? (
-                      <p className="text-sm text-white/70 leading-relaxed" style={{ lineHeight: 1.7 }}>
-                        {whyThisWorksContent}
-                      </p>
-                    ) : (
-                      <p className="text-sm text-white/50 italic">
-                        Click on a niche to generate AI analysis
-                      </p>
                     )}
                   </div>
 
-                  <Collapsible open={researchOpen} onOpenChange={setResearchOpen}>
-                    <Card className="border border-white/10 bg-zinc-800/50 overflow-hidden">
-                      <CollapsibleTrigger className="w-full p-4 flex items-center justify-between hover:bg-white/5 transition-colors">
-                        <div className="flex items-center gap-3">
-                          <BookOpen className="h-5 w-5 text-blue-400" />
-                          <span className="font-semibold text-white">Research Phase</span>
-                          {selectedNiche.user_state?.research_notes_added &&
-                            selectedNiche.user_state?.customer_profile_generated &&
-                            selectedNiche.user_state?.aov_calculator_completed && (
-                              <CheckCircle className="h-4 w-4 text-green-400" />
-                            )}
-                        </div>
-                        <ChevronDown
-                          className={cn("h-5 w-5 text-white/40 transition-transform", researchOpen && "rotate-180")}
-                        />
-                      </CollapsibleTrigger>
-                      <CollapsibleContent>
-                        <div className="p-4 pt-0 space-y-4 border-t border-white/5">
+                  {/* Research Phase Section */}
+                  <div className="border border-white/[0.08] rounded-lg mb-2 overflow-hidden">
+                    <SectionHeader 
+                      title="Research Phase" 
+                      isExpanded={expandedSections.research}
+                      onToggle={() => toggleSection("research")}
+                      stage="research"
+                      currentStage={currentStage}
+                    />
+                    {expandedSections.research && (
+                      <div className="px-4 pb-4 space-y-4">
                           {/* Research Notes */}
                           <div className="space-y-2">
                             <div className="flex items-center justify-between">
@@ -1675,105 +1786,120 @@ export default function OpportunitiesPage() {
                               : "Research Completed"}
                           </Button>
                         </div>
-                      </CollapsibleContent>
-                    </Card>
-                  </Collapsible>
+                      )}
+                  </div>
 
                   {/* Section 3 — Your Offer */}
-                  <div className="bg-white/[0.03] border border-white/10 rounded-xl p-5 space-y-3">
-                    <p className="text-[10px] font-semibold text-[#00AAFF] uppercase tracking-wider">YOUR OFFER</p>
-                    {!activeOffer || !nicheMatches ? (
-                      <>
-                        <p className="text-sm text-white/50 mb-3">
-                          Use your research to build a niche-specific offer
-                        </p>
-                        <Button
-                          asChild
-                          className="w-full bg-[#00AAFF] hover:bg-[#0099EE] text-white"
-                        >
-                          <Link href={`/offer/builder?niche=${encodeURIComponent(selectedNiche.niche_name)}&problem=${encodeURIComponent(selectedNiche.user_state?.customer_profile?.pain_points || `${selectedNiche.industry_name || "These"} businesses have dormant customer lists`)}&outcome=${encodeURIComponent(`Target MRR: $${selectedNiche.user_state?.target_monthly_recurring || "3000"}`)}&mode=new`}>
-                            Build offer for this niche
-                            <ChevronRight className="h-4 w-4 ml-1" />
-                          </Link>
-                        </Button>
-                      </>
-                    ) : (
-                      <>
-                        <p className="font-semibold text-white">{activeOffer.service_name}</p>
-                        <p className="text-white/50 text-sm">
-                          {activeOffer.price_point} — <span className="capitalize">{activeOffer.pricing_model}</span>
-                        </p>
-                        <Button
-                          asChild
-                          variant="outline"
-                          className="w-full border-white/20 text-white hover:bg-white/10"
-                        >
-                          <Link href="/offer/builder">Edit offer</Link>
-                        </Button>
-                      </>
+                  <div className="border border-white/[0.08] rounded-lg mb-2 overflow-hidden">
+                    <SectionHeader 
+                      title="Build Your Offer" 
+                      isExpanded={expandedSections.offer}
+                      onToggle={() => toggleSection("offer")}
+                      stage="offer"
+                      currentStage={currentStage}
+                    />
+                    {expandedSections.offer && (
+                      <div className="px-4 pb-4">
+                        <div className="bg-white/[0.03] border border-white/10 rounded-xl p-5 space-y-3">
+                          {!activeOffer || !nicheMatches ? (
+                            <>
+                              <p className="text-sm text-white/50 mb-3">
+                                Use your research to build a niche-specific offer
+                              </p>
+                              <Button
+                                asChild
+                                className="w-full bg-[#00AAFF] hover:bg-[#0099EE] text-white"
+                              >
+                                <Link href={`/offer/builder?niche=${encodeURIComponent(selectedNiche.niche_name)}&problem=${encodeURIComponent(selectedNiche.user_state?.customer_profile?.pain_points || `${selectedNiche.industry_name || "These"} businesses have dormant customer lists`)}&outcome=${encodeURIComponent(`Target MRR: $${selectedNiche.user_state?.target_monthly_recurring || "3000"}`)}&mode=new`}>
+                                  Build offer for this niche
+                                  <ChevronRight className="h-4 w-4 ml-1" />
+                                </Link>
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <p className="font-semibold text-white">{activeOffer.service_name}</p>
+                              <p className="text-white/50 text-sm">
+                                {activeOffer.price_point} — <span className="capitalize">{activeOffer.pricing_model}</span>
+                              </p>
+                              <Button
+                                asChild
+                                variant="outline"
+                                className="w-full border-white/20 text-white hover:bg-white/10"
+                              >
+                                <Link href="/offer/builder">Edit offer</Link>
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </div>
                     )}
                   </div>
 
                   {/* Section 4 — Outreach */}
-                  <div className="bg-white/[0.03] border border-white/10 rounded-xl p-5 space-y-3">
-                    <p className="text-[10px] font-semibold text-[#00AAFF] uppercase tracking-wider">OUTREACH</p>
-                    {!selectedNiche.user_state?.outreach_generated ? (
-                      <>
-                        <p className="text-sm text-white/50 mb-3">
-                          Generate messages for this niche
-                        </p>
-                        <Button
-                          asChild
-                          className="w-full bg-[#00AAFF] hover:bg-[#0099EE] text-white"
-                        >
-                          <Link href="/outreach">
-                            Generate outreach messages
-                            <ChevronRight className="h-4 w-4 ml-1" />
-                          </Link>
-                        </Button>
-                      </>
-                    ) : (
-                      <>
-                        <div className="flex gap-3 mb-3">
-                          {["linkedin", "instagram", "email"].map(channel => (
-                            <div key={channel} className="text-center flex-1">
-                              <p className="text-white text-sm font-medium capitalize">{channel}</p>
-                              <p className="text-white/40 text-xs">
-                                {selectedNiche.user_state?.outreach_channels?.[`${channel}_sent` as keyof OutreachChannels] || 0} sent
+                  <div className="border border-white/[0.08] rounded-lg mb-2 overflow-hidden">
+                    <SectionHeader 
+                      title="Outreach Messages" 
+                      isExpanded={expandedSections.outreach}
+                      onToggle={() => toggleSection("outreach")}
+                      stage="outreach"
+                      currentStage={currentStage}
+                    />
+                    {expandedSections.outreach && (
+                      <div className="px-4 pb-4">
+                        <div className="bg-white/[0.03] border border-white/10 rounded-xl p-5 space-y-3">
+                          {!selectedNiche.user_state?.outreach_generated ? (
+                            <>
+                              <p className="text-sm text-white/50 mb-3">
+                                Generate messages for this niche
                               </p>
-                            </div>
-                          ))}
+                              <Button
+                                asChild
+                                className="w-full bg-[#00AAFF] hover:bg-[#0099EE] text-white"
+                              >
+                                <Link href="/outreach">
+                                  Generate outreach messages
+                                  <ChevronRight className="h-4 w-4 ml-1" />
+                                </Link>
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <div className="flex gap-3 mb-3">
+                                {["linkedin", "instagram", "email"].map(channel => (
+                                  <div key={channel} className="text-center flex-1">
+                                    <p className="text-white text-sm font-medium capitalize">{channel}</p>
+                                    <p className="text-white/40 text-xs">
+                                      {selectedNiche.user_state?.outreach_channels?.[`${channel}_sent` as keyof OutreachChannels] || 0} sent
+                                    </p>
+                                  </div>
+                                ))}
+                              </div>
+                              <Button
+                                asChild
+                                variant="outline"
+                                className="w-full border-white/20 text-white hover:bg-white/10"
+                              >
+                                <Link href="/outreach">View outreach messages</Link>
+                              </Button>
+                            </>
+                          )}
                         </div>
-                        <Button
-                          asChild
-                          variant="outline"
-                          className="w-full border-white/20 text-white hover:bg-white/10"
-                        >
-                          <Link href="/outreach">View outreach messages</Link>
-                        </Button>
-                      </>
+                      </div>
                     )}
                   </div>
 
                   {/* Section 5 — Outreach Tracker */}
-                  <Collapsible open={outreachOpen} onOpenChange={setOutreachOpen}>
-                    <Card className="border border-white/10 bg-zinc-800/50 overflow-hidden">
-                      <CollapsibleTrigger className="w-full p-4 flex items-center justify-between hover:bg-white/5 transition-colors">
-                        <div className="flex items-center gap-3">
-                          <Send className="h-5 w-5 text-green-400" />
-                          <span className="font-semibold text-white">Outreach Tracker</span>
-                          {(selectedNiche.user_state?.outreach_messages_sent || 0) > 0 && (
-                            <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/20 text-green-400">
-                              {selectedNiche.user_state?.outreach_messages_sent} sent
-                            </span>
-                          )}
-                        </div>
-                        <ChevronDown
-                          className={cn("h-5 w-5 text-white/40 transition-transform", outreachOpen && "rotate-180")}
-                        />
-                      </CollapsibleTrigger>
-                      <CollapsibleContent>
-                        <div className="p-4 pt-0 space-y-4 border-t border-white/5">
+                  <div className="border border-white/[0.08] rounded-lg mb-2 overflow-hidden">
+                    <SectionHeader 
+                      title="Outreach Tracker" 
+                      isExpanded={expandedSections.outreachTracker}
+                      onToggle={() => toggleSection("outreachTracker")}
+                      stage="outreach"
+                      currentStage={currentStage}
+                    />
+                    {expandedSections.outreachTracker && (
+                      <div className="px-4 pb-4 space-y-4">
                           {/* Outreach Start Date */}
                           <div className="space-y-2">
                             <Label className="text-sm text-white/80">Outreach Start Date</Label>
@@ -1893,85 +2019,121 @@ export default function OpportunitiesPage() {
                             tools.
                           </p>
                         </div>
-                      </CollapsibleContent>
-                    </Card>
-                  </Collapsible>
+                      )}
+                  </div>
 
                   {/* Section 6 — Build Android / Coffee Date Demo */}
-                  <div className="bg-white/[0.03] border border-white/10 rounded-xl p-5 space-y-3">
-                    <p className="text-[10px] font-semibold text-[#00AAFF] uppercase tracking-wider">COFFEE DATE DEMO</p>
-                    {selectedNiche.user_state?.android_built ? (
-                      <>
-                        <p className="text-green-400 text-sm mb-2">Android built</p>
-                        <Button
-                          asChild
-                          className="w-full bg-[#00AAFF] hover:bg-[#0099EE] text-white"
-                        >
-                          <Link href="/demo">
-                            Go to demo
-                            <ChevronRight className="h-4 w-4 ml-1" />
-                          </Link>
-                        </Button>
-                      </>
-                    ) : (
-                      <>
-                        <p className="text-sm text-white/50 mb-3">
-                          Build your Android for this niche to run the Coffee Date Demo
-                        </p>
-                        <Button
-                          asChild
-                          className="w-full bg-[#00AAFF] hover:bg-[#0099EE] text-white"
-                        >
-                          <Link href={`/prompt-generator?niche=${encodeURIComponent(selectedNiche.niche_name)}`}>
-                            Build Android for this niche
-                            <ChevronRight className="h-4 w-4 ml-1" />
-                          </Link>
-                        </Button>
-                      </>
+                  <div className="border border-white/[0.08] rounded-lg mb-2 overflow-hidden">
+                    <SectionHeader 
+                      title="Coffee Date Demo" 
+                      isExpanded={expandedSections.demo}
+                      onToggle={() => toggleSection("demo")}
+                      stage="demo"
+                      currentStage={currentStage}
+                    />
+                    {expandedSections.demo && (
+                      <div className="px-4 pb-4">
+                        <div className="bg-white/[0.03] border border-white/10 rounded-xl p-5 space-y-3">
+                          {selectedNiche.user_state?.android_built ? (
+                            <>
+                              <p className="text-green-400 text-sm mb-2">Android built</p>
+                              <Button
+                                asChild
+                                className="w-full bg-[#00AAFF] hover:bg-[#0099EE] text-white"
+                              >
+                                <Link href="/demo">
+                                  Go to demo
+                                  <ChevronRight className="h-4 w-4 ml-1" />
+                                </Link>
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <p className="text-sm text-white/50 mb-3">
+                                Build your Android for this niche to run the Coffee Date Demo
+                              </p>
+                              <Button
+                                asChild
+                                className="w-full bg-[#00AAFF] hover:bg-[#0099EE] text-white"
+                              >
+                                <Link href={`/prompt-generator?niche=${encodeURIComponent(selectedNiche.niche_name)}`}>
+                                  Build Android for this niche
+                                  <ChevronRight className="h-4 w-4 ml-1" />
+                                </Link>
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </div>
                     )}
                   </div>
 
                   {/* Section 7 — GHL / Revival */}
-                  <div className="bg-white/[0.03] border border-white/10 rounded-xl p-5 space-y-3">
-                    <p className="text-[10px] font-semibold text-[#00AAFF] uppercase tracking-wider">REVIVAL</p>
-                    {selectedNiche.user_state?.ghl_connected ? (
-                      <p className="text-green-400 text-sm">GHL connected — revival active</p>
-                    ) : (
-                      <>
-                        <p className="text-sm text-white/50 mb-3">
-                          Connect GoHighLevel to activate dead lead revival for this niche
-                        </p>
-                        <Button
-                          asChild
-                          className="w-full bg-[#00AAFF] hover:bg-[#0099EE] text-white"
-                        >
-                          <Link href="/revival/connect">
-                            Connect GHL account
-                            <ChevronRight className="h-4 w-4 ml-1" />
-                          </Link>
-                        </Button>
-                      </>
+                  <div className="border border-white/[0.08] rounded-lg mb-2 overflow-hidden">
+                    <SectionHeader 
+                      title="Revival" 
+                      isExpanded={expandedSections.revival}
+                      onToggle={() => toggleSection("revival")}
+                      stage="revival"
+                      currentStage={currentStage}
+                    />
+                    {expandedSections.revival && (
+                      <div className="px-4 pb-4">
+                        <div className="bg-white/[0.03] border border-white/10 rounded-xl p-5 space-y-3">
+                          {selectedNiche.user_state?.ghl_connected ? (
+                            <p className="text-green-400 text-sm">GHL connected — revival active</p>
+                          ) : (
+                            <>
+                              <p className="text-sm text-white/50 mb-3">
+                                Connect GoHighLevel to activate dead lead revival for this niche
+                              </p>
+                              <Button
+                                asChild
+                                className="w-full bg-[#00AAFF] hover:bg-[#0099EE] text-white"
+                              >
+                                <Link href="/revival/connect">
+                                  Connect GHL account
+                                  <ChevronRight className="h-4 w-4 ml-1" />
+                                </Link>
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </div>
                     )}
                   </div>
 
                   {/* Section 8 — Audit Opportunity (appears only when ghl_connected = true) */}
                   {selectedNiche.user_state?.ghl_connected && (
-                    <div className="bg-[#00AAFF]/5 border border-[#00AAFF]/30 rounded-xl p-5 space-y-3">
-                      <p className="text-[10px] font-semibold text-[#00AAFF] uppercase tracking-wider">AUDIT OPPORTUNITY</p>
-                      <p className="text-white/70 text-sm mb-3">
-                        Your client is running revival. Now is the right time to offer a paid AI audit.
-                      </p>
-                      <Button
-                        asChild
-                        className="w-full bg-[#00AAFF] hover:bg-[#0099EE] text-white"
-                      >
-                        <Link href="/audit">
-                          Build AI audit
-                          <ChevronRight className="h-4 w-4 ml-1" />
-                        </Link>
-                      </Button>
+                    <div className="border border-[#00AAFF]/30 rounded-lg mb-2 overflow-hidden">
+                      <SectionHeader 
+                        title="Audit Opportunity" 
+                        isExpanded={expandedSections.audit}
+                        onToggle={() => toggleSection("audit")}
+                      />
+                      {expandedSections.audit && (
+                        <div className="px-4 pb-4">
+                          <div className="bg-[#00AAFF]/5 border border-[#00AAFF]/30 rounded-xl p-5 space-y-3">
+                            <p className="text-white/70 text-sm mb-3">
+                              Your client is running revival. Now is the right time to offer a paid AI audit.
+                            </p>
+                            <Button
+                              asChild
+                              className="w-full bg-[#00AAFF] hover:bg-[#0099EE] text-white"
+                            >
+                              <Link href="/audit">
+                                Build AI audit
+                                <ChevronRight className="h-4 w-4 ml-1" />
+                              </Link>
+                            </Button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
+                      </>
+                    )
+                  })()}
                 </Card>
               ) : (
                 <Card className="border border-white/10 bg-zinc-900/50 h-full min-h-[400px] flex flex-col items-center justify-center text-center p-8 rounded-xl">
