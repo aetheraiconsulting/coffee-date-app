@@ -81,47 +81,49 @@ export default function OfferBuilderPage() {
   const [editingOutcome, setEditingOutcome] = useState(false)
   const [saving, setSaving] = useState(false)
 
-  // Check if mode=new for creating new offer
+  // Extract URL params
+  const nicheParam = searchParams.get("niche")
+  const problemParam = searchParams.get("problem")
+  const outcomeParam = searchParams.get("outcome")
   const modeParam = searchParams.get("mode")
-  const isNewMode = modeParam === "new"
+  
+  // URL params always take priority over mode=new
+  const hasParams = !!nicheParam || !!problemParam || !!outcomeParam
+  const isNewMode = modeParam === "new" && !hasParams
 
   // Pre-fill from URL params and auto-generate if all present
   useEffect(() => {
-    // If new mode, show blank form
-    if (isNewMode) {
-      setStep("input")
-      return
-    }
-    
-    const nicheParam = searchParams.get("niche")
-    const problemParam = searchParams.get("problem")
-    const outcomeParam = searchParams.get("outcome")
-    
+    // URL params always take priority - decode and populate
     if (nicheParam) {
-      setNicheInput(nicheParam)
-      setNiche(nicheParam)
+      setNicheInput(decodeURIComponent(nicheParam))
+      setNiche(decodeURIComponent(nicheParam))
       setPreloaded(true)
     }
     if (problemParam) {
-      setProblemInput(problemParam)
+      setProblemInput(decodeURIComponent(problemParam))
     }
     if (outcomeParam) {
-      setOutcomeInput(outcomeParam)
+      setOutcomeInput(decodeURIComponent(outcomeParam))
     }
     
     // Auto-generate if all three params present
     if (nicheParam && problemParam && outcomeParam) {
       setAutoGenerate(true)
     }
-  }, [searchParams, isNewMode])
+    // If only some params present, show form pre-filled
+    else if (hasParams) {
+      setStep("input")
+    }
+    // If new mode with no params, show blank form
+    else if (isNewMode) {
+      setStep("input")
+    }
+  }, [])
 
   // Load existing active offer when opened without URL params (edit mode)
   useEffect(() => {
-    const nicheParam = searchParams.get("niche")
-    const problemParam = searchParams.get("problem")
-    
-    // Only load existing offer if not in new mode and no params
-    if (!isNewMode && !nicheParam && !problemParam) {
+    // Only load existing offer if not in new mode and no params present
+    if (!isNewMode && !hasParams) {
       const loadExistingOffer = async () => {
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) return
@@ -149,7 +151,7 @@ export default function OfferBuilderPage() {
       }
       loadExistingOffer()
     }
-  }, [searchParams, supabase, isNewMode])
+  }, [])
 
   // Trigger auto-generation
   useEffect(() => {
