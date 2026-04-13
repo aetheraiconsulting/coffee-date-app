@@ -28,7 +28,11 @@ import {
   AlertTriangle,
   RotateCcw,
   FileText,
+  Loader2,
+  ExternalLink,
+  Trash2,
 } from "lucide-react"
+import { Switch } from "@/components/ui/switch"
 import { useState, useEffect, Suspense, useCallback, useRef } from "react"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter, useSearchParams } from "next/navigation"
@@ -51,6 +55,45 @@ interface Niche {
   industry?: { name: string }
 }
 
+interface Bottleneck {
+  issue: string
+  evidence: string
+  impact: string
+}
+
+interface QuickWin {
+  action: string
+  timeline: string
+  outcome: string
+}
+
+interface RoadmapPhase {
+  phase: string
+  focus: string
+  outcome: string
+}
+
+interface ServiceRecommendation {
+  service: string
+  priority: "critical" | "high" | "medium"
+  problem_solved: string
+  expected_outcome: string
+  pricing_model: string
+  why_now: string
+  included?: boolean
+}
+
+interface EditedInsights {
+  executive_summary: string
+  bottlenecks: Bottleneck[]
+  quick_wins: QuickWin[]
+  roadmap: RoadmapPhase[]
+  financial_impact: string
+  service_recommendations: ServiceRecommendation[]
+}
+
+type ViewState = "questions" | "generating" | "review" | "complete"
+
 function AuditBuilderContent() {
   const [auditId, setAuditId] = useState<string | null>(null)
   const [auditName, setAuditName] = useState("")
@@ -71,6 +114,9 @@ function AuditBuilderContent() {
     roadmap: string[]
     financialImpact: string
   } | null>(null)
+  const [view, setView] = useState<ViewState>("questions")
+  const [editedInsights, setEditedInsights] = useState<EditedInsights | null>(null)
+  const editedInsightsTimeout = useRef<NodeJS.Timeout>()
 
   const { toast } = useToast()
   const router = useRouter()
@@ -120,6 +166,10 @@ function AuditBuilderContent() {
         setBusinessSize(data.business_size || "")
         setResponses(data.responses || {})
         if (data.ai_insights) setAiInsights(data.ai_insights)
+        if (data.edited_insights) {
+          setEditedInsights(data.edited_insights)
+          setView("review")
+        }
       }
     } catch (error) {
       console.error("Error loading audit:", error)
@@ -333,32 +383,135 @@ Date: _________________________________________________________
     toast({ title: "Exported", description: "Audit report exported successfully" })
   }
 
-  function generateAIInsights() {
-    // Mock AI insights generation
-    const insights = {
-      bottlenecks: [
-        "Manual lead follow-up process causing delayed response times",
-        "Lack of automated customer communication systems",
-        "Time-consuming repetitive administrative tasks",
-      ],
-      quickWins: [
-        "Implement AI chatbot for instant lead capture and qualification",
-        "Set up automated email sequences for lead nurturing",
-        "Deploy AI-powered scheduling to reduce admin overhead",
-      ],
-      roadmap: [
-        "Week 1-4: Deploy AI chatbot and lead capture automation",
-        "Week 5-8: Implement CRM integration and email automation",
-        "Week 9-12: Roll out AI-powered analytics and optimization",
-      ],
-      financialImpact:
-        "Estimated 15-25% reduction in operational costs and 30-40% improvement in lead conversion rates within 90 days",
+  async function generateAIInsights() {
+    if (!auditId) {
+      // Save first to get an ID
+      await handleSave(false)
+      if (!auditId) {
+        toast({ title: "Save the audit first", description: "Please save before generating insights", variant: "destructive" })
+        return
+      }
     }
 
-    setAiInsights(insights)
-    setShowAIInsights(true)
-    toast({ title: "AI Insights Generated", description: "Review recommendations in the panel" })
+    setView("generating")
+
+    try {
+      const response = await fetch("/api/audit/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ audit_id: auditId })
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "Generation failed")
+      }
+
+      const data = await response.json()
+
+      // Add included flag to all recommendations
+      const recommendations = (data.service_recommendations || []).map((r: ServiceRecommendation) => ({
+        ...r,
+        included: true
+      }))
+
+      setEditedInsights({
+        executive_summary: data.executive_summary || "",
+        bottlenecks: data.bottlenecks || [],
+        quick_wins: data.quick_wins || [],
+        roadmap: data.roadmap || [],
+        financial_impact: data.financial_impact || "",
+        service_recommendations: recommendations,
+      })
+
+      setView("review")
+      toast({ title: "AI Insights Generated", description: "Review and edit before generating report" })
+    } catch (error) {
+      console.error("Generation error:", error)
+      toast({ title: "Generation failed", description: error instanceof Error ? error.message : "Please try again", variant: "destructive" })
+      setView("questions")
+    }
   }
+
+  function updateEditedInsights<K extends keyof EditedInsights>(field: K, value: EditedInsights[K]) {
+    if (!editedInsights) return
+    setEditedInsights({ ...editedInsights, [field]: value })
+  }
+
+  function updateBottleneck(index: number, field: keyof Bottleneck, value: string) {
+    if (!editedInsights) return
+    const updated = [...editedInsights.bottlenecks]
+    updated[index] = { ...updated[index], [field]: value }
+    setEditedInsights({ ...editedInsights, bottlenecks: updated })
+  }
+
+  function updateQuickWin(index: number, field: keyof QuickWin, value: string) {
+    if (!editedInsights) return
+    const updated = [...editedInsights.quick_wins]
+    updated[index] = { ...updated[index], [field]: value }
+    setEditedInsights({ ...editedInsights, quick_wins: updated })
+  }
+
+  function updateRoadmap(index: number, field: keyof RoadmapPhase, value: string) {
+    if (!editedInsights) return
+    const updated = [...editedInsights.roadmap]
+    updated[index] = { ...updated[index], [field]: value }
+    setEditedInsights({ ...editedInsights, roadmap: updated })
+  }
+
+  function updateServiceRecommendation(index: number, field: keyof ServiceRecommendation, value: string | boolean) {
+    if (!editedInsights) return
+    const updated = [...editedInsights.service_recommendations]
+    updated[index] = { ...updated[index], [field]: value }
+    setEditedInsights({ ...editedInsights, service_recommendations: updated })
+  }
+
+  function removeServiceRecommendation(index: number) {
+    if (!editedInsights) return
+    const updated = editedInsights.service_recommendations.filter((_, i) => i !== index)
+    setEditedInsights({ ...editedInsights, service_recommendations: updated })
+  }
+
+  async function generateReport() {
+    if (!auditId) return
+
+    try {
+      const response = await fetch("/api/audit/report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ audit_id: auditId })
+      })
+
+      if (!response.ok) throw new Error("Report generation failed")
+
+      const html = await response.text()
+      const blob = new Blob([html], { type: "text/html" })
+      const url = URL.createObjectURL(blob)
+      window.open(url, "_blank")
+      
+      toast({ title: "Report Generated", description: "Use File > Print > Save as PDF to download" })
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to generate report", variant: "destructive" })
+    }
+  }
+
+  // Auto-save edited insights with 2 second debounce
+  useEffect(() => {
+    if (!auditId || !editedInsights) return
+    
+    if (editedInsightsTimeout.current) clearTimeout(editedInsightsTimeout.current)
+    
+    editedInsightsTimeout.current = setTimeout(async () => {
+      await supabase
+        .from("audits")
+        .update({ edited_insights: editedInsights })
+        .eq("id", auditId)
+    }, 2000)
+
+    return () => {
+      if (editedInsightsTimeout.current) clearTimeout(editedInsightsTimeout.current)
+    }
+  }, [editedInsights, auditId, supabase])
 
   function restoreDefaultQuestions() {
     setQuestions(AI_AUDIT_QUESTIONS)
@@ -468,15 +621,26 @@ Date: _________________________________________________________
               })}
 
               {/* AI Insights Button */}
-              {completion >= 60 && (
+              {completion >= 60 && view === "questions" && (
                 <button
                   onClick={generateAIInsights}
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all bg-purple-500/20 border border-purple-500/50 text-purple-300 hover:bg-purple-500/30 mt-4"
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all bg-[#00AAFF]/20 border border-[#00AAFF]/50 text-[#00AAFF] hover:bg-[#00AAFF]/30 mt-4"
                 >
-                  <div className="p-2 rounded-lg bg-purple-500">
+                  <div className="p-2 rounded-lg bg-[#00AAFF]">
                     <Sparkles className="h-4 w-4 text-white" />
                   </div>
-                  <span className="text-sm font-medium">Generate AI Insights</span>
+                  <span className="text-sm font-medium">Generate AI Audit Report</span>
+                </button>
+              )}
+
+              {/* Back to Questions when in review */}
+              {view === "review" && (
+                <button
+                  onClick={() => setView("questions")}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all text-white/60 hover:text-white hover:bg-white/5 mt-4"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  <span className="text-sm font-medium">Back to Questions</span>
                 </button>
               )}
 
@@ -493,19 +657,326 @@ Date: _________________________________________________________
 
           {/* Main Content */}
           <div className="flex-1 space-y-6">
-            {/* Mobile Progress */}
-            <div className="lg:hidden">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-white/60">Progress</span>
-                <span className="text-sm font-semibold text-white">{completion}%</span>
+            {/* Generating View */}
+            {view === "generating" && (
+              <div className="text-center py-24">
+                <div className="w-4 h-4 rounded-full bg-[#00AAFF] animate-pulse mx-auto mb-6" />
+                <h2 className="text-xl font-semibold text-white mb-2">Claude is analysing this audit...</h2>
+                <p className="text-white/50 text-sm">Reviewing 30 responses and generating recommendations</p>
               </div>
-              <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                <div className="h-full bg-[#3a8bff] rounded-full transition-all" style={{ width: `${completion}%` }} />
-              </div>
-            </div>
+            )}
 
-            {/* Step Content */}
-            {currentStep === 0 ? (
+            {/* Review View */}
+            {view === "review" && editedInsights && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-2xl font-bold text-white">Review AI Insights</h2>
+                    <p className="text-white/50 text-sm">Edit any field before generating the final report</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={generateAIInsights}
+                      className="border-white/20 hover:border-white/40 text-white"
+                    >
+                      <RotateCcw className="h-4 w-4 mr-2" />
+                      Regenerate insights
+                    </Button>
+                    <Button
+                      onClick={generateReport}
+                      className="bg-[#00AAFF] hover:bg-[#0099EE] text-white"
+                    >
+                      <ExternalLink className="h-4 w-4 mr-2" />
+                      Generate PDF Report
+                    </Button>
+                  </div>
+                </div>
+
+                <p className="text-xs text-white/40">Opens in new tab — use File &gt; Print &gt; Save as PDF to download.</p>
+
+                {/* Executive Summary */}
+                <Card className="bg-black/40 border-white/10">
+                  <CardContent className="p-6">
+                    <Label className="text-[10px] tracking-widest uppercase text-[#00AAFF] font-bold">Executive Summary</Label>
+                    <p className="text-white/40 text-xs mb-3">Client-facing summary — edit before sending</p>
+                    <Textarea
+                      value={editedInsights.executive_summary}
+                      onChange={(e) => updateEditedInsights("executive_summary", e.target.value)}
+                      className="w-full bg-transparent border border-white/10 rounded-lg p-3 text-sm text-white min-h-[100px]"
+                      rows={4}
+                    />
+                  </CardContent>
+                </Card>
+
+                {/* Financial Impact */}
+                <Card className="bg-[#080B0F] border-[#00AAFF]/30">
+                  <CardContent className="p-6">
+                    <Label className="text-[10px] tracking-widest uppercase text-[#00AAFF] font-bold">Financial Impact Estimate</Label>
+                    <Textarea
+                      value={editedInsights.financial_impact}
+                      onChange={(e) => updateEditedInsights("financial_impact", e.target.value)}
+                      className="w-full bg-transparent border border-white/10 rounded-lg p-3 text-sm text-white mt-3"
+                      rows={2}
+                    />
+                  </CardContent>
+                </Card>
+
+                {/* Bottlenecks */}
+                <Card className="bg-black/40 border-white/10">
+                  <CardHeader>
+                    <CardTitle className="text-white flex items-center gap-2">
+                      <AlertTriangle className="h-5 w-5 text-amber-400" />
+                      Key Bottlenecks Identified
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {editedInsights.bottlenecks.map((b, i) => (
+                      <div key={i} className="bg-white/5 rounded-lg p-4 space-y-3 border-l-2 border-amber-500/50">
+                        <div>
+                          <Label className="text-xs text-white/40">Issue</Label>
+                          <Input
+                            value={b.issue}
+                            onChange={(e) => updateBottleneck(i, "issue", e.target.value)}
+                            className="bg-transparent border-white/10 text-white mt-1"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs text-white/40">Evidence</Label>
+                          <Input
+                            value={b.evidence}
+                            onChange={(e) => updateBottleneck(i, "evidence", e.target.value)}
+                            className="bg-transparent border-white/10 text-white mt-1"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs text-white/40">Impact</Label>
+                          <Input
+                            value={b.impact}
+                            onChange={(e) => updateBottleneck(i, "impact", e.target.value)}
+                            className="bg-transparent border-white/10 text-white mt-1"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+
+                {/* Service Recommendations */}
+                <Card className="bg-black/40 border-white/10">
+                  <CardHeader>
+                    <CardTitle className="text-white flex items-center gap-2">
+                      <Target className="h-5 w-5 text-[#00AAFF]" />
+                      Recommended AI Services
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {editedInsights.service_recommendations.map((s, i) => (
+                      <div
+                        key={i}
+                        className={`rounded-lg p-4 space-y-3 border-l-3 ${
+                          s.priority === "critical" ? "bg-red-500/5 border-l-red-500" :
+                          s.priority === "high" ? "bg-amber-500/5 border-l-amber-500" :
+                          "bg-[#00AAFF]/5 border-l-[#00AAFF]"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <span className={`text-[10px] font-bold px-2 py-1 rounded-full uppercase ${
+                              s.priority === "critical" ? "bg-red-500/20 text-red-400" :
+                              s.priority === "high" ? "bg-amber-500/20 text-amber-400" :
+                              "bg-[#00AAFF]/20 text-[#00AAFF]"
+                            }`}>
+                              {s.priority}
+                            </span>
+                            <Input
+                              value={s.service}
+                              onChange={(e) => updateServiceRecommendation(i, "service", e.target.value)}
+                              className="bg-transparent border-none text-white font-bold text-lg p-0 h-auto focus-visible:ring-0"
+                            />
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-white/40">Include</span>
+                              <Switch
+                                checked={s.included !== false}
+                                onCheckedChange={(checked) => updateServiceRecommendation(i, "included", checked)}
+                              />
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => removeServiceRecommendation(i)}
+                              className="text-red-400 hover:text-red-300 hover:bg-red-500/10 h-8 w-8"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <Label className="text-xs text-white/40">Problem Solved</Label>
+                            <Textarea
+                              value={s.problem_solved}
+                              onChange={(e) => updateServiceRecommendation(i, "problem_solved", e.target.value)}
+                              className="bg-transparent border-white/10 text-white mt-1 text-sm"
+                              rows={2}
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs text-white/40">Expected Outcome</Label>
+                            <Textarea
+                              value={s.expected_outcome}
+                              onChange={(e) => updateServiceRecommendation(i, "expected_outcome", e.target.value)}
+                              className="bg-transparent border-white/10 text-white mt-1 text-sm"
+                              rows={2}
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs text-white/40">Pricing Model</Label>
+                            <Input
+                              value={s.pricing_model}
+                              onChange={(e) => updateServiceRecommendation(i, "pricing_model", e.target.value)}
+                              className="bg-transparent border-white/10 text-white mt-1"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs text-white/40">Why Now</Label>
+                            <Input
+                              value={s.why_now}
+                              onChange={(e) => updateServiceRecommendation(i, "why_now", e.target.value)}
+                              className="bg-transparent border-white/10 text-white mt-1"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+
+                {/* Quick Wins */}
+                <Card className="bg-black/40 border-white/10">
+                  <CardHeader>
+                    <CardTitle className="text-white flex items-center gap-2">
+                      <Lightbulb className="h-5 w-5 text-emerald-400" />
+                      Quick Wins
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {editedInsights.quick_wins.map((q, i) => (
+                      <div key={i} className="bg-white/5 rounded-lg p-4 space-y-3 border-l-2 border-emerald-500/50">
+                        <div>
+                          <Label className="text-xs text-white/40">Action</Label>
+                          <Input
+                            value={q.action}
+                            onChange={(e) => updateQuickWin(i, "action", e.target.value)}
+                            className="bg-transparent border-white/10 text-white mt-1"
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <Label className="text-xs text-white/40">Timeline</Label>
+                            <Input
+                              value={q.timeline}
+                              onChange={(e) => updateQuickWin(i, "timeline", e.target.value)}
+                              className="bg-transparent border-white/10 text-white mt-1"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs text-white/40">Outcome</Label>
+                            <Input
+                              value={q.outcome}
+                              onChange={(e) => updateQuickWin(i, "outcome", e.target.value)}
+                              className="bg-transparent border-white/10 text-white mt-1"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+
+                {/* Roadmap */}
+                <Card className="bg-black/40 border-white/10">
+                  <CardHeader>
+                    <CardTitle className="text-white flex items-center gap-2">
+                      <TrendingUp className="h-5 w-5 text-[#00AAFF]" />
+                      90-Day Implementation Roadmap
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {editedInsights.roadmap.map((r, i) => (
+                      <div key={i} className="bg-white/5 rounded-lg p-4 space-y-3 border-l-2 border-[#00AAFF]/50">
+                        <div>
+                          <Label className="text-xs text-white/40">Phase</Label>
+                          <Input
+                            value={r.phase}
+                            onChange={(e) => updateRoadmap(i, "phase", e.target.value)}
+                            className="bg-transparent border-white/10 text-white mt-1 font-semibold"
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <Label className="text-xs text-white/40">Focus</Label>
+                            <Textarea
+                              value={r.focus}
+                              onChange={(e) => updateRoadmap(i, "focus", e.target.value)}
+                              className="bg-transparent border-white/10 text-white mt-1"
+                              rows={2}
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs text-white/40">Expected Outcome</Label>
+                            <Textarea
+                              value={r.outcome}
+                              onChange={(e) => updateRoadmap(i, "outcome", e.target.value)}
+                              className="bg-transparent border-white/10 text-white mt-1"
+                              rows={2}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+
+                {/* Bottom Actions */}
+                <div className="flex justify-between pt-4">
+                  <Button
+                    variant="outline"
+                    onClick={() => setView("questions")}
+                    className="border-white/20 hover:border-white/40 text-white"
+                  >
+                    <ArrowLeft className="h-4 w-4 mr-2" />
+                    Back to Questions
+                  </Button>
+                  <Button
+                    onClick={generateReport}
+                    className="bg-[#00AAFF] hover:bg-[#0099EE] text-white"
+                  >
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    Generate PDF Report
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Questions View */}
+            {view === "questions" && (
+              <>
+                {/* Mobile Progress */}
+                <div className="lg:hidden">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-white/60">Progress</span>
+                    <span className="text-sm font-semibold text-white">{completion}%</span>
+                  </div>
+                  <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                    <div className="h-full bg-[#3a8bff] rounded-full transition-all" style={{ width: `${completion}%` }} />
+                  </div>
+                </div>
+
+                {/* Step Content */}
+                {currentStep === 0 ? (
               // Business Info Step
               <Card className="bg-black/40 border-white/10 backdrop-blur-sm">
                 <CardHeader>
@@ -651,94 +1122,42 @@ Date: _________________________________________________________
               </Button>
 
               {currentStep < steps.length - 1 ? (
-                <Button
-                  onClick={() => setCurrentStep(currentStep + 1)}
-                  className="bg-[#3a8bff] hover:bg-[#2d6ed4] text-white"
-                >
-                  Next
-                  <ChevronRight className="h-4 w-4 ml-2" />
-                </Button>
-              ) : (
-                <Button
-                  onClick={() => {
-                    handleSave(false)
-                    router.push("/audit")
-                  }}
-                  className="bg-emerald-500 hover:bg-emerald-600 text-white"
-                >
-                  <CheckCircle2 className="h-4 w-4 mr-2" />
-                  Complete Audit
-                </Button>
-              )}
-            </div>
-          </div>
-
-          {/* AI Insights Panel */}
-          {showAIInsights && aiInsights && (
-            <div className="hidden xl:block w-80 flex-shrink-0">
-              <div className="sticky top-28 space-y-4">
-                <Card className="bg-purple-500/10 border-purple-500/30 backdrop-blur-sm">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-white text-lg flex items-center gap-2">
-                      <Sparkles className="h-5 w-5 text-purple-400" />
-                      AI Recommendations
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div>
-                      <div className="flex items-center gap-2 mb-3">
-                        <AlertTriangle className="h-4 w-4 text-amber-400" />
-                        <span className="text-sm font-semibold text-white">Top 3 Bottlenecks</span>
-                      </div>
-                      <ul className="space-y-2">
-                        {aiInsights.bottlenecks.map((b, i) => (
-                          <li key={i} className="text-sm text-white/70 pl-4 border-l-2 border-amber-500/50">
-                            {b}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-
-                    <div>
-                      <div className="flex items-center gap-2 mb-3">
-                        <Lightbulb className="h-4 w-4 text-emerald-400" />
-                        <span className="text-sm font-semibold text-white">Top 3 Quick Wins</span>
-                      </div>
-                      <ul className="space-y-2">
-                        {aiInsights.quickWins.map((w, i) => (
-                          <li key={i} className="text-sm text-white/70 pl-4 border-l-2 border-emerald-500/50">
-                            {w}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-
-                    <div>
-                      <div className="flex items-center gap-2 mb-3">
-                        <Target className="h-4 w-4 text-[#3a8bff]" />
-                        <span className="text-sm font-semibold text-white">90-Day Roadmap</span>
-                      </div>
-                      <ul className="space-y-2">
-                        {aiInsights.roadmap.map((r, i) => (
-                          <li key={i} className="text-sm text-white/70 pl-4 border-l-2 border-[#3a8bff]/50">
-                            {r}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-
-                    <div className="pt-4 border-t border-white/10">
-                      <div className="flex items-center gap-2 mb-2">
-                        <TrendingUp className="h-4 w-4 text-green-400" />
-                        <span className="text-sm font-semibold text-white">Financial Impact</span>
-                      </div>
-                      <p className="text-sm text-white/70">{aiInsights.financialImpact}</p>
-                    </div>
-                  </CardContent>
-                </Card>
+                  <Button
+                    onClick={() => setCurrentStep(currentStep + 1)}
+                    className="bg-[#3a8bff] hover:bg-[#2d6ed4] text-white"
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4 ml-2" />
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={() => {
+                      if (completion >= 60) {
+                        generateAIInsights()
+                      } else {
+                        handleSave(false)
+                        router.push("/audit")
+                      }
+                    }}
+                    className="bg-[#00AAFF] hover:bg-[#0099EE] text-white"
+                  >
+                    {completion >= 60 ? (
+                      <>
+                        <Sparkles className="h-4 w-4 mr-2" />
+                        Generate AI Report
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="h-4 w-4 mr-2" />
+                        Complete Audit
+                      </>
+                    )}
+                  </Button>
+                )}
               </div>
-            </div>
-          )}
+              </>
+            )}
+          </div>
         </div>
       </div>
     </div>
