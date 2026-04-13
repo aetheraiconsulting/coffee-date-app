@@ -5,6 +5,11 @@ export async function middleware(request: NextRequest) {
   const hostname = request.headers.get("host") || ""
   const pathname = request.nextUrl.pathname
 
+  // Allow public audit pages regardless of subdomain or auth
+  if (pathname.startsWith("/audit/")) {
+    return NextResponse.next()
+  }
+
   // Only process subdomain logic if NEXT_PUBLIC_MAIN_DOMAIN is configured
   const mainDomain = process.env.NEXT_PUBLIC_MAIN_DOMAIN
 
