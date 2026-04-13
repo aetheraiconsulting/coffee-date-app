@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import {
@@ -36,6 +37,7 @@ interface Offer {
 export default function MyOffersPage() {
   const supabase = createClient()
   const { refreshState } = useUserState()
+  const router = useRouter()
   
   const [offers, setOffers] = useState<Offer[]>([])
   const [loading, setLoading] = useState(true)
@@ -50,6 +52,10 @@ export default function MyOffersPage() {
   const [selectedOfferIds, setSelectedOfferIds] = useState<string[]>([])
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false)
   const [bulkDeleting, setBulkDeleting] = useState(false)
+  
+  // Outreach status per offer
+  const [outreachByOffer, setOutreachByOffer] = useState<Record<string, { total: number, sent: number }>>({})
+  const [activatingOffer, setActivatingOffer] = useState<string | null>(null)
 
   const fetchOffers = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -68,6 +74,25 @@ export default function MyOffersPage() {
     
     if (!error && data) {
       setOffers(data)
+      
+      // Fetch outreach status for all offers
+      const offerIds = data.map(o => o.id)
+      if (offerIds.length > 0) {
+        const { data: outreachData } = await supabase
+          .from("outreach_messages")
+          .select("offer_id, status")
+          .in("offer_id", offerIds)
+        
+        // Build a map of offer_id -> { total, sent }
+        const outreachMap = outreachData?.reduce((acc, msg) => {
+          if (!acc[msg.offer_id]) acc[msg.offer_id] = { total: 0, sent: 0 }
+          acc[msg.offer_id].total++
+          if (msg.status === "sent") acc[msg.offer_id].sent++
+          return acc
+        }, {} as Record<string, { total: number, sent: number }>) || {}
+        
+        setOutreachByOffer(outreachMap)
+      }
     }
     setLoading(false)
   }, [supabase])
@@ -106,6 +131,33 @@ export default function MyOffersPage() {
   const handleDeleteClick = (offer: Offer) => {
     setOfferToDelete(offer)
     setDeleteModalOpen(true)
+  }
+
+  const handleCreateOutreach = async (offerId: string) => {
+    if (!userId) return
+    setActivatingOffer(offerId)
+    
+    // Deactivate all offers
+    await supabase
+      .from("offers")
+      .update({ is_active: false })
+      .eq("user_id", userId)
+
+    // Activate selected offer
+    await supabase
+      .from("offers")
+      .update({ is_active: true })
+      .eq("id", offerId)
+
+    // Update profiles.offer_id
+    await supabase
+      .from("profiles")
+      .update({ offer_id: offerId })
+      .eq("id", userId)
+
+    await refreshState()
+    setActivatingOffer(null)
+    router.push("/outreach")
   }
 
   // Bulk selection handlers
@@ -304,6 +356,9 @@ export default function MyOffersPage() {
           {offers.map((offer) => {
             const pricingBadge = getPricingModelBadge(offer.pricing_model)
             const confidenceBadge = getConfidenceBadge(offer.confidence_score)
+            const outreach = outreachByOffer[offer.id]
+            const hasOutreach = outreach && outreach.total > 0
+            const sentCount = outreach?.sent || 0
             
             return (
               <Card
@@ -341,10 +396,10 @@ export default function MyOffersPage() {
                       </div>
                       
                       {/* Niche */}
-                      <p className="text-sm text-white/50 mb-3">{offer.niche}</p>
+                      <p className="text-sm text-white/50 mb-2">{offer.niche}</p>
                       
                       {/* Badges Row */}
-                      <div className="flex flex-wrap items-center gap-2 mb-3">
+                      <div className="flex flex-wrap items-center gap-2 mb-2">
                         <span className={cn("text-xs px-2 py-1 rounded-full border", pricingBadge.color)}>
                           {pricingBadge.label}
                         </span>
@@ -354,7 +409,24 @@ export default function MyOffersPage() {
                       </div>
                       
                       {/* Price Point */}
-                      <p className="text-white font-medium">{offer.price_point}</p>
+                      <p className="text-white font-medium mb-2">{offer.price_point}</p>
+                      
+                      {/* Outreach Status */}
+                      {hasOutreach ? (
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-white/40">
+                            {sentCount} of {outreach.total} messages sent
+                          </span>
+                          <div className={cn(
+                            "w-1.5 h-1.5 rounded-full",
+                            sentCount >= 20 ? "bg-green-500" : 
+                            sentCount > 0 ? "bg-[#00AAFF]" : 
+                            "bg-white/20"
+                          )} />
+                        </div>
+                      ) : (
+                        <p className="text-xs text-white/30">No outreach generated yet</p>
+                      )}
                     </div>
                     
                     {/* Actions */}
@@ -381,13 +453,38 @@ export default function MyOffersPage() {
                           </Button>
                         )}
                         
+                        {/* Outreach action button */}
+                        {hasOutreach ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => router.push("/outreach")}
+                            className="text-[#00AAFF] hover:text-[#00AAFF] hover:bg-[#00AAFF]/10"
+                          >
+                            View outreach
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleCreateOutreach(offer.id)}
+                            disabled={activatingOffer === offer.id}
+                            className="text-white/70 hover:text-white hover:bg-white/10"
+                          >
+                            {activatingOffer === offer.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                            ) : null}
+                            Create outreach
+                          </Button>
+                        )}
+                        
                         <Button
                           variant="ghost"
                           size="sm"
                           asChild
                           className="text-white/70 hover:text-white hover:bg-white/10"
                         >
-                          <Link href="/offer/builder">
+                          <Link href={`/offer/builder?edit=${offer.id}`}>
                             <Pencil className="h-4 w-4 mr-1" />
                             Edit
                           </Link>
