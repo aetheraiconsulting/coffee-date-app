@@ -6,50 +6,136 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Loader2, Sparkles, ChevronRight, CheckCircle2, RefreshCw, DollarSign, Shield, Target } from "lucide-react"
+import { Textarea } from "@/components/ui/textarea"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Loader2, Sparkles, CheckCircle2, RefreshCw, DollarSign, Shield, Target, Lock, AlertTriangle } from "lucide-react"
 import { useUserState } from "@/context/StateContext"
+import { createClient } from "@/lib/supabase/client"
 import { cn } from "@/lib/utils"
 
+type PricingModel = "50_profit_share" | "custom_profit_share" | "pay_per_lead" | "pay_per_conversation" | "retainer"
+
 interface GeneratedOffer {
-  id: string
+  id?: string
   niche: string
   service_name: string
   outcome_statement: string
   price_point: string
-  pricing_model: "retainer" | "performance" | "project" | "hybrid"
+  pricing_model: string
   guarantee: string
   confidence_score: "strong" | "needs_work" | "weak"
   confidence_reason: string
+}
+
+const PRICING_MODELS: { value: PricingModel; label: string }[] = [
+  { value: "50_profit_share", label: "50% Profit Share" },
+  { value: "custom_profit_share", label: "Custom Profit Share" },
+  { value: "pay_per_lead", label: "Pay Per Lead" },
+  { value: "pay_per_conversation", label: "Pay Per Conversation" },
+  { value: "retainer", label: "Retainer" },
+]
+
+const LOCKED_GUARANTEES: Record<PricingModel, string> = {
+  "50_profit_share": "You only pay when we deliver results — zero risk to you.",
+  "custom_profit_share": "You only pay when we deliver results — zero risk to you.",
+  "pay_per_lead": "You only pay for leads we deliver — zero upfront cost.",
+  "pay_per_conversation": "You only pay for conversations we generate — zero upfront cost.",
+  "retainer": "",
 }
 
 export default function OfferBuilderPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { refreshState } = useUserState()
+  const supabase = createClient()
   
-  const [step, setStep] = useState<"input" | "generating" | "preview">("input")
-  const [niche, setNiche] = useState("")
-  const [problem, setProblem] = useState("")
-  const [outcome, setOutcome] = useState("")
+  // Form inputs
+  const [nicheInput, setNicheInput] = useState("")
+  const [problemInput, setProblemInput] = useState("")
+  const [outcomeInput, setOutcomeInput] = useState("")
+  
+  // State management
+  const [step, setStep] = useState<"input" | "generating" | "preview" | "saved">("input")
   const [error, setError] = useState<string | null>(null)
-  const [offer, setOffer] = useState<GeneratedOffer | null>(null)
   const [preloaded, setPreloaded] = useState(false)
+  const [autoGenerate, setAutoGenerate] = useState(false)
+  
+  // Editable offer fields
+  const [serviceName, setServiceName] = useState("")
+  const [outcomeStatement, setOutcomeStatement] = useState("")
+  const [pricingModel, setPricingModel] = useState<PricingModel>("50_profit_share")
+  const [priceValue, setPriceValue] = useState("50")
+  const [guarantee, setGuarantee] = useState("")
+  const [confidenceScore, setConfidenceScore] = useState<"strong" | "needs_work" | "weak">("strong")
+  const [confidenceReason, setConfidenceReason] = useState("")
+  const [niche, setNiche] = useState("")
+  
+  // Editing states
+  const [editingServiceName, setEditingServiceName] = useState(false)
+  const [editingOutcome, setEditingOutcome] = useState(false)
+  const [saving, setSaving] = useState(false)
 
-  // Pre-fill from URL params
+  // Pre-fill from URL params and auto-generate if all present
   useEffect(() => {
     const nicheParam = searchParams.get("niche")
     const problemParam = searchParams.get("problem")
+    const outcomeParam = searchParams.get("outcome")
     
     if (nicheParam) {
+      setNicheInput(nicheParam)
       setNiche(nicheParam)
       setPreloaded(true)
     }
     if (problemParam) {
-      setProblem(problemParam)
+      setProblemInput(problemParam)
+    }
+    if (outcomeParam) {
+      setOutcomeInput(outcomeParam)
+    }
+    
+    // Auto-generate if all three params present
+    if (nicheParam && problemParam && outcomeParam) {
+      setAutoGenerate(true)
     }
   }, [searchParams])
 
-  const canGenerate = niche.trim() && problem.trim() && outcome.trim()
+  // Trigger auto-generation
+  useEffect(() => {
+    if (autoGenerate && nicheInput && problemInput && outcomeInput) {
+      handleGenerate()
+      setAutoGenerate(false)
+    }
+  }, [autoGenerate, nicheInput, problemInput, outcomeInput])
+
+  // Update guarantee when pricing model changes
+  useEffect(() => {
+    if (pricingModel !== "retainer") {
+      setGuarantee(LOCKED_GUARANTEES[pricingModel])
+    }
+    // Reset price value based on model
+    if (pricingModel === "50_profit_share") {
+      setPriceValue("50")
+    } else if (pricingModel === "custom_profit_share") {
+      setPriceValue("30")
+    } else if (pricingModel === "pay_per_lead") {
+      setPriceValue("50")
+    } else if (pricingModel === "pay_per_conversation") {
+      setPriceValue("25")
+    } else if (pricingModel === "retainer") {
+      setPriceValue("1000")
+      setGuarantee("")
+    }
+  }, [pricingModel])
+
+  const isGuaranteeLocked = pricingModel !== "retainer"
+  const canSave = pricingModel !== "retainer" || guarantee.trim().length > 0
+  const canGenerate = nicheInput.trim() && problemInput.trim() && outcomeInput.trim()
 
   const handleGenerate = async () => {
     if (!canGenerate) return
@@ -62,9 +148,9 @@ export default function OfferBuilderPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          niche: niche.trim(),
-          problem: problem.trim(),
-          outcome: outcome.trim(),
+          niche: nicheInput.trim(),
+          problem: problemInput.trim(),
+          outcome: outcomeInput.trim(),
         }),
       })
 
@@ -74,11 +160,21 @@ export default function OfferBuilderPage() {
       }
 
       const data = await response.json()
-      setOffer(data.offer)
-      setStep("preview")
+      const offer: GeneratedOffer = data.offer
       
-      // Refresh state so mission updates
-      await refreshState()
+      // Populate editable fields
+      setServiceName(offer.service_name)
+      setOutcomeStatement(offer.outcome_statement)
+      setConfidenceScore(offer.confidence_score)
+      setConfidenceReason(offer.confidence_reason)
+      setNiche(offer.niche)
+      
+      // Set default pricing model and guarantee
+      setPricingModel("50_profit_share")
+      setPriceValue("50")
+      setGuarantee(LOCKED_GUARANTEES["50_profit_share"])
+      
+      setStep("preview")
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : "Something went wrong"
       setError(errorMessage)
@@ -86,16 +182,75 @@ export default function OfferBuilderPage() {
     }
   }
 
-  const handleContinue = () => {
-    router.push("/revival")
+  const handleSave = async () => {
+    if (!canSave) return
+    
+    setSaving(true)
+    setError(null)
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error("Not authenticated")
+
+      const pricePointFormatted = formatPricePoint()
+      
+      // Upsert the offer
+      const { data: offerData, error: upsertError } = await supabase
+        .from("offers")
+        .upsert({
+          user_id: user.id,
+          service_name: serviceName,
+          outcome_statement: outcomeStatement,
+          price_point: pricePointFormatted,
+          guarantee,
+          confidence_score: confidenceScore,
+          confidence_reason: confidenceReason,
+          pricing_model: pricingModel,
+          niche,
+          is_active: true,
+        }, { onConflict: "user_id" })
+        .select()
+        .single()
+
+      if (upsertError) throw upsertError
+
+      // Update profiles.offer_id
+      await supabase
+        .from("profiles")
+        .update({ offer_id: offerData.id })
+        .eq("id", user.id)
+
+      await refreshState()
+      setStep("saved")
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to save offer"
+      setError(errorMessage)
+    } finally {
+      setSaving(false)
+    }
   }
 
   const handleRegenerate = () => {
-    setStep("input")
-    setOffer(null)
+    handleGenerate()
   }
 
-  // Confidence score color and label
+  const formatPricePoint = () => {
+    switch (pricingModel) {
+      case "50_profit_share":
+        return `${priceValue}% of net profit recovered`
+      case "custom_profit_share":
+        return `${priceValue}% of net profit recovered`
+      case "pay_per_lead":
+        return `$${priceValue} per qualified lead booked`
+      case "pay_per_conversation":
+        return `$${priceValue} per conversation generated`
+      case "retainer":
+        return `$${priceValue}/month`
+      default:
+        return priceValue
+    }
+  }
+
   const getConfidenceDisplay = (score: "strong" | "needs_work" | "weak") => {
     switch (score) {
       case "strong":
@@ -107,6 +262,32 @@ export default function OfferBuilderPage() {
       default:
         return { color: "text-white/60 bg-white/10 border-white/20", label: score }
     }
+  }
+
+  // Auto-generating state (all params present)
+  if (autoGenerate || (step === "generating" && searchParams.get("niche") && searchParams.get("problem") && searchParams.get("outcome"))) {
+    return (
+      <div className="min-h-screen bg-black p-6 flex items-center justify-center">
+        <div className="max-w-md w-full">
+          <Card className="bg-white/[0.03] border-white/10">
+            <CardContent className="p-12 flex flex-col items-center justify-center text-center">
+              <div className="relative mb-6">
+                <div className="absolute inset-0 bg-[#00AAFF]/20 rounded-full blur-xl animate-pulse" />
+                <div className="relative h-16 w-16 rounded-full bg-[#00AAFF]/10 flex items-center justify-center">
+                  <Loader2 className="h-8 w-8 text-[#00AAFF] animate-spin" />
+                </div>
+              </div>
+              <h2 className="text-xl font-bold text-white mb-2">
+                Generating your offer for {nicheInput}...
+              </h2>
+              <p className="text-white/60">
+                AI is crafting a compelling service offer tailored to your niche.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -130,7 +311,6 @@ export default function OfferBuilderPage() {
         {step === "input" && (
           <Card className="bg-white/[0.03] border-white/10">
             <CardContent className="p-6 space-y-6">
-              {/* Preloaded Banner */}
               {preloaded && (
                 <div className="p-3 bg-[#00AAFF]/10 border border-[#00AAFF]/30 rounded-lg">
                   <p className="text-[#00AAFF] text-sm">
@@ -139,47 +319,42 @@ export default function OfferBuilderPage() {
                 </div>
               )}
 
-              {/* Niche Input */}
               <div className="space-y-2">
                 <Label className="text-white">Your niche</Label>
                 <Input
                   placeholder="e.g. local restaurants, estate agents, fitness coaches"
-                  value={niche}
-                  onChange={(e) => setNiche(e.target.value)}
+                  value={nicheInput}
+                  onChange={(e) => setNicheInput(e.target.value)}
                   className="bg-white/[0.05] border-white/10 text-white h-12"
                 />
               </div>
 
-              {/* Problem Input */}
               <div className="space-y-2">
                 <Label className="text-white">The problem you fix</Label>
                 <Input
                   placeholder="e.g. they lose leads because they don't follow up fast enough"
-                  value={problem}
-                  onChange={(e) => setProblem(e.target.value)}
+                  value={problemInput}
+                  onChange={(e) => setProblemInput(e.target.value)}
                   className="bg-white/[0.05] border-white/10 text-white h-12"
                 />
               </div>
 
-              {/* Outcome Input */}
               <div className="space-y-2">
                 <Label className="text-white">The outcome you deliver</Label>
                 <Input
                   placeholder="e.g. booked appointments within 48 hours using AI follow-up"
-                  value={outcome}
-                  onChange={(e) => setOutcome(e.target.value)}
+                  value={outcomeInput}
+                  onChange={(e) => setOutcomeInput(e.target.value)}
                   className="bg-white/[0.05] border-white/10 text-white h-12"
                 />
               </div>
 
-              {/* Error */}
               {error && (
                 <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
                   <p className="text-red-400 text-sm">{error}</p>
                 </div>
               )}
 
-              {/* Generate Button */}
               <Button
                 onClick={handleGenerate}
                 disabled={!canGenerate}
@@ -188,10 +363,6 @@ export default function OfferBuilderPage() {
                 <Sparkles className="h-4 w-4 mr-2" />
                 Generate My Offer
               </Button>
-
-              <p className="text-xs text-white/40 text-center">
-                AI will create a tailored offer based on your selections
-              </p>
             </CardContent>
           </Card>
         )}
@@ -209,36 +380,47 @@ export default function OfferBuilderPage() {
               <h2 className="text-xl font-bold text-white mb-2">
                 Generating Your Offer...
               </h2>
-              <p className="text-white/60 max-w-sm">
-                AI is crafting a compelling offer tailored to {niche}.
+              <p className="text-white/60">
+                AI is crafting a compelling offer tailored to {nicheInput}.
               </p>
             </CardContent>
           </Card>
         )}
 
-        {/* Step: Preview */}
-        {step === "preview" && offer && (
+        {/* Step: Preview (Editable) */}
+        {step === "preview" && (
           <div className="space-y-6">
-            {/* Success Badge */}
             <div className="flex items-center gap-2 text-emerald-400">
               <CheckCircle2 className="h-5 w-5" />
-              <span className="text-sm font-medium">Offer Generated Successfully</span>
+              <span className="text-sm font-medium">Offer Generated — Click any field to edit</span>
             </div>
 
-            {/* Offer Preview Card */}
             <Card className="bg-gradient-to-br from-[#00AAFF]/10 to-transparent border-[#00AAFF]/30 overflow-hidden">
               <CardContent className="p-6 space-y-6">
-                {/* Service Name */}
+                {/* Service Name - Editable */}
                 <div className="space-y-1">
                   <p className="text-xs uppercase tracking-wider text-[#00AAFF] font-semibold">
                     Your Service
                   </p>
-                  <h2 className="text-2xl font-bold text-white leading-tight">
-                    {offer.service_name}
-                  </h2>
+                  {editingServiceName ? (
+                    <Input
+                      value={serviceName}
+                      onChange={(e) => setServiceName(e.target.value)}
+                      onBlur={() => setEditingServiceName(false)}
+                      autoFocus
+                      className="text-2xl font-bold bg-white/[0.05] border-white/20 text-white"
+                    />
+                  ) : (
+                    <h2
+                      onClick={() => setEditingServiceName(true)}
+                      className="text-2xl font-bold text-white leading-tight cursor-pointer hover:bg-white/5 rounded px-2 py-1 -mx-2 transition-colors"
+                    >
+                      {serviceName}
+                    </h2>
+                  )}
                 </div>
 
-                {/* Outcome Statement */}
+                {/* Outcome Statement - Editable */}
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <Target className="h-4 w-4 text-white/40" />
@@ -246,43 +428,159 @@ export default function OfferBuilderPage() {
                       Outcome
                     </p>
                   </div>
-                  <p className="text-white/90 text-lg leading-relaxed">
-                    {offer.outcome_statement}
-                  </p>
+                  {editingOutcome ? (
+                    <Textarea
+                      value={outcomeStatement}
+                      onChange={(e) => setOutcomeStatement(e.target.value)}
+                      onBlur={() => setEditingOutcome(false)}
+                      autoFocus
+                      className="bg-white/[0.05] border-white/20 text-white text-lg"
+                      rows={3}
+                    />
+                  ) : (
+                    <p
+                      onClick={() => setEditingOutcome(true)}
+                      className="text-white/90 text-lg leading-relaxed cursor-pointer hover:bg-white/5 rounded px-2 py-1 -mx-2 transition-colors"
+                    >
+                      {outcomeStatement}
+                    </p>
+                  )}
                 </div>
 
-                {/* Price Point */}
+                {/* Pricing Model Selector */}
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <DollarSign className="h-4 w-4 text-white/40" />
                     <p className="text-xs uppercase tracking-wider text-white/40 font-semibold">
-                      Price Point
+                      Pricing Model
                     </p>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <p className="text-white font-semibold text-xl">
-                      {offer.price_point}
-                    </p>
-                    <span className="text-xs px-2 py-1 rounded-full bg-[#00AAFF]/10 text-[#00AAFF] border border-[#00AAFF]/30 capitalize">
-                      {offer.pricing_model}
-                    </span>
+                  <Select value={pricingModel} onValueChange={(v) => setPricingModel(v as PricingModel)}>
+                    <SelectTrigger className="bg-white/[0.05] border-white/20 text-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-zinc-900 border-white/10">
+                      {PRICING_MODELS.map((model) => (
+                        <SelectItem key={model.value} value={model.value} className="text-white hover:bg-white/10">
+                          {model.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Price Point - Dynamic Format */}
+                <div className="space-y-2">
+                  <p className="text-xs uppercase tracking-wider text-white/40 font-semibold">
+                    Price Point
+                  </p>
+                  <div className="flex items-center gap-2">
+                    {pricingModel === "50_profit_share" && (
+                      <>
+                        <Input
+                          type="number"
+                          min="1"
+                          max="99"
+                          value={priceValue}
+                          onChange={(e) => setPriceValue(e.target.value)}
+                          className="w-20 bg-white/[0.05] border-white/20 text-white text-lg font-semibold"
+                        />
+                        <span className="text-white/70">% of net profit recovered</span>
+                      </>
+                    )}
+                    {pricingModel === "custom_profit_share" && (
+                      <>
+                        <Input
+                          type="number"
+                          min="1"
+                          max="99"
+                          value={priceValue}
+                          onChange={(e) => setPriceValue(e.target.value)}
+                          className="w-20 bg-white/[0.05] border-white/20 text-white text-lg font-semibold"
+                        />
+                        <span className="text-white/70">% of net profit recovered</span>
+                      </>
+                    )}
+                    {pricingModel === "pay_per_lead" && (
+                      <>
+                        <span className="text-white/70">$</span>
+                        <Input
+                          type="number"
+                          min="1"
+                          value={priceValue}
+                          onChange={(e) => setPriceValue(e.target.value)}
+                          className="w-24 bg-white/[0.05] border-white/20 text-white text-lg font-semibold"
+                        />
+                        <span className="text-white/70">per qualified lead booked</span>
+                      </>
+                    )}
+                    {pricingModel === "pay_per_conversation" && (
+                      <>
+                        <span className="text-white/70">$</span>
+                        <Input
+                          type="number"
+                          min="1"
+                          value={priceValue}
+                          onChange={(e) => setPriceValue(e.target.value)}
+                          className="w-24 bg-white/[0.05] border-white/20 text-white text-lg font-semibold"
+                        />
+                        <span className="text-white/70">per conversation generated</span>
+                      </>
+                    )}
+                    {pricingModel === "retainer" && (
+                      <>
+                        <span className="text-white/70">$</span>
+                        <Input
+                          type="number"
+                          min="1"
+                          value={priceValue}
+                          onChange={(e) => setPriceValue(e.target.value)}
+                          className="w-28 bg-white/[0.05] border-white/20 text-white text-lg font-semibold"
+                        />
+                        <span className="text-white/70">/month</span>
+                      </>
+                    )}
                   </div>
                 </div>
 
-                {/* Guarantee */}
+                {/* Guarantee - Locked or Editable */}
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <Shield className="h-4 w-4 text-white/40" />
                     <p className="text-xs uppercase tracking-wider text-white/40 font-semibold">
                       Guarantee
                     </p>
+                    {isGuaranteeLocked && (
+                      <Lock className="h-3 w-3 text-white/40" />
+                    )}
                   </div>
-                  <p className="text-white/80">
-                    {offer.guarantee}
-                  </p>
+                  
+                  {/* Retainer Warning Banner */}
+                  {pricingModel === "retainer" && (
+                    <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg flex items-start gap-2">
+                      <AlertTriangle className="h-4 w-4 text-amber-400 mt-0.5 flex-shrink-0" />
+                      <p className="text-amber-400 text-sm">
+                        You have switched to a retainer model. You must define your guarantee before continuing.
+                      </p>
+                    </div>
+                  )}
+                  
+                  {isGuaranteeLocked ? (
+                    <p className="text-white/80 bg-white/5 rounded-lg px-4 py-3 border border-white/10">
+                      {guarantee}
+                    </p>
+                  ) : (
+                    <Textarea
+                      value={guarantee}
+                      onChange={(e) => setGuarantee(e.target.value)}
+                      placeholder="Define your guarantee — what happens if results are not delivered?"
+                      className="bg-white/[0.05] border-white/20 text-white"
+                      rows={3}
+                    />
+                  )}
                 </div>
 
-                {/* Confidence Score */}
+                {/* Confidence Score - Read Only */}
                 <div className="pt-4 border-t border-white/10">
                   <div className="flex items-center justify-between">
                     <div className="space-y-1 flex-1 mr-4">
@@ -290,14 +588,14 @@ export default function OfferBuilderPage() {
                         Confidence Score
                       </p>
                       <p className="text-sm text-white/60">
-                        {offer.confidence_reason}
+                        {confidenceReason}
                       </p>
                     </div>
                     <div className={cn(
                       "px-4 py-2 rounded-lg border text-sm font-bold uppercase tracking-wider",
-                      getConfidenceDisplay(offer.confidence_score).color
+                      getConfidenceDisplay(confidenceScore).color
                     )}>
-                      {getConfidenceDisplay(offer.confidence_score).label}
+                      {getConfidenceDisplay(confidenceScore).label}
                     </div>
                   </div>
                 </div>
@@ -307,32 +605,65 @@ export default function OfferBuilderPage() {
             {/* Niche Tag */}
             <div className="flex items-center gap-2">
               <span className="text-xs px-2 py-1 rounded-full bg-white/10 text-white/60">
-                {offer.niche}
+                {niche}
               </span>
             </div>
 
+            {/* Error */}
+            {error && (
+              <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
+                <p className="text-red-400 text-sm">{error}</p>
+              </div>
+            )}
+
             {/* Actions */}
-            <div className="flex gap-3">
+            <div className="space-y-3">
               <Button
-                variant="outline"
+                onClick={handleSave}
+                disabled={!canSave || saving}
+                title={!canSave ? "Add your guarantee to continue" : undefined}
+                className="w-full bg-[#00AAFF] hover:bg-[#0099EE] text-white font-semibold h-12 shadow-lg shadow-[#00AAFF]/30 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {saving ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  "Save offer"
+                )}
+              </Button>
+              
+              <Button
+                variant="ghost"
                 onClick={handleRegenerate}
-                className="flex-1 border-white/20 text-white hover:bg-white/10 h-12"
+                className="w-full text-white/70 hover:text-white hover:bg-white/10 h-10"
               >
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Regenerate
               </Button>
-              <Button
-                onClick={handleContinue}
-                className="flex-1 bg-[#00AAFF] hover:bg-[#0099EE] text-white font-semibold h-12 shadow-lg shadow-[#00AAFF]/30"
-              >
-                Continue to Outreach
-                <ChevronRight className="h-4 w-4 ml-1" />
-              </Button>
             </div>
+          </div>
+        )}
 
-            <p className="text-xs text-white/40 text-center">
-              Your offer has been saved. You can always edit it later.
-            </p>
+        {/* Step: Saved */}
+        {step === "saved" && (
+          <div className="space-y-6">
+            <Card className="bg-gradient-to-br from-emerald-500/10 to-transparent border-emerald-500/30">
+              <CardContent className="p-6 text-center">
+                <CheckCircle2 className="h-12 w-12 text-emerald-400 mx-auto mb-4" />
+                <h2 className="text-2xl font-bold text-white mb-2">Offer saved.</h2>
+                <p className="text-white/60 mb-6">
+                  Your offer is ready. Start reaching out to prospects in your niche.
+                </p>
+                <Button
+                  onClick={() => router.push("/outreach")}
+                  className="bg-[#00AAFF] hover:bg-[#0099EE] text-white font-semibold h-12 px-8 shadow-lg shadow-[#00AAFF]/30"
+                >
+                  Start outreach
+                </Button>
+              </CardContent>
+            </Card>
           </div>
         )}
       </div>

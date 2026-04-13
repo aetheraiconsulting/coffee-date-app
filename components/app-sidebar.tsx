@@ -13,6 +13,9 @@ import {
   Target,
   ChevronLeft,
   TrendingUp,
+  Wand2,
+  RefreshCcw,
+  Send,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import Image from "next/image"
@@ -26,15 +29,22 @@ const menuSections = [
       { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
       { icon: TrendingUp, label: "Pipeline", href: "/pipeline" },
       { icon: Target, label: "Opportunities", href: "/revival/opportunities" },
+      { icon: Wand2, label: "Build Offer", href: "/offer/builder", indent: true },
     ],
   },
   {
     label: "Execution",
     items: [
-      { icon: MessageSquareHeart, label: "Outreach", href: "/revival", exact: true },
+      { icon: Send, label: "Outreach", href: "/outreach" },
       { icon: Coffee, label: "Coffee Date Demo", href: "/demo" },
       { icon: FileSearch, label: "AI Audit", href: "/audit" },
       { icon: ClipboardList, label: "Quiz", href: "/quiz" },
+    ],
+  },
+  {
+    label: "Lead Revival",
+    items: [
+      { icon: RefreshCcw, label: "GHL Connection", href: "/revival", exact: true },
     ],
   },
   {
@@ -121,6 +131,7 @@ export function AppSidebar() {
             {section.items.map((item) => {
               const Icon = item.icon
               const isActive = isActiveLink(item.href, (item as any).exact)
+              const isIndented = (item as any).indent
 
               return (
                 <Link
@@ -129,13 +140,14 @@ export function AppSidebar() {
                   className={cn(
                     "flex items-center gap-3 rounded-lg transition-all text-sm font-medium",
                     isCollapsed ? "px-2 py-3 justify-center" : "px-4 py-3",
+                    isIndented && !isCollapsed && "ml-4 py-2",
                     isActive
                       ? "bg-[#00A8FF] text-white shadow-lg shadow-[#00A8FF]/20"
                       : "text-white/70 hover:bg-white/5 hover:text-white",
                   )}
                   title={isCollapsed ? item.label : undefined}
                 >
-                  <Icon className={cn("h-5 w-5 flex-shrink-0 transition-colors", isActive && "text-white")} />
+                  <Icon className={cn("h-5 w-5 flex-shrink-0 transition-colors", isIndented && "h-4 w-4", isActive && "text-white")} />
                   {!isCollapsed && item.label}
                 </Link>
               )
