@@ -38,6 +38,7 @@ const menuSections = [
     label: "Execution",
     items: [
       { icon: Send, label: "Outreach", href: "/outreach" },
+      { icon: Send, label: "My Outreach", href: "/outreach/my-outreach", indent: true },
       { icon: Coffee, label: "Coffee Date Demo", href: "/demo" },
       { icon: FileSearch, label: "AI Audit", href: "/audit" },
       { icon: ClipboardList, label: "Quiz", href: "/quiz" },

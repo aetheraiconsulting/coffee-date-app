@@ -123,39 +123,44 @@ function EditableCounter({
   )
 }
 
-// Removed Win from pipeline stages - wins are now tracked separately via Revival Win and AI Audit Win badges
+// Pipeline stages: Research → Offer → Outreach → Demo → Revival
+// Audit is a separate opportunity card, not a pipeline stage
 const PIPELINE_STAGES = [
-  { id: "research", label: "Research", icon: BookOpen },
-  { id: "shortlisted", label: "Shortlisted", icon: Target },
-  { id: "outreach_in_progress", label: "Outreach", icon: Send }, // Shortened label
-  { id: "coffee_date_demo", label: "Coffee Date", icon: Coffee }, // Shortened label
-  { id: "dead_lead_revival", label: "Revival", icon: Trophy }, // Changed to "Revival" with Trophy icon
+  { key: "research", label: "Research" },
+  { key: "offer", label: "Offer" },
+  { key: "outreach", label: "Outreach" },
+  { key: "demo", label: "Demo" },
+  { key: "revival", label: "Revival" },
 ]
 
+// Legacy status mappings for backward compatibility
 const STAGE_TO_DB_STATUS: Record<string, string> = {
   research: "Research",
-  shortlisted: "Shortlisted",
-  outreach_in_progress: "Outreach in Progress",
-  coffee_date_demo: "Coffee Date Demo",
-  // Win maps to dead_lead_revival status
-  dead_lead_revival: "Win",
+  offer: "Offer",
+  outreach: "Outreach",
+  demo: "Demo",
+  revival: "Revival",
 }
 
 const DB_STATUS_TO_STAGE: Record<string, string> = {
   Research: "research",
-  Shortlisted: "shortlisted",
-  "Outreach in Progress": "outreach_in_progress",
-  "Coffee Date Demo": "coffee_date_demo",
-  Win: "dead_lead_revival",
+  Offer: "offer",
+  Outreach: "outreach",
+  Demo: "demo",
+  Revival: "revival",
+  // Legacy mappings
+  Shortlisted: "offer",
+  "Outreach in Progress": "outreach",
+  "Coffee Date Demo": "demo",
+  Win: "revival",
 }
 
 const STAGE_SCORES: Record<string, number> = {
   research: 10,
-  shortlisted: 25,
-  outreach_in_progress: 40,
-  coffee_date_demo: 70,
-  // Increased score for dead_lead_revival
-  dead_lead_revival: 100,
+  offer: 25,
+  outreach: 40,
+  demo: 70,
+  revival: 100,
 }
 
 // Define the structure for industry
@@ -181,6 +186,7 @@ type NicheUserState = {
   user_id: string
   is_favourite: boolean
   status: string | null
+  stage: string | null // New stage field: research, offer, outreach, demo, revival, audit
   notes: string | null
   expected_monthly_value: number | null
   research_notes: string | null
@@ -215,9 +221,17 @@ type NicheUserState = {
   win_completed: boolean | null
   win_completed_at?: string | null
   win_type?: "revival" | "audit" | null
-  revival_win_completed?: boolean | null // Added for win type detection
-  audit_win_completed?: boolean | null // Added for win type detection
+  revival_win_completed?: boolean | null
+  audit_win_completed?: boolean | null
   updated_at?: string
+  // New fields for pipeline
+  why_this_works_content?: string | null
+  offer_id?: string | null
+  outreach_generated?: boolean | null
+  outreach_generated_at?: string | null
+  android_built?: boolean | null
+  ghl_connected?: boolean | null
+  audit_available?: boolean | null
 }
 
 // Define the structure for a Niche
@@ -387,6 +401,10 @@ export default function OpportunitiesPage() {
 
   const [aiSuggestions, setAiSuggestions] = useState<AISuggestions | null>(null)
   const [loadingSuggestions, setLoadingSuggestions] = useState(false)
+  
+  // Why This Works state
+  const [whyThisWorksContent, setWhyThisWorksContent] = useState<string | null>(null)
+  const [loadingWhyThisWorks, setLoadingWhyThisWorks] = useState(false)
 
   const [researchOpen, setResearchOpen] = useState(true)
   const [messagingOpen, setMessagingOpen] = useState(false)
@@ -444,6 +462,37 @@ export default function OpportunitiesPage() {
       console.error("Failed to fetch AI suggestions:", error)
     } finally {
       setLoadingSuggestions(false)
+    }
+  }, [])
+
+  // Fetch or generate Why This Works content
+  const fetchWhyThisWorks = useCallback(async (niche: Niche) => {
+    // Check if content is already cached in niche_user_state
+    if (niche.user_state?.why_this_works_content) {
+      setWhyThisWorksContent(niche.user_state.why_this_works_content as string)
+      return
+    }
+
+    // Generate new content via API
+    setLoadingWhyThisWorks(true)
+    try {
+      const response = await fetch("/api/niches/why-this-works", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          niche_name: niche.niche_name,
+          industry_name: niche.industry_name || "Unknown",
+          niche_id: niche.id,
+        }),
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setWhyThisWorksContent(data.content)
+      }
+    } catch (error) {
+      console.error("Failed to fetch Why This Works:", error)
+    } finally {
+      setLoadingWhyThisWorks(false)
     }
   }, [])
 
@@ -553,10 +602,12 @@ export default function OpportunitiesPage() {
   useEffect(() => {
     if (selectedNiche) {
       fetchAiSuggestions(selectedNiche)
+      fetchWhyThisWorks(selectedNiche)
     } else {
       setAiSuggestions(null)
+      setWhyThisWorksContent(null)
     }
-  }, [selectedNiche, fetchAiSuggestions])
+  }, [selectedNiche, fetchAiSuggestions, fetchWhyThisWorks])
 
   useEffect(() => {
     let filtered = [...allNiches]
@@ -1083,8 +1134,8 @@ export default function OpportunitiesPage() {
               </SelectItem>
               {PIPELINE_STAGES.map((stage) => (
                 <SelectItem
-                  key={stage.id}
-                  value={STAGE_TO_DB_STATUS[stage.id]}
+                  key={stage.key}
+                  value={STAGE_TO_DB_STATUS[stage.key]}
                   className="text-white hover:bg-zinc-700"
                 >
                   {stage.label}
@@ -1337,143 +1388,72 @@ export default function OpportunitiesPage() {
                     </div>
                   )}
 
-                  {/* Pipeline Stages - Reduced text size, added responsive icons-only mode */}
-                  <div className="flex items-center gap-1 flex-wrap">
-                    {PIPELINE_STAGES.map((stage, index) => {
-                      const StageIcon = stage.icon
-                      const currentStageIndex = PIPELINE_STAGES.findIndex(
-                        (s) => s.id === DB_STATUS_TO_STAGE[selectedNiche?.user_state?.status || "Research"],
-                      )
-                      const isCompleted = index < currentStageIndex
-                      const isCurrent = index === currentStageIndex
-                      const isFuture = index > currentStageIndex
-
-                      const isRevivalStage = stage.id === "dead_lead_revival"
-                      const isRevivalWon =
-                        isRevivalStage &&
-                        (selectedNiche?.user_state?.revival_win_completed ||
-                          selectedNiche?.user_state?.win_completed ||
-                          selectedNiche?.user_state?.win_type === "revival")
-
-                      // Gate logic
-                      let canProgress = true
-                      let disabledReason = ""
-
-                      if (stage.id === "shortlisted" && !selectedNiche?.user_state?.research_notes_added) {
-                        canProgress = false
-                        disabledReason = "Complete Research phase first"
-                      } else if (
-                        stage.id === "outreach_in_progress" &&
-                        !selectedNiche?.user_state?.messaging_prepared
-                      ) {
-                        canProgress = false
-                        disabledReason = "Prepare messaging first"
-                      } else if (
-                        stage.id === "coffee_date_demo" &&
-                        !((selectedNiche?.user_state?.outreach_messages_sent || 0) > 0)
-                      ) {
-                        canProgress = false
-                        disabledReason = "Log at least one outreach activity first"
-                      } else if (
-                        stage.id === "dead_lead_revival" &&
-                        !selectedNiche?.user_state?.coffee_date_completed
-                      ) {
-                        canProgress = false
-                        disabledReason = "Complete a Coffee Date Demo first"
+                  {/* Pipeline Stage Tracker - Research → Offer → Outreach → Demo → Revival */}
+                  <div className="flex items-center gap-0 mb-6">
+                    {(() => {
+                      // Determine current stage from niche_user_state.stage or infer from conditions
+                      const nicheState = selectedNiche?.user_state
+                      let currentStage = nicheState?.stage || "research"
+                      
+                      // If no explicit stage, infer from state
+                      if (!nicheState?.stage) {
+                        if (nicheState?.ghl_connected) currentStage = "revival"
+                        else if (nicheState?.coffee_date_completed) currentStage = "demo"
+                        else if (nicheState?.outreach_generated) currentStage = "outreach"
+                        else if (nicheState?.offer_id || activeOffer) currentStage = "offer"
+                        else if (nicheState?.research_notes_added && nicheState?.customer_profile_generated && nicheState?.aov_calculator_completed) currentStage = "offer"
+                        else currentStage = "research"
                       }
-
-                      const stageButton = (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <button
-                              onClick={() => !isFuture && canProgress && progressToStage(stage.id)}
-                              disabled={isFuture && !canProgress}
-                              className={cn(
-                                "flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-medium transition-all duration-200",
-                                isRevivalWon
-                                  ? "bg-gradient-to-r from-yellow-500 to-amber-500 text-black shadow-md shadow-yellow-500/30"
-                                  : isCompleted
-                                    ? "bg-green-500 text-white"
-                                    : isCurrent
-                                      ? "bg-green-500/20 text-green-400 border border-green-500 shadow-sm shadow-green-500/20"
-                                      : isFuture && !canProgress
-                                        ? "bg-white/5 text-white/30 cursor-not-allowed border border-white/5"
-                                        : "bg-white/5 text-white/40 border border-white/10 hover:bg-white/10 hover:text-white/60",
-                              )}
-                            >
-                              {isFuture && !canProgress ? (
-                                <Lock className="h-3 w-3" />
-                              ) : (
-                                <StageIcon className="h-3 w-3 shrink-0" />
-                              )}
-                              {/* Show label on larger screens, hide on small */}
-                              <span className="hidden sm:inline">{stage.label}</span>
-                            </button>
-                          </TooltipTrigger>
-                          <TooltipContent side="top" className="bg-zinc-800 text-white border-zinc-700 text-xs">
-                            <p>{isFuture && !canProgress ? disabledReason : stage.label}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      )
-
-                      return (
-                        <div key={stage.id} className="flex items-center gap-1">
-                          {stageButton}
+                      
+                      const stageIndex = PIPELINE_STAGES.findIndex(s => s.key === currentStage)
+                      
+                      return PIPELINE_STAGES.map((stage, index) => (
+                        <div key={stage.key} className="flex items-center">
+                          <div className={cn(
+                            "flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all",
+                            index < stageIndex
+                              ? "bg-green-500/20 text-green-400 border border-green-500/30"
+                              : index === stageIndex
+                              ? "bg-[#00AAFF]/20 text-[#00AAFF] border border-[#00AAFF]/30"
+                              : "bg-white/5 text-white/25 border border-white/10"
+                          )}>
+                            {index < stageIndex ? (
+                              <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                                <path d="M2 5l2.5 2.5L8 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                              </svg>
+                            ) : index > stageIndex ? (
+                              <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                                <rect x="3" y="2" width="4" height="5" rx="1" stroke="currentColor" strokeWidth="1"/>
+                                <path d="M3.5 4V3a1.5 1.5 0 013 0v1" stroke="currentColor" strokeWidth="1"/>
+                              </svg>
+                            ) : null}
+                            {stage.label}
+                          </div>
                           {index < PIPELINE_STAGES.length - 1 && (
-                            <ChevronRight className="h-3 w-3 text-white/20 shrink-0" />
+                            <div className={cn("w-6 h-px", index < stageIndex ? "bg-green-500/40" : "bg-white/10")} />
                           )}
                         </div>
-                      )
-                    })}
-
-                    <div className="ml-3 pl-3 border-l border-white/10">
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <div
-                            className={cn(
-                              "inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-medium transition-all duration-200",
-                              selectedNiche?.user_state?.audit_win_completed ||
-                                selectedNiche?.user_state?.win_type === "audit"
-                                ? "bg-gradient-to-r from-yellow-500 to-amber-500 text-black shadow-md shadow-yellow-500/30"
-                                : "bg-white/5 text-white/40 border border-white/10",
-                            )}
-                          >
-                            <Trophy className="h-3 w-3 shrink-0" />
-                            <span className="hidden sm:inline">Audit</span>
-                          </div>
-                        </TooltipTrigger>
-                        <TooltipContent side="top" className="bg-zinc-800 text-white border-zinc-700 text-xs">
-                          <p>
-                            {selectedNiche?.user_state?.audit_win_completed ||
-                            selectedNiche?.user_state?.win_type === "audit"
-                              ? "Client secured via AI Readiness Audit"
-                              : "Complete an AI Audit with this niche to record win"}
-                          </p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </div>
+                      ))
+                    })()}
                   </div>
 
-{/* Why This Works Section */}
-                  <div className="bg-white/[0.03] border border-white/10 rounded-xl p-5 space-y-3">
-                    <div className="flex items-center gap-2">
-                      <Lightbulb className="h-5 w-5 text-[#00AAFF]" />
-                      <h3 className="text-sm font-semibold text-white">Why this works</h3>
-                    </div>
-                    <ul className="text-sm text-white/70 leading-relaxed space-y-2">
-                      <li className="flex items-start gap-2">
-                        <span className="text-[#00AAFF] mt-1">•</span>
-                        <span><strong className="text-white/90">Pain point:</strong> {selectedNiche.industry_name} businesses have dormant customer lists they struggle to reactivate</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <span className="text-[#00AAFF] mt-1">•</span>
-                        <span><strong className="text-white/90">Revenue opportunity:</strong> Reactivating just 5-10% of dormant leads can generate significant recurring revenue</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <span className="text-[#00AAFF] mt-1">•</span>
-                        <span><strong className="text-white/90">Why AI fits:</strong> Automated follow-up at scale with personalized messaging delivers immediate, measurable ROI</span>
-                      </li>
-                    </ul>
+{/* Why This Works Section - AI Generated */}
+                  <div className="bg-white/[0.03] border-l-4 border-l-[#00AAFF] border border-white/10 rounded-xl p-5 space-y-3">
+                    <p className="text-[10px] font-semibold text-[#00AAFF] uppercase tracking-wider">WHY THIS WORKS</p>
+                    {loadingWhyThisWorks ? (
+                      <div className="flex items-center gap-3 py-2">
+                        <Loader2 className="animate-spin h-4 w-4 text-[#00AAFF]" />
+                        <span className="text-sm text-white/50">Analysing this niche...</span>
+                      </div>
+                    ) : whyThisWorksContent ? (
+                      <p className="text-sm text-white/70 leading-relaxed" style={{ lineHeight: 1.7 }}>
+                        {whyThisWorksContent}
+                      </p>
+                    ) : (
+                      <p className="text-sm text-white/50 italic">
+                        Click on a niche to generate AI analysis
+                      </p>
+                    )}
                   </div>
 
                   {/* Suggested Angle Section */}
@@ -1864,6 +1844,158 @@ export default function OpportunitiesPage() {
                       </CollapsibleContent>
                     </Card>
                   </Collapsible>
+
+                  {/* Section 3 — Your Offer */}
+                  <div className="bg-white/[0.03] border border-white/10 rounded-xl p-5 space-y-3">
+                    <p className="text-[10px] font-semibold text-[#00AAFF] uppercase tracking-wider">YOUR OFFER</p>
+                    {!activeOffer || !nicheMatches ? (
+                      <>
+                        <p className="text-sm text-white/50 mb-3">
+                          Use your research to build a niche-specific offer
+                        </p>
+                        <Button
+                          asChild
+                          className="w-full bg-[#00AAFF] hover:bg-[#0099EE] text-white"
+                        >
+                          <Link href={`/offer/builder?niche=${encodeURIComponent(selectedNiche.niche_name)}&problem=${encodeURIComponent(selectedNiche.user_state?.customer_profile?.pain_points || `${selectedNiche.industry_name || "These"} businesses have dormant customer lists`)}&outcome=${encodeURIComponent(`Target MRR: $${selectedNiche.user_state?.target_monthly_recurring || "3000"}`)}&mode=new`}>
+                            Build offer for this niche
+                            <ChevronRight className="h-4 w-4 ml-1" />
+                          </Link>
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <p className="font-semibold text-white">{activeOffer.service_name}</p>
+                        <p className="text-white/50 text-sm">
+                          {activeOffer.price_point} — <span className="capitalize">{activeOffer.pricing_model}</span>
+                        </p>
+                        <Button
+                          asChild
+                          variant="outline"
+                          className="w-full border-white/20 text-white hover:bg-white/10"
+                        >
+                          <Link href="/offer/builder">Edit offer</Link>
+                        </Button>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Section 4 — Outreach */}
+                  <div className="bg-white/[0.03] border border-white/10 rounded-xl p-5 space-y-3">
+                    <p className="text-[10px] font-semibold text-[#00AAFF] uppercase tracking-wider">OUTREACH</p>
+                    {!selectedNiche.user_state?.outreach_generated ? (
+                      <>
+                        <p className="text-sm text-white/50 mb-3">
+                          Generate messages for this niche
+                        </p>
+                        <Button
+                          asChild
+                          className="w-full bg-[#00AAFF] hover:bg-[#0099EE] text-white"
+                        >
+                          <Link href="/outreach">
+                            Generate outreach messages
+                            <ChevronRight className="h-4 w-4 ml-1" />
+                          </Link>
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex gap-3 mb-3">
+                          {["linkedin", "instagram", "email"].map(channel => (
+                            <div key={channel} className="text-center flex-1">
+                              <p className="text-white text-sm font-medium capitalize">{channel}</p>
+                              <p className="text-white/40 text-xs">
+                                {selectedNiche.user_state?.outreach_channels?.[`${channel}_sent` as keyof OutreachChannels] || 0} sent
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                        <Button
+                          asChild
+                          variant="outline"
+                          className="w-full border-white/20 text-white hover:bg-white/10"
+                        >
+                          <Link href="/outreach">View outreach messages</Link>
+                        </Button>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Section 6 — Build Android / Coffee Date Demo */}
+                  <div className="bg-white/[0.03] border border-white/10 rounded-xl p-5 space-y-3">
+                    <p className="text-[10px] font-semibold text-[#00AAFF] uppercase tracking-wider">COFFEE DATE DEMO</p>
+                    {selectedNiche.user_state?.android_built ? (
+                      <>
+                        <p className="text-green-400 text-sm mb-2">Android built</p>
+                        <Button
+                          asChild
+                          className="w-full bg-[#00AAFF] hover:bg-[#0099EE] text-white"
+                        >
+                          <Link href="/demo">
+                            Go to demo
+                            <ChevronRight className="h-4 w-4 ml-1" />
+                          </Link>
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-sm text-white/50 mb-3">
+                          Build your Android for this niche to run the Coffee Date Demo
+                        </p>
+                        <Button
+                          asChild
+                          className="w-full bg-[#00AAFF] hover:bg-[#0099EE] text-white"
+                        >
+                          <Link href={`/prompt-generator?niche=${encodeURIComponent(selectedNiche.niche_name)}`}>
+                            Build Android for this niche
+                            <ChevronRight className="h-4 w-4 ml-1" />
+                          </Link>
+                        </Button>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Section 7 — GHL / Revival */}
+                  <div className="bg-white/[0.03] border border-white/10 rounded-xl p-5 space-y-3">
+                    <p className="text-[10px] font-semibold text-[#00AAFF] uppercase tracking-wider">REVIVAL</p>
+                    {selectedNiche.user_state?.ghl_connected ? (
+                      <p className="text-green-400 text-sm">GHL connected — revival active</p>
+                    ) : (
+                      <>
+                        <p className="text-sm text-white/50 mb-3">
+                          Connect GoHighLevel to activate dead lead revival for this niche
+                        </p>
+                        <Button
+                          asChild
+                          className="w-full bg-[#00AAFF] hover:bg-[#0099EE] text-white"
+                        >
+                          <Link href="/revival/connect">
+                            Connect GHL account
+                            <ChevronRight className="h-4 w-4 ml-1" />
+                          </Link>
+                        </Button>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Section 8 — Audit Opportunity (appears only when ghl_connected = true) */}
+                  {selectedNiche.user_state?.ghl_connected && (
+                    <div className="bg-[#00AAFF]/5 border border-[#00AAFF]/30 rounded-xl p-5 space-y-3">
+                      <p className="text-[10px] font-semibold text-[#00AAFF] uppercase tracking-wider">AUDIT OPPORTUNITY</p>
+                      <p className="text-white/70 text-sm mb-3">
+                        Your client is running revival. Now is the right time to offer a paid AI audit.
+                      </p>
+                      <Button
+                        asChild
+                        className="w-full bg-[#00AAFF] hover:bg-[#0099EE] text-white"
+                      >
+                        <Link href="/audit">
+                          Build AI audit
+                          <ChevronRight className="h-4 w-4 ml-1" />
+                        </Link>
+                      </Button>
+                    </div>
+                  )}
 
                   <Collapsible open={messagingOpen} onOpenChange={setMessagingOpen}>
                     <Card className="border border-white/10 bg-zinc-800/50 overflow-hidden">
