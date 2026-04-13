@@ -10,7 +10,7 @@ export async function GET() {
     return NextResponse.json({ error: "Missing API key" }, { status: 500 })
   }
 
-  // Fetch all data in parallel
+  // Fetch all data in parallel - use maybeSingle() for optional data
   const [
     { data: profile },
     { data: offer },
@@ -19,7 +19,7 @@ export async function GET() {
     { count: replyCount },
     { count: callScriptCount },
   ] = await Promise.all([
-    supabase.from("profiles").select("sprint_start_date, full_name, offer_id").eq("id", user.id).single(),
+    supabase.from("profiles").select("sprint_start_date, full_name, offer_id").eq("id", user.id).maybeSingle(),
     supabase.from("offers").select("service_name, niche, pricing_model").eq("user_id", user.id).eq("is_active", true).maybeSingle(),
     supabase.from("niche_user_state").select("id, is_favourite, status").eq("user_id", user.id),
     supabase.from("outreach_messages").select("id, status").eq("user_id", user.id),
