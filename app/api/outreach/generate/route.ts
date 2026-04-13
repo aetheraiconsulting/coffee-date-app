@@ -64,13 +64,36 @@ export async function POST(request: Request) {
     const selectedChannel: Channel = channel || "linkedin"
     const selected = channelInstructions[selectedChannel]
 
-    // Fetch active offer server-side
-    const { data: offer } = await supabase
-      .from("offers")
-      .select("*")
-      .eq("user_id", user.id)
-      .eq("is_active", true)
+    // Step 1: Try via profiles.offer_id
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("offer_id")
+      .eq("id", user.id)
       .maybeSingle()
+
+    let offer = null
+
+    if (profile?.offer_id) {
+      const { data } = await supabase
+        .from("offers")
+        .select("*")
+        .eq("id", profile.offer_id)
+        .maybeSingle()
+      offer = data
+    }
+
+    // Step 2: Fallback to most recent active offer
+    if (!offer) {
+      const { data } = await supabase
+        .from("offers")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("is_active", true)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      offer = data
+    }
 
     if (!offer) {
       return NextResponse.json({ error: "No active offer found" }, { status: 400 })

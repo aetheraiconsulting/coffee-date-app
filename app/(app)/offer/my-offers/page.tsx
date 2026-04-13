@@ -13,7 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { FileText, Plus, Loader2, Trash2, Pencil, CheckCircle, Square, CheckSquare } from "lucide-react"
+import { FileText, Plus, Loader2, Trash2, Pencil } from "lucide-react"
 import { Checkbox } from "@/components/ui/checkbox"
 import { createClient } from "@/lib/supabase/client"
 import { useUserState } from "@/context/StateContext"
@@ -46,7 +46,6 @@ export default function MyOffersPage() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
   const [offerToDelete, setOfferToDelete] = useState<Offer | null>(null)
   const [deleting, setDeleting] = useState(false)
-  const [settingActive, setSettingActive] = useState<string | null>(null)
   
   // Bulk selection state
   const [selectedOfferIds, setSelectedOfferIds] = useState<string[]>([])
@@ -100,33 +99,6 @@ export default function MyOffersPage() {
   useEffect(() => {
     fetchOffers()
   }, [fetchOffers])
-
-  const handleSetActive = async (offerId: string) => {
-    if (!userId) return
-    setSettingActive(offerId)
-    
-    // Deactivate all offers
-    await supabase
-      .from("offers")
-      .update({ is_active: false })
-      .eq("user_id", userId)
-
-    // Activate selected offer
-    await supabase
-      .from("offers")
-      .update({ is_active: true })
-      .eq("id", offerId)
-
-    // Update profiles.offer_id
-    await supabase
-      .from("profiles")
-      .update({ offer_id: offerId })
-      .eq("id", userId)
-
-    await refreshState()
-    await fetchOffers()
-    setSettingActive(null)
-  }
 
   const handleDeleteClick = (offer: Offer) => {
     setOfferToDelete(offer)
@@ -436,23 +408,6 @@ export default function MyOffersPage() {
                       </p>
                       
                       <div className="flex items-center gap-2 mt-2">
-                        {!offer.is_active && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleSetActive(offer.id)}
-                            disabled={settingActive === offer.id}
-                            className="text-[#00AAFF] hover:text-[#00AAFF] hover:bg-[#00AAFF]/10"
-                          >
-                            {settingActive === offer.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <CheckCircle className="h-4 w-4 mr-1" />
-                            )}
-                            Set as active
-                          </Button>
-                        )}
-                        
                         {/* Outreach action button */}
                         {hasOutreach ? (
                           <Button

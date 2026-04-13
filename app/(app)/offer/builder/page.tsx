@@ -289,6 +289,12 @@ export default function OfferBuilderPage() {
           .eq("id", user.id)
       } else if (currentOfferId) {
         // EDIT MODE with specific offer ID: Update that offer
+        // First deactivate all offers, then activate this one
+        await supabase
+          .from("offers")
+          .update({ is_active: false })
+          .eq("user_id", user.id)
+
         const { error: updateError } = await supabase
           .from("offers")
           .update({
@@ -300,10 +306,17 @@ export default function OfferBuilderPage() {
             confidence_reason: confidenceReason,
             pricing_model: pricingModel,
             niche,
+            is_active: true,
           })
           .eq("id", currentOfferId)
 
         if (updateError) throw updateError
+
+        // Always update profiles.offer_id when saving
+        await supabase
+          .from("profiles")
+          .update({ offer_id: currentOfferId })
+          .eq("id", user.id)
       } else {
         // EDIT MODE without specific ID: Update existing active offer or insert new
         const { data: existingOffer } = await supabase
@@ -314,6 +327,13 @@ export default function OfferBuilderPage() {
           .maybeSingle()
 
         if (existingOffer) {
+          // Deactivate all other offers first
+          await supabase
+            .from("offers")
+            .update({ is_active: false })
+            .eq("user_id", user.id)
+            .neq("id", existingOffer.id)
+
           // Update the existing active offer
           const { error: updateError } = await supabase
             .from("offers")
@@ -326,11 +346,24 @@ export default function OfferBuilderPage() {
               confidence_reason: confidenceReason,
               pricing_model: pricingModel,
               niche,
+              is_active: true,
             })
             .eq("id", existingOffer.id)
 
           if (updateError) throw updateError
+
+          // Always update profiles.offer_id when saving
+          await supabase
+            .from("profiles")
+            .update({ offer_id: existingOffer.id })
+            .eq("id", user.id)
         } else {
+          // Deactivate all existing offers before inserting new one
+          await supabase
+            .from("offers")
+            .update({ is_active: false })
+            .eq("user_id", user.id)
+
           // Insert new offer
           const { data: newOffer, error: insertError } = await supabase
             .from("offers")

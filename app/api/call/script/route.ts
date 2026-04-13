@@ -10,25 +10,39 @@ export async function POST() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    // Get user's offer
+    // Step 1: Try via profiles.offer_id
     const { data: profile } = await supabase
       .from("profiles")
       .select("offer_id")
       .eq("id", user.id)
-      .single()
+      .maybeSingle()
 
-    if (!profile?.offer_id) {
-      return NextResponse.json({ error: "No offer found. Please create an offer first." }, { status: 400 })
+    let offer = null
+
+    if (profile?.offer_id) {
+      const { data } = await supabase
+        .from("offers")
+        .select("*")
+        .eq("id", profile.offer_id)
+        .maybeSingle()
+      offer = data
     }
 
-    const { data: offer } = await supabase
-      .from("offers")
-      .select("*")
-      .eq("id", profile.offer_id)
-      .single()
+    // Step 2: Fallback to most recent active offer
+    if (!offer) {
+      const { data } = await supabase
+        .from("offers")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("is_active", true)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      offer = data
+    }
 
     if (!offer) {
-      return NextResponse.json({ error: "Offer not found" }, { status: 400 })
+      return NextResponse.json({ error: "No active offer found. Please create an offer first." }, { status: 400 })
     }
 
     // Check if script already exists
