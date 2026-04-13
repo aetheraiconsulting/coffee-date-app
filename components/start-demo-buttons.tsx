@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Play, Briefcase, Search } from "lucide-react"
+import { Play, Briefcase, Search, Monitor } from "lucide-react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -130,6 +130,14 @@ export default function StartDemoButtons({ androidId, androidName }: StartDemoBu
         >
           <Briefcase className="h-[18px] w-[18px] mr-2 text-white" />
           Start Client Demo
+        </Button>
+        <Button
+          onClick={() => router.push(`/demo/${androidId}?present=true`)}
+          variant="outline"
+          className="border-white/20 text-white/60 bg-transparent hover:bg-white/10 hover:text-white hover:border-white/30 transition-all"
+          title="Present mode for screen sharing"
+        >
+          <Monitor className="h-[18px] w-[18px]" />
         </Button>
       </div>
 

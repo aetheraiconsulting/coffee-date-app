@@ -13,6 +13,7 @@ import type { Android } from "@/lib/types"
 interface DemoChatProps {
   android: Android
   userId: string
+  autoPresent?: boolean
 }
 
 function normalizeMessageText(message: any): string {
@@ -81,7 +82,7 @@ const userBubble = {
   fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
 }
 
-export default function DemoChat({ android, userId }: DemoChatProps) {
+export default function DemoChat({ android, userId, autoPresent = false }: DemoChatProps) {
   const router = useRouter()
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const [input, setInput] = useState("")
@@ -91,6 +92,7 @@ export default function DemoChat({ android, userId }: DemoChatProps) {
   const [showFirstMessage, setShowFirstMessage] = useState(false)
   const [showTypingForFirst, setShowTypingForFirst] = useState(false)
   const [isDarkMode, setIsDarkMode] = useState(false)
+  const [presentationMode, setPresentationMode] = useState(autoPresent)
 
   const companyName = android.business_context?.company_name || android.business_context?.businessName || "My Business"
   const niche = android.business_context?.niche || android.business_context?.industry || "services"
@@ -178,6 +180,17 @@ export default function DemoChat({ android, userId }: DemoChatProps) {
     setTimeout(checkStyles, 3000)
   }, [])
 
+  // Escape key to exit presentation mode
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && presentationMode) {
+        setPresentationMode(false)
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [presentationMode])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!input.trim() || isLoading) return
@@ -193,6 +206,173 @@ export default function DemoChat({ android, userId }: DemoChatProps) {
 
   const handleBack = () => {
     router.push("/demo")
+  }
+
+  // Presentation mode - full screen overlay
+  if (presentationMode) {
+    return (
+      <div 
+        className="fixed inset-0 flex items-center justify-center"
+        style={{ background: '#080B0F', zIndex: 9999 }}
+      >
+        {/* Exit button — top right corner, subtle */}
+        <button
+          onClick={() => setPresentationMode(false)}
+          className="absolute top-4 right-4 flex items-center gap-2 px-3 py-1.5 text-xs text-white/30 hover:text-white/60 border border-white/10 hover:border-white/20 rounded-lg transition-colors z-10"
+        >
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+            <path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+          </svg>
+          Exit presentation
+        </button>
+
+        {/* Phone mockup centred */}
+        <div className="flex items-center justify-center w-full h-full p-8">
+          <div
+            className="relative overflow-hidden"
+            style={{
+              borderRadius: "40px",
+              backgroundColor: isDarkMode ? "#000000" : "#F4F4F6",
+              boxShadow: "0 10px 30px rgba(0,0,0,0.5), 0 0 25px rgba(8,159,239,0.2)",
+              height: "85vh",
+              maxHeight: "800px",
+              width: "100%",
+              maxWidth: "420px",
+              display: "flex",
+              flexDirection: "column",
+            }}
+          >
+            {/* Minimal header for presentation */}
+            <header
+              className="flex-shrink-0 border-b px-4 py-3"
+              style={{
+                background: isDarkMode
+                  ? "linear-gradient(180deg, #1a1a1a 0%, #0f0f0f 100%)"
+                  : "linear-gradient(180deg, #FAFAFA 0%, #F5F5F5 100%)",
+                borderColor: isDarkMode ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)",
+              }}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <h1 className="text-lg font-semibold" style={{ color: isDarkMode ? "#ffffff" : "#000000" }}>
+                    {android.name}
+                  </h1>
+                  <p className="text-xs" style={{ color: isDarkMode ? "#999999" : "#666666" }}>
+                    {companyName}
+                  </p>
+                </div>
+                <Button
+                  onClick={() => setIsDarkMode(!isDarkMode)}
+                  size="icon"
+                  variant="ghost"
+                  className="h-8 w-8"
+                  style={{ color: isDarkMode ? "#ffffff" : "#333333" }}
+                >
+                  {isDarkMode ? "☀️" : "🌙"}
+                </Button>
+              </div>
+            </header>
+
+            {/* Chat messages */}
+            <div
+              className="flex-1 overflow-y-auto px-4 py-6 space-y-4 chat-window"
+              style={{
+                backgroundColor: "#FFFFFF",
+                color: "#000000",
+                padding: "20px",
+                overflowY: "auto",
+                height: "100%",
+                isolation: "isolate",
+                filter: "none",
+                boxShadow: "inset 0 -2px 4px rgba(0,0,0,0.06)",
+              }}
+            >
+              {showTypingForFirst && <TypingIndicator />}
+
+              {showFirstMessage && (
+                <div
+                  className="animate-message-slide-in chat-message"
+                  data-role="assistant"
+                  style={{
+                    ...aiBubble,
+                    alignSelf: "flex-start",
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+                  }}
+                >
+                  <span style={{ color: "#000000", opacity: 1, mixBlendMode: "normal" }}>
+                    {firstAIMessage}
+                  </span>
+                </div>
+              )}
+
+              {messages.map((m, i) => {
+                const text = normalizeMessageText(m)
+                if (!text) return null
+                const isUser = m.role === "user"
+                return (
+                  <div
+                    key={i}
+                    className="animate-message-slide-in chat-message"
+                    data-role={isUser ? "user" : "assistant"}
+                    style={{
+                      ...(isUser ? userBubble : aiBubble),
+                      alignSelf: isUser ? "flex-end" : "flex-start",
+                      animationDelay: `${i * 100}ms`,
+                      boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+                    }}
+                  >
+                    <span style={{ color: isUser ? "#FFFFFF" : "#000000", opacity: 1, mixBlendMode: "normal" }}>
+                      {text}
+                    </span>
+                  </div>
+                )
+              })}
+
+              {isLoading && <TypingIndicator />}
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Input area */}
+            <div
+              className="flex-shrink-0 border-t px-4 py-3"
+              style={{
+                background: isDarkMode
+                  ? "linear-gradient(180deg, #0f0f0f 0%, #1a1a1a 100%)"
+                  : "linear-gradient(180deg, #F5F5F5 0%, #FAFAFA 100%)",
+                borderColor: isDarkMode ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)",
+                borderBottomLeftRadius: "40px",
+                borderBottomRightRadius: "40px",
+                padding: "12px 16px",
+              }}
+            >
+              <form onSubmit={handleSubmit} className="flex gap-2">
+                <Input
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  placeholder={showFirstMessage ? "Type as the prospect…" : "Waiting for Android..."}
+                  disabled={isLoading || !showFirstMessage}
+                  autoComplete="off"
+                  className="rounded-full h-11 px-4 transition-all duration-300 disabled:opacity-50"
+                  style={{
+                    backgroundColor: isDarkMode ? "#1a1a1a" : "#FFFFFF",
+                    borderColor: isDarkMode ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)",
+                    color: isDarkMode ? "#ffffff" : "#000000",
+                  }}
+                />
+                <Button
+                  type="submit"
+                  disabled={isLoading || !input.trim() || !showFirstMessage}
+                  size="icon"
+                  className="bg-aether text-white hover:bg-aether/90 hover:shadow-[0_0_20px_rgba(8,159,239,0.5)] hover:scale-105 rounded-full h-11 w-11 transition-all duration-300 disabled:opacity-50 disabled:hover:scale-100"
+                >
+                  <Send className="h-4 w-4" />
+                </Button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -300,6 +480,17 @@ export default function DemoChat({ android, userId }: DemoChatProps) {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setPresentationMode(true)}
+                    className="flex items-center gap-2 px-3 py-1.5 text-sm text-white/50 hover:text-white border border-white/10 hover:border-white/20 rounded-lg transition-colors"
+                    style={{ color: isDarkMode ? "rgba(255,255,255,0.5)" : "rgba(0,0,0,0.5)" }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                      <rect x="1" y="2" width="12" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.2"/>
+                      <path d="M5 11v1.5M9 11v1.5M3.5 12.5h7" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+                    </svg>
+                    Present
+                  </button>
                   <Button
                     onClick={() => setIsDarkMode(!isDarkMode)}
                     size="icon"
