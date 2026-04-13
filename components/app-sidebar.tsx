@@ -16,6 +16,7 @@ import {
   Wand2,
   RefreshCcw,
   Send,
+  FileText,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import Image from "next/image"
@@ -30,6 +31,7 @@ const menuSections = [
       { icon: TrendingUp, label: "Pipeline", href: "/pipeline" },
       { icon: Target, label: "Opportunities", href: "/revival/opportunities" },
       { icon: Wand2, label: "Build Offer", href: "/offer/builder", indent: true },
+      { icon: FileText, label: "My Offers", href: "/offer/my-offers", indent: true },
     ],
   },
   {
