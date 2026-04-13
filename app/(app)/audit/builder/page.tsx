@@ -31,6 +31,9 @@ import {
   Loader2,
   ExternalLink,
   Trash2,
+  Link2,
+  Copy,
+  X,
 } from "lucide-react"
 import { Switch } from "@/components/ui/switch"
 import { useState, useEffect, Suspense, useCallback, useRef } from "react"
@@ -117,6 +120,12 @@ function AuditBuilderContent() {
   const [view, setView] = useState<ViewState>("questions")
   const [editedInsights, setEditedInsights] = useState<EditedInsights | null>(null)
   const editedInsightsTimeout = useRef<NodeJS.Timeout>()
+  
+  // Share modal state
+  const [showShareModal, setShowShareModal] = useState(false)
+  const [shareUrl, setShareUrl] = useState("")
+  const [teaserContent, setTeaserContent] = useState("")
+  const [generatingShareLink, setGeneratingShareLink] = useState(false)
 
   const { toast } = useToast()
   const router = useRouter()
@@ -518,6 +527,41 @@ Date: _________________________________________________________
     toast({ title: "Questions Restored", description: "Default question set restored" })
   }
 
+  async function generateShareLink() {
+    if (!auditId) {
+      await handleSave(false)
+    }
+    
+    if (!auditId) {
+      toast({ title: "Save the audit first", variant: "destructive" })
+      return
+    }
+
+    setGeneratingShareLink(true)
+    try {
+      const response = await fetch("/api/audit/share", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ audit_id: auditId, teaser_content: teaserContent }),
+      })
+
+      if (!response.ok) throw new Error("Failed to generate share link")
+
+      const data = await response.json()
+      setShareUrl(data.share_url)
+      toast({ title: "Share link generated!" })
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to generate share link", variant: "destructive" })
+    } finally {
+      setGeneratingShareLink(false)
+    }
+  }
+
+  function copyShareLink() {
+    navigator.clipboard.writeText(shareUrl)
+    toast({ title: "Link copied to clipboard!" })
+  }
+
   const completion = calculateCompletion()
   const currentCategory = currentStep === 0 ? null : categorizedQuestions[currentStep - 1]
   const filteredNiches = niches
@@ -566,6 +610,15 @@ Date: _________________________________________________________
 
             {/* Actions */}
             <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setShowShareModal(true)}
+                disabled={!auditName}
+                className="border-white/20 hover:border-[#00AAFF]/60 hover:bg-[#00AAFF]/10 text-white bg-transparent"
+              >
+                <Link2 className="h-4 w-4 mr-2" />
+                Share
+              </Button>
               <Button
                 variant="outline"
                 onClick={handleExportPDF}
@@ -1160,6 +1213,95 @@ Date: _________________________________________________________
           </div>
         </div>
       </div>
+
+      {/* Share Modal */}
+      {showShareModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <Card className="bg-[#0A0E14] border-white/10 w-full max-w-lg">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-white">Share Audit Link</CardTitle>
+                <p className="text-white/50 text-sm mt-1">Send this link to your client to complete the audit</p>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowShareModal(false)}
+                className="text-white/50 hover:text-white"
+              >
+                <X className="h-5 w-5" />
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Teaser Content */}
+              <div>
+                <Label className="text-white/70 text-sm">Intro Message (optional)</Label>
+                <p className="text-white/40 text-xs mb-2">Shown to the client before they start the audit</p>
+                <Textarea
+                  value={teaserContent}
+                  onChange={(e) => setTeaserContent(e.target.value)}
+                  placeholder="Thank you for taking the time to complete this AI Readiness Audit. Your responses will help us identify opportunities to improve your business operations..."
+                  className="bg-white/5 border-white/10 text-white"
+                  rows={3}
+                />
+              </div>
+
+              {/* Generate or Show Link */}
+              {!shareUrl ? (
+                <Button
+                  onClick={generateShareLink}
+                  disabled={generatingShareLink}
+                  className="w-full bg-[#00AAFF] hover:bg-[#0099EE] text-white"
+                >
+                  {generatingShareLink ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <Link2 className="h-4 w-4 mr-2" />
+                  )}
+                  Generate Share Link
+                </Button>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex gap-2">
+                    <Input
+                      value={shareUrl}
+                      readOnly
+                      className="bg-white/5 border-white/10 text-white text-sm"
+                    />
+                    <Button
+                      onClick={copyShareLink}
+                      variant="outline"
+                      className="border-white/20 text-white hover:bg-white/10 shrink-0"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={copyShareLink}
+                      className="flex-1 bg-[#00AAFF] hover:bg-[#0099EE] text-white"
+                    >
+                      <Copy className="h-4 w-4 mr-2" />
+                      Copy Link
+                    </Button>
+                    <Button
+                      onClick={() => window.open(shareUrl, "_blank")}
+                      variant="outline"
+                      className="flex-1 border-white/20 text-white hover:bg-white/10"
+                    >
+                      <ExternalLink className="h-4 w-4 mr-2" />
+                      Preview
+                    </Button>
+                  </div>
+                  <p className="text-white/40 text-xs text-center">
+                    Client responses will appear in this audit once submitted
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   )
 }
