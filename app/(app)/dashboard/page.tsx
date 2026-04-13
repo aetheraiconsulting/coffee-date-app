@@ -8,7 +8,6 @@ import {
   MessageSquare,
   Compass,
   FileText,
-  CheckCircle2,
 } from "lucide-react"
 import Link from "next/link"
 import { redirect } from "next/navigation"
@@ -293,27 +292,7 @@ export default async function DashboardPage() {
           </div>
         </section>
 
-        {/* ============================================
-            6. MOMENTUM / FEEDBACK SECTION
-        ============================================ */}
-        <section>
-          <Card className="bg-white/[0.02] border border-white/10 rounded-xl">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="h-8 w-8 rounded-full bg-green-500/20 flex items-center justify-center shrink-0">
-                <CheckCircle2 className="h-4 w-4 text-green-400" />
-              </div>
-              <p className="text-sm text-white/60">
-                {conversationsCount === 0
-                  ? "You're on track. Start your outreach today to get your first reply within 24-48 hours."
-                  : conversationsCount < 20
-                  ? `Keep going! You've contacted ${conversationsCount} leads. Most users get their first reply after 20 messages.`
-                  : repliesCount > 0
-                  ? `Great momentum! You have ${repliesCount} replies. Focus on booking calls to close your first deal.`
-                  : "You're on track. Most users get their first reply within 24-48 hours."}
-              </p>
-            </CardContent>
-          </Card>
-        </section>
+        
       </div>
     </div>
   )
