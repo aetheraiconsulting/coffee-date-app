@@ -50,7 +50,6 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useRouter } from "next/navigation"
-import { useUserState } from "@/context/StateContext"
 
 function EditableCounter({
   value,
@@ -398,15 +397,14 @@ export default function OpportunitiesPage() {
   const { toast } = useToast()
   const supabase = createClient()
   const router = useRouter()
-  const { missionState } = useUserState()
-  
-  // Check if user has an active offer
-  const hasOffer = missionState !== "no_offer" && missionState !== "no_niche"
+  // Active offer state - fetched directly from database
   const [activeOffer, setActiveOffer] = useState<{
+    id: string
     service_name: string
     price_point: string
     pricing_model: string
   } | null>(null)
+  const [offerLoading, setOfferLoading] = useState(true)
 
   const [updatingChannel, setUpdatingChannel] = useState<string | null>(null)
 
@@ -499,29 +497,27 @@ export default function OpportunitiesPage() {
     loadData()
   }, [loadData])
 
-  // Fetch active offer when hasOffer changes
+  // Fetch active offer directly from database on mount
   useEffect(() => {
     async function fetchActiveOffer() {
-      if (!hasOffer) {
-        setActiveOffer(null)
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        setOfferLoading(false)
         return
       }
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
       
       const { data } = await supabase
         .from("offers")
-        .select("service_name, price_point, pricing_model")
+        .select("id, service_name, price_point, pricing_model")
         .eq("user_id", user.id)
         .eq("is_active", true)
-        .single()
+        .maybeSingle()
       
-      if (data) {
-        setActiveOffer(data)
-      }
+      setActiveOffer(data)
+      setOfferLoading(false)
     }
     fetchActiveOffer()
-  }, [hasOffer, supabase])
+  }, [supabase])
 
   useEffect(() => {
     if (selectedNiche) {
@@ -1467,36 +1463,24 @@ export default function OpportunitiesPage() {
                       <h3 className="text-sm font-semibold text-white">Your next move</h3>
                     </div>
                     
-                    {!hasOffer ? (
+                    {offerLoading ? (
+                      <div className="flex items-center gap-3 py-4">
+                        <Loader2 className="animate-spin h-5 w-5 text-[#00AAFF]" />
+                        <span className="text-sm text-white/60">Loading...</span>
+                      </div>
+                    ) : activeOffer ? (
                       <>
-                        <p className="text-sm text-white/70">
-                          Build your offer for this niche before reaching out
-                        </p>
-                        <Button
-                          asChild
-                          className="w-full bg-[#00AAFF] hover:bg-[#0099EE] text-white shadow-lg shadow-[#00AAFF]/30"
-                        >
-                          <Link href={`/offer/builder?niche=${encodeURIComponent(selectedNiche.niche_name)}&problem=${encodeURIComponent(`${selectedNiche.industry_name || "These"} businesses have dormant customer lists they struggle to reactivate`)}&outcome=${encodeURIComponent("Reactivating 5-10% of dormant leads generates significant recurring revenue")}`}>
-                            Build your offer
-                            <ChevronRight className="h-4 w-4 ml-1" />
-                          </Link>
-                        </Button>
-                      </>
-                    ) : (
-                      <>
-                        {activeOffer && (
-                          <div className="bg-white/[0.03] border border-white/10 rounded-lg p-3 space-y-2">
-                            <p className="text-sm font-medium text-white">{activeOffer.service_name}</p>
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm text-white/70">{activeOffer.price_point}</span>
-                              {activeOffer.pricing_model && (
-                                <span className="text-xs px-2 py-0.5 rounded-full bg-[#00AAFF]/10 text-[#00AAFF] border border-[#00AAFF]/30 capitalize">
-                                  {activeOffer.pricing_model}
-                                </span>
-                              )}
-                            </div>
+                        <div className="bg-white/[0.03] border border-white/10 rounded-lg p-3 space-y-2">
+                          <p className="text-sm font-medium text-white">{activeOffer.service_name}</p>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-white/70">{activeOffer.price_point}</span>
+                            {activeOffer.pricing_model && (
+                              <span className="text-xs px-2 py-0.5 rounded-full bg-[#00AAFF]/10 text-[#00AAFF] border border-[#00AAFF]/30 capitalize">
+                                {activeOffer.pricing_model}
+                              </span>
+                            )}
                           </div>
-                        )}
+                        </div>
                         <Button
                           asChild
                           className="w-full bg-[#00AAFF] hover:bg-[#0099EE] text-white shadow-lg shadow-[#00AAFF]/30"
@@ -1513,6 +1497,21 @@ export default function OpportunitiesPage() {
                         >
                           <Link href="/offer/builder">
                             Edit offer
+                          </Link>
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-sm text-white/70">
+                          Build your offer for this niche before reaching out
+                        </p>
+                        <Button
+                          asChild
+                          className="w-full bg-[#00AAFF] hover:bg-[#0099EE] text-white shadow-lg shadow-[#00AAFF]/30"
+                        >
+                          <Link href={`/offer/builder?niche=${encodeURIComponent(selectedNiche.niche_name)}&problem=${encodeURIComponent(`${selectedNiche.industry_name || "These"} businesses have dormant customer lists they struggle to reactivate`)}&outcome=${encodeURIComponent("Reactivating 5-10% of dormant leads generates significant recurring revenue")}`}>
+                            Build your offer
+                            <ChevronRight className="h-4 w-4 ml-1" />
                           </Link>
                         </Button>
                       </>

@@ -194,31 +194,58 @@ export default function OfferBuilderPage() {
 
       const pricePointFormatted = formatPricePoint()
       
-      // Upsert the offer
-      const { data: offerData, error: upsertError } = await supabase
+      // Check if user already has an active offer
+      const { data: existingOffer } = await supabase
         .from("offers")
-        .upsert({
-          user_id: user.id,
-          service_name: serviceName,
-          outcome_statement: outcomeStatement,
-          price_point: pricePointFormatted,
-          guarantee,
-          confidence_score: confidenceScore,
-          confidence_reason: confidenceReason,
-          pricing_model: pricingModel,
-          niche,
-          is_active: true,
-        }, { onConflict: "user_id" })
-        .select()
-        .single()
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("is_active", true)
+        .maybeSingle()
 
-      if (upsertError) throw upsertError
+      if (existingOffer) {
+        // Update the existing active offer
+        const { error: updateError } = await supabase
+          .from("offers")
+          .update({
+            service_name: serviceName,
+            outcome_statement: outcomeStatement,
+            price_point: pricePointFormatted,
+            guarantee,
+            confidence_score: confidenceScore,
+            confidence_reason: confidenceReason,
+            pricing_model: pricingModel,
+            niche,
+          })
+          .eq("id", existingOffer.id)
 
-      // Update profiles.offer_id
-      await supabase
-        .from("profiles")
-        .update({ offer_id: offerData.id })
-        .eq("id", user.id)
+        if (updateError) throw updateError
+      } else {
+        // Insert new offer
+        const { data: newOffer, error: insertError } = await supabase
+          .from("offers")
+          .insert({
+            user_id: user.id,
+            service_name: serviceName,
+            outcome_statement: outcomeStatement,
+            price_point: pricePointFormatted,
+            guarantee,
+            confidence_score: confidenceScore,
+            confidence_reason: confidenceReason,
+            pricing_model: pricingModel,
+            niche,
+            is_active: true,
+          })
+          .select()
+          .single()
+
+        if (insertError) throw insertError
+
+        // Update profiles.offer_id with new offer id
+        await supabase
+          .from("profiles")
+          .update({ offer_id: newOffer.id })
+          .eq("id", user.id)
+      }
 
       await refreshState()
       setStep("saved")
