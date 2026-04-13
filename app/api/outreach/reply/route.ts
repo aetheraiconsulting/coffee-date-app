@@ -27,10 +27,27 @@ export async function POST(request: Request) {
     body: JSON.stringify({
       model: "claude-sonnet-4-20250514",
       max_tokens: 500,
-      system: "You are the AI engine inside Aether Revive. Write the perfect response to a prospect reply. The only goal is to book a discovery call. Under 100 words. Direct, warm, confident. Never pushy. Return valid JSON only. No markdown. No explanation.",
+      system: "You are the AI engine inside Aether Revive. Write the perfect response to a prospect reply. The only goal is to book a 10-minute screen share demo call — NOT a discovery call, NOT a sales call. A demo call is low pressure: \"I'll show you the system working on your type of business, takes 10 minutes, no commitment.\" Keep responses under 100 words. Be direct, warm, and confident. Never pushy. Return valid JSON only. No markdown. No explanation.",
       messages: [{
         role: "user",
-        content: `Write the ideal response to this prospect reply.\n\nOriginal message sent:\n${message.message_text}\n\nOur service:\n${message.offers?.service_name || "Our service"} — ${message.offers?.outcome_statement || "Helping businesses grow"}\n\nProspect replied:\n${prospect_reply}\n\nReturn this exact JSON:\n{\n  "suggested_response": "the full response to send",\n  "response_goal": "one sentence on what this achieves"\n}`
+        content: `Write the ideal response to move this prospect toward booking a 10-minute demo call.
+
+Original message sent:
+${message.message_text}
+
+Our service:
+${message.offers?.service_name || "Our service"} — ${message.offers?.outcome_statement || "Helping businesses grow"}
+
+Prospect replied:
+${prospect_reply}
+
+Goal: get them to agree to a 10-minute screen share where we show the AI system working on their type of business. Keep it low pressure. No pitch. No price mention.
+
+Return this exact JSON:
+{
+  "suggested_response": "the full response to send",
+  "response_goal": "one sentence on what this response is trying to achieve"
+}`
       }]
     })
   })
