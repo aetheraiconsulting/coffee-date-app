@@ -33,6 +33,7 @@ type OutreachMessage = {
   channel: Channel
   note: string | null
   created_at: string
+  isDirty?: boolean
 }
 
 type ActiveOffer = {
@@ -69,6 +70,7 @@ export default function OutreachPage() {
   const [prospectContext, setProspectContext] = useState("")
   const [generating, setGenerating] = useState(false)
   const [userId, setUserId] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
 
   // Independent message state for each channel
   const [linkedinMessages, setLinkedinMessages] = useState<OutreachMessage[]>([])
@@ -294,6 +296,56 @@ export default function OutreachPage() {
     router.push("/dashboard")
   }
 
+  const handleSaveAndClose = async () => {
+    if (!userId) return
+    setSaving(true)
+
+    try {
+      // Gather all dirty messages across all channels
+      const allMessages = [...linkedinMessages, ...instagramMessages, ...emailMessages]
+      const unsavedEdits = allMessages.filter(m => m.isDirty)
+
+      // Save any unsaved message text edits
+      if (unsavedEdits.length > 0) {
+        await Promise.all(unsavedEdits.map(m =>
+          supabase
+            .from("outreach_messages")
+            .update({ message_text: m.message_text, note: m.note, subject_line: m.subject_line })
+            .eq("id", m.id)
+        ))
+      }
+
+      // Mark outreach as started if any messages sent
+      const sentCount = allMessages.filter(m => m.status === "sent").length
+      if (sentCount > 0) {
+        await supabase
+          .from("outreach")
+          .upsert({
+            user_id: userId,
+            started: true,
+            first_sent_at: new Date().toISOString(),
+            total_sent: sentCount,
+          }, { onConflict: "user_id" })
+      }
+
+      await refreshState()
+    } finally {
+      setSaving(false)
+      router.push("/revival/opportunities")
+    }
+  }
+
+  const handleMessageEdit = (messageId: string, field: string, value: string) => {
+    setChannelMessages(
+      activeChannel,
+      currentMessages.map(m =>
+        m.id === messageId
+          ? { ...m, [field]: value, isDirty: true }
+          : m
+      )
+    )
+  }
+
   // Loading state
   if (view === "loading") {
     return (
@@ -454,6 +506,31 @@ export default function OutreachPage() {
                   <RefreshCw className="h-4 w-4 mr-1" />
                   Regenerate
                 </Button>
+                {sentCount >= 5 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={markOutreachStarted}
+                    className="text-white/50 hover:text-white hover:bg-white/10"
+                  >
+                    I&apos;m done sending
+                  </Button>
+                )}
+                <Button
+                  onClick={handleSaveAndClose}
+                  disabled={saving}
+                  size="sm"
+                  className="bg-[#00AAFF] hover:bg-[#0099EE] text-white"
+                >
+                  {saving ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    "Save and close"
+                  )}
+                </Button>
               </div>
             </div>
 
@@ -528,7 +605,8 @@ export default function OutreachPage() {
                     {/* Message Text */}
                     <Textarea
                       value={message.message_text}
-                      onChange={(e) => handleUpdateMessage(message.id, "message_text", e.target.value)}
+                      onChange={(e) => handleMessageEdit(message.id, "message_text", e.target.value)}
+                      onBlur={(e) => handleUpdateMessage(message.id, "message_text", e.target.value)}
                       className="bg-white/5 border-white/10 text-white min-h-[100px] resize-none"
                       disabled={message.status === "sent"}
                     />
@@ -549,17 +627,7 @@ export default function OutreachPage() {
               ))}
             </div>
 
-            {/* Done Button */}
-            {sentCount >= 5 && (
-              <Button
-                variant="ghost"
-                onClick={markOutreachStarted}
-                className="w-full text-white/50 hover:text-white hover:bg-white/10 py-6"
-              >
-                I&apos;m done sending for now
-                <ChevronRight className="h-4 w-4 ml-1" />
-              </Button>
-            )}
+            
           </div>
         )}
       </div>
