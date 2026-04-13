@@ -32,13 +32,11 @@ import {
   Mail,
   Coffee,
   Trophy,
-  FileText,
   Calculator,
   Minus,
   Plus,
   Loader2,
   Target,
-  Zap,
   BookOpen,
   Send,
   X,
@@ -407,7 +405,6 @@ export default function OpportunitiesPage() {
   const [loadingWhyThisWorks, setLoadingWhyThisWorks] = useState(false)
 
   const [researchOpen, setResearchOpen] = useState(true)
-  const [messagingOpen, setMessagingOpen] = useState(false)
   const [outreachOpen, setOutreachOpen] = useState(false)
 
   const [savingField, setSavingField] = useState<string | null>(null)
@@ -465,23 +462,40 @@ export default function OpportunitiesPage() {
     }
   }, [])
 
-  // Fetch or generate Why This Works content
-  const fetchWhyThisWorks = useCallback(async (niche: Niche) => {
-    // Check if content is already cached in niche_user_state
-    if (niche.user_state?.why_this_works_content) {
-      setWhyThisWorksContent(niche.user_state.why_this_works_content as string)
-      return
-    }
-
-    // Generate new content via API
+  // Fetch or generate Why This Works content - always clear first then reload
+  const loadWhyThisWorks = useCallback(async (niche: Niche) => {
+    // Always clear first to avoid showing stale content
+    setWhyThisWorksContent(null)
     setLoadingWhyThisWorks(true)
+
     try {
+      // Check cache in niche_user_state first via direct DB query
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        setLoadingWhyThisWorks(false)
+        return
+      }
+
+      const { data: nicheState } = await supabase
+        .from("niche_user_state")
+        .select("why_this_works_content")
+        .eq("user_id", user.id)
+        .eq("niche_id", niche.id)
+        .maybeSingle()
+
+      if (nicheState?.why_this_works_content) {
+        setWhyThisWorksContent(nicheState.why_this_works_content)
+        setLoadingWhyThisWorks(false)
+        return
+      }
+
+      // Generate new content via API if not cached
       const response = await fetch("/api/niches/why-this-works", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           niche_name: niche.niche_name,
-          industry_name: niche.industry_name || "Unknown",
+          industry_name: niche.industry_name || niche.industry || "",
           niche_id: niche.id,
         }),
       })
@@ -494,7 +508,7 @@ export default function OpportunitiesPage() {
     } finally {
       setLoadingWhyThisWorks(false)
     }
-  }, [])
+  }, [supabase])
 
   const loadIndustries = useCallback(async () => {
     const { data, error } = await supabase.from("industries").select("id, name").order("name")
@@ -602,12 +616,19 @@ export default function OpportunitiesPage() {
   useEffect(() => {
     if (selectedNiche) {
       fetchAiSuggestions(selectedNiche)
-      fetchWhyThisWorks(selectedNiche)
     } else {
       setAiSuggestions(null)
+    }
+  }, [selectedNiche, fetchAiSuggestions])
+
+  // Load Why This Works when niche changes - using selectedNiche?.id as dependency
+  useEffect(() => {
+    if (selectedNiche) {
+      loadWhyThisWorks(selectedNiche)
+    } else {
       setWhyThisWorksContent(null)
     }
-  }, [selectedNiche, fetchAiSuggestions, fetchWhyThisWorks])
+  }, [selectedNiche?.id, loadWhyThisWorks])
 
   useEffect(() => {
     let filtered = [...allNiches]
@@ -1410,147 +1431,6 @@ export default function OpportunitiesPage() {
                     )}
                   </div>
 
-                  {/* Suggested Angle Section */}
-                  <div className="bg-white/[0.03] border border-white/10 rounded-xl p-5 space-y-3">
-                    <div className="flex items-center gap-2">
-                      <MessageSquare className="h-5 w-5 text-purple-400" />
-                      <h3 className="text-sm font-semibold text-white">Suggested angle</h3>
-                    </div>
-                    <p className="text-sm text-white/70 leading-relaxed italic">
-                      {aiSuggestions?.messageIdea || `"I help ${selectedNiche.industry_name.toLowerCase()} businesses reactivate their dormant leads using AI-powered conversations. Would you be open to seeing how it works?"`}
-                    </p>
-                  </div>
-
-{/* Your Next Move Section */}
-                  <div className="bg-[#00AAFF]/10 border border-[#00AAFF]/30 rounded-xl p-5 space-y-4">
-                    <div className="flex items-center gap-2">
-                      <ChevronRight className="h-5 w-5 text-[#00AAFF]" />
-                      <h3 className="text-sm font-semibold text-white">Your next move</h3>
-                    </div>
-                    
-                    {offerLoading ? (
-                      <div className="flex items-center gap-3 py-4">
-                        <Loader2 className="animate-spin h-5 w-5 text-[#00AAFF]" />
-                        <span className="text-sm text-white/60">Loading...</span>
-                      </div>
-                    ) : !activeOffer ? (
-                      <>
-                        <p className="text-sm text-white/70">
-                          Build your offer for this niche before reaching out
-                        </p>
-                        <Button
-                          asChild
-                          className="w-full bg-[#00AAFF] hover:bg-[#0099EE] text-white shadow-lg shadow-[#00AAFF]/30"
-                        >
-                          <Link href={`/offer/builder?niche=${encodeURIComponent(selectedNiche.niche_name)}&problem=${encodeURIComponent(`${selectedNiche.industry_name || "These"} businesses have dormant customer lists they struggle to reactivate`)}&outcome=${encodeURIComponent("Reactivating 5-10% of dormant leads generates significant recurring revenue")}`}>
-                            Build your offer
-                            <ChevronRight className="h-4 w-4 ml-1" />
-                          </Link>
-                        </Button>
-                      </>
-                    ) : nicheMatches ? (
-                      <>
-                        <div className="bg-white/[0.03] border border-white/10 rounded-lg p-3 space-y-2">
-                          <p className="text-sm font-medium text-white">{activeOffer.service_name}</p>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm text-white/70">{activeOffer.price_point}</span>
-                            {activeOffer.pricing_model && (
-                              <span className="text-xs px-2 py-0.5 rounded-full bg-[#00AAFF]/10 text-[#00AAFF] border border-[#00AAFF]/30 capitalize">
-                                {activeOffer.pricing_model}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <Button
-                          asChild
-                          className="w-full bg-[#00AAFF] hover:bg-[#0099EE] text-white shadow-lg shadow-[#00AAFF]/30"
-                        >
-                          <Link href="/outreach">
-                            Generate outreach messages
-                            <ChevronRight className="h-4 w-4 ml-1" />
-                          </Link>
-                        </Button>
-                        <Button
-                          asChild
-                          variant="outline"
-                          className="w-full border-white/20 text-white hover:bg-white/10"
-                        >
-                          <Link href="/offer/builder">
-                            Edit offer
-                          </Link>
-                        </Button>
-                      </>
-                    ) : (
-                      <>
-                        <div className="bg-white/[0.03] border border-white/10 rounded-lg p-3 space-y-2">
-                          <p className="text-sm font-medium text-white">{activeOffer.service_name}</p>
-                          <p className="text-xs text-white/40">
-                            Your active offer is for {activeOffer.niche || "a different niche"}. Build a specific offer for this niche to get better results.
-                          </p>
-                        </div>
-                        <Button
-                          asChild
-                          className="w-full bg-[#00AAFF] hover:bg-[#0099EE] text-white shadow-lg shadow-[#00AAFF]/30"
-                        >
-                          <Link href={`/offer/builder?niche=${encodeURIComponent(selectedNiche.niche_name)}&problem=${encodeURIComponent(`${selectedNiche.industry_name || "These"} businesses have dormant customer lists they struggle to reactivate`)}&outcome=${encodeURIComponent("Reactivating 5-10% of dormant leads generates significant recurring revenue")}&mode=new`}>
-                            Build offer for this niche
-                            <ChevronRight className="h-4 w-4 ml-1" />
-                          </Link>
-                        </Button>
-                      </>
-                    )}
-                  </div>
-
-                  {/* AI Insights Panel */}
-                  <div className="bg-gradient-to-br from-purple-500/10 to-blue-500/10 border border-purple-500/20 rounded-xl p-5 space-y-4">
-                    <div className="flex items-center gap-2">
-                      <Zap className="h-5 w-5 text-purple-400" />
-                      <h3 className="text-sm font-semibold text-white">AI Insights</h3>
-                    </div>
-
-                    {loadingSuggestions ? (
-                      <div className="flex items-center gap-3 py-4">
-                        <Loader2 className="animate-spin h-5 w-5 text-purple-400" />
-                        <span className="text-sm text-white/60">Generating insights...</span>
-                      </div>
-                    ) : aiSuggestions ? (
-                      <div className="space-y-4">
-                        <div className="space-y-1.5">
-                          <div className="flex items-center gap-2 text-xs font-medium text-purple-300">
-                            <Target className="h-3.5 w-3.5" />
-                            Top Priority Action
-                          </div>
-                          <p className="text-sm text-white/80 bg-white/5 rounded-lg px-3 py-2">
-                            {aiSuggestions.topPriorityAction}
-                          </p>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="space-y-1.5">
-                            <div className="flex items-center gap-2 text-xs font-medium text-amber-300">
-                              <AlertTriangle className="h-3.5 w-3.5" />
-                              Risk
-                            </div>
-                            <p className="text-xs text-white/70 bg-amber-500/10 rounded-lg px-3 py-2">
-                              {aiSuggestions.risk}
-                            </p>
-                          </div>
-                          <div className="space-y-1.5">
-                            <div className="flex items-center gap-2 text-xs font-medium text-green-300">
-                              <TrendingUp className="h-3.5 w-3.5" />
-                              Opportunity
-                            </div>
-                            <p className="text-xs text-white/70 bg-green-500/10 rounded-lg px-3 py-2">
-                              {aiSuggestions.opportunity}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <p className="text-sm text-white/40">No suggestions available</p>
-                    )}
-                  </div>
-
                   <Collapsible open={researchOpen} onOpenChange={setResearchOpen}>
                     <Card className="border border-white/10 bg-zinc-800/50 overflow-hidden">
                       <CollapsibleTrigger className="w-full p-4 flex items-center justify-between hover:bg-white/5 transition-colors">
@@ -1875,150 +1755,7 @@ export default function OpportunitiesPage() {
                     )}
                   </div>
 
-                  {/* Section 6 — Build Android / Coffee Date Demo */}
-                  <div className="bg-white/[0.03] border border-white/10 rounded-xl p-5 space-y-3">
-                    <p className="text-[10px] font-semibold text-[#00AAFF] uppercase tracking-wider">COFFEE DATE DEMO</p>
-                    {selectedNiche.user_state?.android_built ? (
-                      <>
-                        <p className="text-green-400 text-sm mb-2">Android built</p>
-                        <Button
-                          asChild
-                          className="w-full bg-[#00AAFF] hover:bg-[#0099EE] text-white"
-                        >
-                          <Link href="/demo">
-                            Go to demo
-                            <ChevronRight className="h-4 w-4 ml-1" />
-                          </Link>
-                        </Button>
-                      </>
-                    ) : (
-                      <>
-                        <p className="text-sm text-white/50 mb-3">
-                          Build your Android for this niche to run the Coffee Date Demo
-                        </p>
-                        <Button
-                          asChild
-                          className="w-full bg-[#00AAFF] hover:bg-[#0099EE] text-white"
-                        >
-                          <Link href={`/prompt-generator?niche=${encodeURIComponent(selectedNiche.niche_name)}`}>
-                            Build Android for this niche
-                            <ChevronRight className="h-4 w-4 ml-1" />
-                          </Link>
-                        </Button>
-                      </>
-                    )}
-                  </div>
-
-                  {/* Section 7 — GHL / Revival */}
-                  <div className="bg-white/[0.03] border border-white/10 rounded-xl p-5 space-y-3">
-                    <p className="text-[10px] font-semibold text-[#00AAFF] uppercase tracking-wider">REVIVAL</p>
-                    {selectedNiche.user_state?.ghl_connected ? (
-                      <p className="text-green-400 text-sm">GHL connected — revival active</p>
-                    ) : (
-                      <>
-                        <p className="text-sm text-white/50 mb-3">
-                          Connect GoHighLevel to activate dead lead revival for this niche
-                        </p>
-                        <Button
-                          asChild
-                          className="w-full bg-[#00AAFF] hover:bg-[#0099EE] text-white"
-                        >
-                          <Link href="/revival/connect">
-                            Connect GHL account
-                            <ChevronRight className="h-4 w-4 ml-1" />
-                          </Link>
-                        </Button>
-                      </>
-                    )}
-                  </div>
-
-                  {/* Section 8 — Audit Opportunity (appears only when ghl_connected = true) */}
-                  {selectedNiche.user_state?.ghl_connected && (
-                    <div className="bg-[#00AAFF]/5 border border-[#00AAFF]/30 rounded-xl p-5 space-y-3">
-                      <p className="text-[10px] font-semibold text-[#00AAFF] uppercase tracking-wider">AUDIT OPPORTUNITY</p>
-                      <p className="text-white/70 text-sm mb-3">
-                        Your client is running revival. Now is the right time to offer a paid AI audit.
-                      </p>
-                      <Button
-                        asChild
-                        className="w-full bg-[#00AAFF] hover:bg-[#0099EE] text-white"
-                      >
-                        <Link href="/audit">
-                          Build AI audit
-                          <ChevronRight className="h-4 w-4 ml-1" />
-                        </Link>
-                      </Button>
-                    </div>
-                  )}
-
-                  <Collapsible open={messagingOpen} onOpenChange={setMessagingOpen}>
-                    <Card className="border border-white/10 bg-zinc-800/50 overflow-hidden">
-                      <CollapsibleTrigger className="w-full p-4 flex items-center justify-between hover:bg-white/5 transition-colors">
-                        <div className="flex items-center gap-3">
-                          <FileText className="h-5 w-5 text-amber-400" />
-                          <span className="font-semibold text-white">Messaging Preparation</span>
-                          {selectedNiche.user_state?.messaging_prepared && (
-                            <CheckCircle className="h-4 w-4 text-green-400" />
-                          )}
-                        </div>
-                        <ChevronDown
-                          className={cn("h-5 w-5 text-white/40 transition-transform", messagingOpen && "rotate-180")}
-                        />
-                      </CollapsibleTrigger>
-                      <CollapsibleContent>
-                        <div className="p-4 pt-0 space-y-4 border-t border-white/5">
-                          <div className="space-y-2">
-                            <Label className="text-sm text-white/80">Messaging Scripts</Label>
-                            <Textarea
-                              placeholder="Add your messaging scripts and outreach templates here..."
-                              value={
-                                typeof selectedNiche.user_state?.messaging_scripts === "string"
-                                  ? selectedNiche.user_state.messaging_scripts
-                                  : JSON.stringify(selectedNiche.user_state?.messaging_scripts || "", null, 2) === '""'
-                                    ? ""
-                                    : JSON.stringify(selectedNiche.user_state?.messaging_scripts || "", null, 2)
-                              }
-                              onChange={(e) => {
-                                setSelectedNiche((prev) =>
-                                  prev
-                                    ? {
-                                        ...prev,
-                                        user_state: { ...prev.user_state!, messaging_scripts: e.target.value },
-                                      }
-                                    : null,
-                                )
-                              }}
-                              onBlur={(e) => updateField("messaging_scripts", e.target.value, false)}
-                              className="bg-zinc-900 border-zinc-700 text-white placeholder:text-white/40 min-h-[120px]"
-                            />
-                          </div>
-
-                          <div className="flex items-center gap-2">
-                            <Checkbox
-                              id="messaging_ready"
-                              checked={selectedNiche.user_state?.messaging_prepared || false}
-                              onCheckedChange={(checked) => updateField("messaging_prepared", checked === true)}
-                              className="border-zinc-600 data-[state=checked]:bg-green-500"
-                            />
-                            <Label htmlFor="messaging_ready" className="text-sm text-white/80 cursor-pointer">
-                              Messaging Created & Ready for Outreach
-                            </Label>
-                          </div>
-
-                          <Button
-                            onClick={() => progressToStage("outreach_in_progress")}
-                            disabled={!stageGating.canMoveToOutreach || currentStageId !== "shortlisted"}
-                            className="w-full bg-primary hover:bg-primary/90 disabled:opacity-50"
-                          >
-                            {currentStageId === "shortlisted"
-                              ? "Complete Messaging & Move to Outreach"
-                              : "Messaging Completed"}
-                          </Button>
-                        </div>
-                      </CollapsibleContent>
-                    </Card>
-                  </Collapsible>
-
+                  {/* Section 5 — Outreach Tracker */}
                   <Collapsible open={outreachOpen} onOpenChange={setOutreachOpen}>
                     <Card className="border border-white/10 bg-zinc-800/50 overflow-hidden">
                       <CollapsibleTrigger className="w-full p-4 flex items-center justify-between hover:bg-white/5 transition-colors">
@@ -2148,10 +1885,9 @@ export default function OpportunitiesPage() {
                           </div>
 
                           <p className="text-xs text-white/40">
-                            Outreach complete when you've logged at least one activity.
+                            Outreach complete when you&apos;ve logged at least one activity.
                           </p>
 
-                          {/* CHANGE Removed Log Coffee Date and Mark as Win buttons. Added helper text instead. */}
                           <p className="text-xs text-white/50 pt-2 border-t border-white/5">
                             Coffee Date demos and Wins are updated automatically from the Coffee Date Demo and GHL
                             tools.
@@ -2160,6 +1896,82 @@ export default function OpportunitiesPage() {
                       </CollapsibleContent>
                     </Card>
                   </Collapsible>
+
+                  {/* Section 6 — Build Android / Coffee Date Demo */}
+                  <div className="bg-white/[0.03] border border-white/10 rounded-xl p-5 space-y-3">
+                    <p className="text-[10px] font-semibold text-[#00AAFF] uppercase tracking-wider">COFFEE DATE DEMO</p>
+                    {selectedNiche.user_state?.android_built ? (
+                      <>
+                        <p className="text-green-400 text-sm mb-2">Android built</p>
+                        <Button
+                          asChild
+                          className="w-full bg-[#00AAFF] hover:bg-[#0099EE] text-white"
+                        >
+                          <Link href="/demo">
+                            Go to demo
+                            <ChevronRight className="h-4 w-4 ml-1" />
+                          </Link>
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-sm text-white/50 mb-3">
+                          Build your Android for this niche to run the Coffee Date Demo
+                        </p>
+                        <Button
+                          asChild
+                          className="w-full bg-[#00AAFF] hover:bg-[#0099EE] text-white"
+                        >
+                          <Link href={`/prompt-generator?niche=${encodeURIComponent(selectedNiche.niche_name)}`}>
+                            Build Android for this niche
+                            <ChevronRight className="h-4 w-4 ml-1" />
+                          </Link>
+                        </Button>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Section 7 — GHL / Revival */}
+                  <div className="bg-white/[0.03] border border-white/10 rounded-xl p-5 space-y-3">
+                    <p className="text-[10px] font-semibold text-[#00AAFF] uppercase tracking-wider">REVIVAL</p>
+                    {selectedNiche.user_state?.ghl_connected ? (
+                      <p className="text-green-400 text-sm">GHL connected — revival active</p>
+                    ) : (
+                      <>
+                        <p className="text-sm text-white/50 mb-3">
+                          Connect GoHighLevel to activate dead lead revival for this niche
+                        </p>
+                        <Button
+                          asChild
+                          className="w-full bg-[#00AAFF] hover:bg-[#0099EE] text-white"
+                        >
+                          <Link href="/revival/connect">
+                            Connect GHL account
+                            <ChevronRight className="h-4 w-4 ml-1" />
+                          </Link>
+                        </Button>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Section 8 — Audit Opportunity (appears only when ghl_connected = true) */}
+                  {selectedNiche.user_state?.ghl_connected && (
+                    <div className="bg-[#00AAFF]/5 border border-[#00AAFF]/30 rounded-xl p-5 space-y-3">
+                      <p className="text-[10px] font-semibold text-[#00AAFF] uppercase tracking-wider">AUDIT OPPORTUNITY</p>
+                      <p className="text-white/70 text-sm mb-3">
+                        Your client is running revival. Now is the right time to offer a paid AI audit.
+                      </p>
+                      <Button
+                        asChild
+                        className="w-full bg-[#00AAFF] hover:bg-[#0099EE] text-white"
+                      >
+                        <Link href="/audit">
+                          Build AI audit
+                          <ChevronRight className="h-4 w-4 ml-1" />
+                        </Link>
+                      </Button>
+                    </div>
+                  )}
                 </Card>
               ) : (
                 <Card className="border border-white/10 bg-zinc-900/50 h-full min-h-[400px] flex flex-col items-center justify-center text-center p-8 rounded-xl">
