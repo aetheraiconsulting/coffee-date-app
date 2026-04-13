@@ -119,64 +119,6 @@ function EditableCounter({
   )
 }
 
-// Helper to get stage index for comparison (used by SectionHeader)
-function getStageIndexStatic(stage: string) {
-  const stages = ["research", "offer", "outreach", "demo", "revival"]
-  const index = stages.indexOf(stage)
-  return index >= 0 ? index : 0
-}
-
-// Section header component for collapsible sections
-function SectionHeader({ 
-  title, 
-  isExpanded,
-  onToggle,
-  stage, 
-  currentStage, 
-}: { 
-  title: string
-  isExpanded: boolean
-  onToggle: () => void
-  stage?: string
-  currentStage?: string
-}) {
-  const isCompleted = stage && currentStage && getStageIndexStatic(stage) < getStageIndexStatic(currentStage)
-  const isCurrent = stage === currentStage
-
-  return (
-    <button
-      onClick={onToggle}
-      className="w-full flex items-center justify-between py-3 px-4 rounded-lg hover:bg-white/5 transition-colors"
-    >
-      <div className="flex items-center gap-2">
-        {isCompleted && (
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-            <circle cx="7" cy="7" r="6" fill="rgba(34,197,94,0.2)" stroke="rgba(34,197,94,0.5)" strokeWidth="1"/>
-            <path d="M4 7l2 2 4-4" stroke="rgb(34,197,94)" strokeWidth="1.5" strokeLinecap="round"/>
-          </svg>
-        )}
-        {isCurrent && !isCompleted && (
-          <div className="w-2 h-2 rounded-full bg-[#00AAFF] animate-pulse" />
-        )}
-        <span className={cn(
-          "text-sm font-medium",
-          isCurrent ? "text-white" : 
-          isCompleted ? "text-white/50" : 
-          "text-white/40"
-        )}>
-          {title}
-        </span>
-      </div>
-      <svg 
-        width="14" height="14" viewBox="0 0 14 14" fill="none"
-        className={cn("transition-transform text-white/30", isExpanded && "rotate-180")}
-      >
-        <path d="M3 5l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-      </svg>
-    </button>
-  )
-}
-
 // Pipeline stages: Research → Offer → Outreach → Demo → Revival
 // Audit is a separate opportunity card, not a pipeline stage
 const PIPELINE_STAGES = [
@@ -465,16 +407,15 @@ export default function OpportunitiesPage() {
   // Fetched niche state - undefined means not yet fetched, null means no record exists
   const [nicheState, setNicheState] = useState<NicheUserState | null | undefined>(undefined)
 
-  // Collapsible sections state
+  // Collapsible sections state - all start false, auto-expand useEffect sets correct ones after nicheState loads
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
-    whyThisWorks: true,
-    research: true,
+    whyThisWorks: false,
+    research: false,
     offer: false,
     outreach: false,
     outreachTracker: false,
     demo: false,
     revival: false,
-    audit: false,
   })
 
   const toggleSection = (section: string) => {
@@ -482,6 +423,16 @@ export default function OpportunitiesPage() {
       ...prev,
       [section]: !prev[section]
     }))
+  }
+
+  // Helper to get section status for dot color
+  const getSectionStatus = (sectionStage: string): "completed" | "current" | "locked" => {
+    const stages = ["research", "offer", "outreach", "demo", "revival"]
+    const currentIndex = stages.indexOf(nicheState?.stage || "research")
+    const sectionIndex = stages.indexOf(sectionStage)
+    if (sectionIndex < currentIndex) return "completed"
+    if (sectionIndex === currentIndex) return "current"
+    return "locked"
   }
 
   // Helper to get stage index for comparison
@@ -774,7 +725,6 @@ export default function OpportunitiesPage() {
       outreachTracker: currentStage === "outreach",
       demo: currentStage === "demo",
       revival: currentStage === "revival",
-      audit: false, // audit is special, only visible when ghl_connected
     })
   }, [selectedNiche?.id, nicheState, activeOffer])
 
@@ -827,16 +777,15 @@ export default function OpportunitiesPage() {
     setWhyThisWorksContent(null)
     setLoadingWhyThisWorks(false)
     setAiSuggestions(null)
-    // Reset expanded sections to default (will be updated by auto-expand effect after state loads)
+    // Reset expanded sections to false (auto-expand effect sets correct ones after nicheState loads)
     setExpandedSections({
-      whyThisWorks: true,
-      research: true,
+      whyThisWorks: false,
+      research: false,
       offer: false,
       outreach: false,
       outreachTracker: false,
       demo: false,
       revival: false,
-      audit: false,
     })
   }
 
@@ -1570,12 +1519,22 @@ export default function OpportunitiesPage() {
                   </div>
 
 {/* Why This Works Section - AI Generated */}
-                  <div className="border border-white/[0.08] rounded-lg mb-2 overflow-hidden">
-                    <SectionHeader 
-                      title="Why This Works" 
-                      isExpanded={expandedSections.whyThisWorks}
-                      onToggle={() => toggleSection("whyThisWorks")}
-                    />
+                  <div className="border border-white/10 rounded-lg mb-2">
+                    <button
+                      onClick={() => toggleSection("whyThisWorks")}
+                      className="w-full flex items-center justify-between px-4 py-3 text-left"
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-[#00AAFF] animate-pulse" />
+                        <span className="text-sm font-medium text-white/70">Why This Works</span>
+                      </div>
+                      <svg 
+                        width="14" height="14" viewBox="0 0 14 14" fill="none"
+                        style={{ transform: expandedSections.whyThisWorks ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}
+                      >
+                        <path d="M3 5l4 4 4-4" stroke="rgba(255,255,255,0.4)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </button>
                     {expandedSections.whyThisWorks && (
                       <div className="px-4 pb-4">
                         <div className="bg-white/[0.03] border-l-4 border-l-[#00AAFF] border border-white/10 rounded-xl p-5 space-y-3">
@@ -1599,14 +1558,27 @@ export default function OpportunitiesPage() {
                   </div>
 
                   {/* Research Phase Section */}
-                  <div className="border border-white/[0.08] rounded-lg mb-2 overflow-hidden">
-                    <SectionHeader 
-                      title="Research Phase" 
-                      isExpanded={expandedSections.research}
-                      onToggle={() => toggleSection("research")}
-                      stage="research"
-                      currentStage={currentStage}
-                    />
+                  <div className="border border-white/10 rounded-lg mb-2">
+                    <button
+                      onClick={() => toggleSection("research")}
+                      className="w-full flex items-center justify-between px-4 py-3 text-left"
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className={cn(
+                          "w-2 h-2 rounded-full",
+                          getSectionStatus("research") === "completed" ? "bg-green-500" :
+                          getSectionStatus("research") === "current" ? "bg-[#00AAFF] animate-pulse" :
+                          "bg-white/20"
+                        )} />
+                        <span className="text-sm font-medium text-white/70">Research Phase</span>
+                      </div>
+                      <svg 
+                        width="14" height="14" viewBox="0 0 14 14" fill="none"
+                        style={{ transform: expandedSections.research ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}
+                      >
+                        <path d="M3 5l4 4 4-4" stroke="rgba(255,255,255,0.4)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </button>
                     {expandedSections.research && (
                       <div className="px-4 pb-4 space-y-4">
                           {/* Research Notes */}
@@ -1839,14 +1811,27 @@ export default function OpportunitiesPage() {
                   </div>
 
                   {/* Section 3 — Your Offer */}
-                  <div className="border border-white/[0.08] rounded-lg mb-2 overflow-hidden">
-                    <SectionHeader 
-                      title="Build Your Offer" 
-                      isExpanded={expandedSections.offer}
-                      onToggle={() => toggleSection("offer")}
-                      stage="offer"
-                      currentStage={currentStage}
-                    />
+                  <div className="border border-white/10 rounded-lg mb-2">
+                    <button
+                      onClick={() => toggleSection("offer")}
+                      className="w-full flex items-center justify-between px-4 py-3 text-left"
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className={cn(
+                          "w-2 h-2 rounded-full",
+                          getSectionStatus("offer") === "completed" ? "bg-green-500" :
+                          getSectionStatus("offer") === "current" ? "bg-[#00AAFF] animate-pulse" :
+                          "bg-white/20"
+                        )} />
+                        <span className="text-sm font-medium text-white/70">Build Your Offer</span>
+                      </div>
+                      <svg 
+                        width="14" height="14" viewBox="0 0 14 14" fill="none"
+                        style={{ transform: expandedSections.offer ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}
+                      >
+                        <path d="M3 5l4 4 4-4" stroke="rgba(255,255,255,0.4)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </button>
                     {expandedSections.offer && (
                       <div className="px-4 pb-4">
                         <div className="bg-white/[0.03] border border-white/10 rounded-xl p-5 space-y-3">
@@ -1886,14 +1871,27 @@ export default function OpportunitiesPage() {
                   </div>
 
                   {/* Section 4 — Outreach */}
-                  <div className="border border-white/[0.08] rounded-lg mb-2 overflow-hidden">
-                    <SectionHeader 
-                      title="Outreach Messages" 
-                      isExpanded={expandedSections.outreach}
-                      onToggle={() => toggleSection("outreach")}
-                      stage="outreach"
-                      currentStage={currentStage}
-                    />
+                  <div className="border border-white/10 rounded-lg mb-2">
+                    <button
+                      onClick={() => toggleSection("outreach")}
+                      className="w-full flex items-center justify-between px-4 py-3 text-left"
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className={cn(
+                          "w-2 h-2 rounded-full",
+                          getSectionStatus("outreach") === "completed" ? "bg-green-500" :
+                          getSectionStatus("outreach") === "current" ? "bg-[#00AAFF] animate-pulse" :
+                          "bg-white/20"
+                        )} />
+                        <span className="text-sm font-medium text-white/70">Outreach Messages</span>
+                      </div>
+                      <svg 
+                        width="14" height="14" viewBox="0 0 14 14" fill="none"
+                        style={{ transform: expandedSections.outreach ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}
+                      >
+                        <path d="M3 5l4 4 4-4" stroke="rgba(255,255,255,0.4)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </button>
                     {expandedSections.outreach && (
                       <div className="px-4 pb-4">
                         <div className="bg-white/[0.03] border border-white/10 rounded-xl p-5 space-y-3">
@@ -1939,14 +1937,22 @@ export default function OpportunitiesPage() {
                   </div>
 
                   {/* Section 5 — Outreach Tracker */}
-                  <div className="border border-white/[0.08] rounded-lg mb-2 overflow-hidden">
-                    <SectionHeader 
-                      title="Outreach Tracker" 
-                      isExpanded={expandedSections.outreachTracker}
-                      onToggle={() => toggleSection("outreachTracker")}
-                      stage="outreach"
-                      currentStage={currentStage}
-                    />
+                  <div className="border border-white/10 rounded-lg mb-2">
+                    <button
+                      onClick={() => toggleSection("outreachTracker")}
+                      className="w-full flex items-center justify-between px-4 py-3 text-left"
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-[#00AAFF] animate-pulse" />
+                        <span className="text-sm font-medium text-white/70">Outreach Tracker</span>
+                      </div>
+                      <svg 
+                        width="14" height="14" viewBox="0 0 14 14" fill="none"
+                        style={{ transform: expandedSections.outreachTracker ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}
+                      >
+                        <path d="M3 5l4 4 4-4" stroke="rgba(255,255,255,0.4)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </button>
                     {expandedSections.outreachTracker && (
                       <div className="px-4 pb-4 space-y-4">
                           {/* Outreach Start Date */}
@@ -2072,14 +2078,27 @@ export default function OpportunitiesPage() {
                   </div>
 
                   {/* Section 6 — Build Android / Coffee Date Demo */}
-                  <div className="border border-white/[0.08] rounded-lg mb-2 overflow-hidden">
-                    <SectionHeader 
-                      title="Coffee Date Demo" 
-                      isExpanded={expandedSections.demo}
-                      onToggle={() => toggleSection("demo")}
-                      stage="demo"
-                      currentStage={currentStage}
-                    />
+                  <div className="border border-white/10 rounded-lg mb-2">
+                    <button
+                      onClick={() => toggleSection("demo")}
+                      className="w-full flex items-center justify-between px-4 py-3 text-left"
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className={cn(
+                          "w-2 h-2 rounded-full",
+                          getSectionStatus("demo") === "completed" ? "bg-green-500" :
+                          getSectionStatus("demo") === "current" ? "bg-[#00AAFF] animate-pulse" :
+                          "bg-white/20"
+                        )} />
+                        <span className="text-sm font-medium text-white/70">Coffee Date Demo</span>
+                      </div>
+                      <svg 
+                        width="14" height="14" viewBox="0 0 14 14" fill="none"
+                        style={{ transform: expandedSections.demo ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}
+                      >
+                        <path d="M3 5l4 4 4-4" stroke="rgba(255,255,255,0.4)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </button>
                     {expandedSections.demo && (
                       <div className="px-4 pb-4">
                         <div className="bg-white/[0.03] border border-white/10 rounded-xl p-5 space-y-3">
@@ -2118,14 +2137,27 @@ export default function OpportunitiesPage() {
                   </div>
 
                   {/* Section 7 — GHL / Revival */}
-                  <div className="border border-white/[0.08] rounded-lg mb-2 overflow-hidden">
-                    <SectionHeader 
-                      title="Revival" 
-                      isExpanded={expandedSections.revival}
-                      onToggle={() => toggleSection("revival")}
-                      stage="revival"
-                      currentStage={currentStage}
-                    />
+                  <div className="border border-white/10 rounded-lg mb-2">
+                    <button
+                      onClick={() => toggleSection("revival")}
+                      className="w-full flex items-center justify-between px-4 py-3 text-left"
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className={cn(
+                          "w-2 h-2 rounded-full",
+                          getSectionStatus("revival") === "completed" ? "bg-green-500" :
+                          getSectionStatus("revival") === "current" ? "bg-[#00AAFF] animate-pulse" :
+                          "bg-white/20"
+                        )} />
+                        <span className="text-sm font-medium text-white/70">Revival</span>
+                      </div>
+                      <svg 
+                        width="14" height="14" viewBox="0 0 14 14" fill="none"
+                        style={{ transform: expandedSections.revival ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}
+                      >
+                        <path d="M3 5l4 4 4-4" stroke="rgba(255,255,255,0.4)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </button>
                     {expandedSections.revival && (
                       <div className="px-4 pb-4">
                         <div className="bg-white/[0.03] border border-white/10 rounded-xl p-5 space-y-3">
@@ -2152,34 +2184,7 @@ export default function OpportunitiesPage() {
                     )}
                   </div>
 
-                  {/* Section 8 — Audit Opportunity (appears only when ghl_connected = true) */}
-                  {selectedNiche.user_state?.ghl_connected && (
-                    <div className="border border-[#00AAFF]/30 rounded-lg mb-2 overflow-hidden">
-                      <SectionHeader 
-                        title="Audit Opportunity" 
-                        isExpanded={expandedSections.audit}
-                        onToggle={() => toggleSection("audit")}
-                      />
-                      {expandedSections.audit && (
-                        <div className="px-4 pb-4">
-                          <div className="bg-[#00AAFF]/5 border border-[#00AAFF]/30 rounded-xl p-5 space-y-3">
-                            <p className="text-white/70 text-sm mb-3">
-                              Your client is running revival. Now is the right time to offer a paid AI audit.
-                            </p>
-                            <Button
-                              asChild
-                              className="w-full bg-[#00AAFF] hover:bg-[#0099EE] text-white"
-                            >
-                              <Link href="/audit">
-                                Build AI audit
-                                <ChevronRight className="h-4 w-4 ml-1" />
-                              </Link>
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
+                  
                       </>
                     )
                   })()}
