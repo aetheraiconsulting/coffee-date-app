@@ -178,6 +178,26 @@ Return this exact JSON:
       return NextResponse.json({ error: "Failed to save messages" }, { status: 500 })
     }
 
+    // Update niche_user_state to mark outreach as generated
+    // First find niche_id from niche name
+    const { data: nicheRecord } = await supabase
+      .from("niches")
+      .select("id")
+      .ilike("niche_name", offer.niche || "")
+      .maybeSingle()
+
+    if (nicheRecord) {
+      await supabase
+        .from("niche_user_state")
+        .upsert({
+          user_id: user.id,
+          niche_id: nicheRecord.id,
+          outreach_generated: true,
+          outreach_generated_at: new Date().toISOString(),
+          stage: "demo"
+        }, { onConflict: "user_id,niche_id" })
+    }
+
     return NextResponse.json({
       success: true,
       messages: insertedMessages,
