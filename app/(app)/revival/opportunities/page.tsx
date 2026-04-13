@@ -1551,7 +1551,7 @@ export default function OpportunitiesPage() {
                         <div className="bg-white/[0.03] border border-white/10 rounded-lg p-3 space-y-2">
                           <p className="text-sm font-medium text-white">{activeOffer.service_name}</p>
                           <p className="text-xs text-white/40">
-                            Your active offer is for {activeOffer.niche || "a different niche"}
+                            Your active offer is for {activeOffer.niche || "a different niche"}. Build a specific offer for this niche to get better results.
                           </p>
                         </div>
                         <Button
@@ -1561,15 +1561,6 @@ export default function OpportunitiesPage() {
                           <Link href={`/offer/builder?niche=${encodeURIComponent(selectedNiche.niche_name)}&problem=${encodeURIComponent(`${selectedNiche.industry_name || "These"} businesses have dormant customer lists they struggle to reactivate`)}&outcome=${encodeURIComponent("Reactivating 5-10% of dormant leads generates significant recurring revenue")}&mode=new`}>
                             Build offer for this niche
                             <ChevronRight className="h-4 w-4 ml-1" />
-                          </Link>
-                        </Button>
-                        <Button
-                          asChild
-                          variant="outline"
-                          className="w-full border-white/20 text-white hover:bg-white/10"
-                        >
-                          <Link href="/outreach">
-                            Use current offer for outreach
                           </Link>
                         </Button>
                       </>
