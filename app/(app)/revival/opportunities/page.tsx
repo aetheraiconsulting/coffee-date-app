@@ -49,7 +49,7 @@ import {
   FileSpreadsheet,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
 
 function EditableCounter({
   value,
@@ -397,6 +397,7 @@ export default function OpportunitiesPage() {
   const { toast } = useToast()
   const supabase = createClient()
   const router = useRouter()
+  const pathname = usePathname()
   // Active offer state - fetched directly from database
   const [activeOffer, setActiveOffer] = useState<{
     id: string
@@ -537,6 +538,11 @@ export default function OpportunitiesPage() {
     window.addEventListener("focus", handleFocus)
     return () => window.removeEventListener("focus", handleFocus)
   }, [])
+
+  // Refetch when pathname changes (immediate refresh on navigation back)
+  useEffect(() => {
+    fetchActiveOffer()
+  }, [pathname])
 
   useEffect(() => {
     if (selectedNiche) {

@@ -12,7 +12,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { FileText, Plus, Loader2, Trash2, Pencil, CheckCircle } from "lucide-react"
+import { FileText, Plus, Loader2, Trash2, Pencil, CheckCircle, Square, CheckSquare } from "lucide-react"
+import { Checkbox } from "@/components/ui/checkbox"
 import { createClient } from "@/lib/supabase/client"
 import { useUserState } from "@/context/StateContext"
 import { cn } from "@/lib/utils"
@@ -44,6 +45,11 @@ export default function MyOffersPage() {
   const [offerToDelete, setOfferToDelete] = useState<Offer | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [settingActive, setSettingActive] = useState<string | null>(null)
+  
+  // Bulk selection state
+  const [selectedOfferIds, setSelectedOfferIds] = useState<string[]>([])
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false)
+  const [bulkDeleting, setBulkDeleting] = useState(false)
 
   const fetchOffers = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -100,6 +106,50 @@ export default function MyOffersPage() {
   const handleDeleteClick = (offer: Offer) => {
     setOfferToDelete(offer)
     setDeleteModalOpen(true)
+  }
+
+  // Bulk selection handlers
+  const toggleSelect = (offerId: string) => {
+    setSelectedOfferIds(prev => 
+      prev.includes(offerId) 
+        ? prev.filter(id => id !== offerId)
+        : [...prev, offerId]
+    )
+  }
+
+  const selectAll = () => {
+    setSelectedOfferIds(offers.map(o => o.id))
+  }
+
+  const clearSelection = () => {
+    setSelectedOfferIds([])
+  }
+
+  const selectedIncludesActive = selectedOfferIds.some(id => 
+    offers.find(o => o.id === id)?.is_active
+  )
+
+  const handleBulkDelete = async () => {
+    if (!userId || selectedOfferIds.length === 0) return
+    setBulkDeleting(true)
+
+    await supabase
+      .from("offers")
+      .delete()
+      .in("id", selectedOfferIds)
+
+    if (selectedIncludesActive) {
+      await supabase
+        .from("profiles")
+        .update({ offer_id: null })
+        .eq("id", userId)
+      await refreshState()
+    }
+
+    setSelectedOfferIds([])
+    setShowBulkDeleteModal(false)
+    setBulkDeleting(false)
+    await fetchOffers()
   }
 
   const handleDeleteConfirm = async () => {
@@ -185,12 +235,48 @@ export default function MyOffersPage() {
             asChild
             className="bg-[#00AAFF] hover:bg-[#0099EE] text-white shadow-lg shadow-[#00AAFF]/30"
           >
-            <Link href="/offer/builder">
+            <Link href="/offer/builder?mode=new">
               <Plus className="h-4 w-4 mr-2" />
               Build new offer
             </Link>
           </Button>
         </div>
+
+        {/* Sticky Action Bar for Bulk Selection */}
+        {selectedOfferIds.length > 0 && (
+          <div className="sticky top-0 z-10 flex items-center justify-between bg-[#080B0F] border-b border-white/10 px-4 py-3 mb-4 -mx-6 rounded-t-xl">
+            <span className="text-sm text-white/60">
+              {selectedOfferIds.length} selected
+            </span>
+            <div className="flex gap-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={selectAll}
+                className="text-white/70 hover:text-white hover:bg-white/10"
+              >
+                Select all
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearSelection}
+                className="text-white/70 hover:text-white hover:bg-white/10"
+              >
+                Clear
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowBulkDeleteModal(true)}
+                className="text-red-400 hover:text-red-400 hover:bg-red-400/10"
+              >
+                <Trash2 className="h-4 w-4 mr-1" />
+                Delete selected
+              </Button>
+            </div>
+          </div>
+        )}
 
         {/* Empty State */}
         {offers.length === 0 && (
@@ -230,13 +316,23 @@ export default function MyOffersPage() {
                 )}
               >
                 <CardContent className="p-6">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      {/* Service Name */}
-                      <div className="flex items-center gap-3 mb-1">
-                        <h3 className="text-lg font-bold text-white truncate">
-                          {offer.service_name}
-                        </h3>
+                  <div className="flex items-start gap-4">
+                    {/* Checkbox */}
+                    <div className="pt-1">
+                      <Checkbox
+                        checked={selectedOfferIds.includes(offer.id)}
+                        onCheckedChange={() => toggleSelect(offer.id)}
+                        className="border-white/30 data-[state=checked]:bg-[#00AAFF] data-[state=checked]:border-[#00AAFF]"
+                      />
+                    </div>
+                    
+                    <div className="flex items-start justify-between gap-4 flex-1 min-w-0">
+                      <div className="flex-1 min-w-0">
+                        {/* Service Name */}
+                        <div className="flex items-center gap-3 mb-1">
+                          <h3 className="text-lg font-bold text-white truncate">
+                            {offer.service_name}
+                          </h3>
                         {offer.is_active && (
                           <span className="text-xs px-2 py-0.5 rounded-full bg-[#00AAFF]/10 text-[#00AAFF] border border-[#00AAFF]/30 shrink-0">
                             Active
@@ -307,6 +403,7 @@ export default function MyOffersPage() {
                           Delete
                         </Button>
                       </div>
+                      </div>
                     </div>
                   </div>
                 </CardContent>
@@ -342,6 +439,44 @@ export default function MyOffersPage() {
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
               ) : null}
               Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Delete Confirmation Modal */}
+      <Dialog open={showBulkDeleteModal} onOpenChange={setShowBulkDeleteModal}>
+        <DialogContent className="bg-[#0A0D12] border-white/10">
+          <DialogHeader>
+            <DialogTitle className="text-white">Delete {selectedOfferIds.length} Offers</DialogTitle>
+            <DialogDescription className="text-white/60 space-y-3">
+              <p>
+                Delete {selectedOfferIds.length} offer{selectedOfferIds.length !== 1 ? "s" : ""}? This cannot be undone.
+              </p>
+              {selectedIncludesActive && (
+                <p className="text-amber-400">
+                  Warning: your active offer is included. Your outreach will lose its offer context until you set a new active offer.
+                </p>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => setShowBulkDeleteModal(false)}
+              className="border-white/20 text-white hover:bg-white/10"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleBulkDelete}
+              disabled={bulkDeleting}
+              className="bg-red-500 hover:bg-red-600 text-white"
+            >
+              {bulkDeleting ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : null}
+              Delete all selected
             </Button>
           </DialogFooter>
         </DialogContent>
