@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { ChevronRight, Target } from "lucide-react"
+import { ChevronRight } from "lucide-react"
 
 interface MissionData {
   headline: string
