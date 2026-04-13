@@ -921,8 +921,8 @@ export default function OpportunitiesPage() {
 
     const gating = getStageGating(selectedNiche.user_state)
     const currentStageId = DB_STATUS_TO_STAGE[selectedNiche.user_state?.status || "Research"] || "research"
-    const currentIdx = PIPELINE_STAGES.findIndex((s) => s.id === currentStageId)
-    const targetIdx = PIPELINE_STAGES.findIndex((s) => s.id === targetStageId)
+    const currentIdx = PIPELINE_STAGES.findIndex((s) => s.key === currentStageId)
+    const targetIdx = PIPELINE_STAGES.findIndex((s) => s.key === targetStageId)
 
     // Check if we can move forward
     if (targetIdx > currentIdx) {
@@ -1205,7 +1205,7 @@ export default function OpportunitiesPage() {
   }
 
   const currentStageId = DB_STATUS_TO_STAGE[selectedNiche?.user_state?.status || "Research"] || "research"
-  const currentStageIndex = PIPELINE_STAGES.findIndex((s) => s.id === currentStageId)
+  const currentStageIndex = PIPELINE_STAGES.findIndex((s) => s.key === currentStageId)
   const stageGating = getStageGating(selectedNiche?.user_state || null)
 
   const selectedNicheScore = selectedNiche ? calculatePipelineScore(selectedNiche.user_state) : null
@@ -1313,7 +1313,7 @@ export default function OpportunitiesPage() {
                   const score = calculatePipelineScore(niche.user_state)
                   const tier = getPriorityTier(score.pipelineScore)
                   const stageId = DB_STATUS_TO_STAGE[niche.user_state?.status || "Research"] || "research"
-                  const stage = PIPELINE_STAGES.find((s) => s.id === stageId)
+                  const stage = PIPELINE_STAGES.find((s) => s.key === stageId)
                   const hasRevivalWin =
                     niche.user_state?.revival_win_completed || niche.user_state?.win_type === "revival"
                   const hasAuditWin = niche.user_state?.audit_win_completed || niche.user_state?.win_type === "audit"
