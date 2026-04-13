@@ -2,8 +2,15 @@ import { createClient } from "@/lib/supabase/server"
 import { redirect } from 'next/navigation'
 import DemoChat from "@/components/demo-chat"
 
-export default async function DemoChatPage({ params }: { params: Promise<{ androidId: string }> }) {
+export default async function DemoChatPage({ 
+  params, 
+  searchParams 
+}: { 
+  params: Promise<{ androidId: string }>
+  searchParams: Promise<{ present?: string }>
+}) {
   const { androidId } = await params
+  const { present } = await searchParams
   const supabase = await createClient()
 
   const {
@@ -25,5 +32,5 @@ export default async function DemoChatPage({ params }: { params: Promise<{ andro
     redirect("/dashboard")
   }
 
-  return <DemoChat android={android} userId={user.id} />
+  return <DemoChat android={android} userId={user.id} autoPresent={present === "true"} />
 }
