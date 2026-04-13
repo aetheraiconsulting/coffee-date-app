@@ -67,7 +67,7 @@ export async function getUserState(): Promise<UserState | null> {
     { count: callScriptCount },
     { count: completedCallCount },
   ] = await Promise.all([
-    supabase.from("profiles").select("full_name, email, sprint_start_date, offer_id").eq("id", user.id).single(),
+    supabase.from("profiles").select("full_name, email, sprint_start_date, offer_id").eq("id", user.id).maybeSingle(),
     supabase.from("ghl_connections").select("id").eq("user_id", user.id),
     supabase.from("niche_user_state").select("id, is_favourite, status").eq("user_id", user.id),
     supabase.from("outreach_messages").select("id, status").eq("user_id", user.id),
