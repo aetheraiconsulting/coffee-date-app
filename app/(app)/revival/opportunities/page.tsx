@@ -447,7 +447,9 @@ export default function OpportunitiesPage() {
   const handleIndustryChange = (value: string) => {
     setIndustryFilter(value)
     setSelectedNiche(null)
+    setNicheState(undefined)
     setAiSuggestions(null)
+    setWhyThisWorksContent(null)
   }
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [favouritesOnly, setFavouritesOnly] = useState(false)
@@ -459,6 +461,9 @@ export default function OpportunitiesPage() {
   // Why This Works state
   const [whyThisWorksContent, setWhyThisWorksContent] = useState<string | null>(null)
   const [loadingWhyThisWorks, setLoadingWhyThisWorks] = useState(false)
+  
+  // Fetched niche state - undefined means not yet fetched, null means no record exists
+  const [nicheState, setNicheState] = useState<NicheUserState | null | undefined>(undefined)
 
   // Collapsible sections state
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
@@ -550,20 +555,19 @@ export default function OpportunitiesPage() {
       // Check cache in niche_user_state first via direct DB query
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
-        setLoadingWhyThisWorks(false)
+        setWhyThisWorksContent("Unable to load analysis - please sign in.")
         return
       }
 
-      const { data: nicheState } = await supabase
+      const { data: cachedState } = await supabase
         .from("niche_user_state")
         .select("why_this_works_content")
         .eq("user_id", user.id)
         .eq("niche_id", niche.id)
         .maybeSingle()
 
-      if (nicheState?.why_this_works_content) {
-        setWhyThisWorksContent(nicheState.why_this_works_content)
-        setLoadingWhyThisWorks(false)
+      if (cachedState?.why_this_works_content) {
+        setWhyThisWorksContent(cachedState.why_this_works_content)
         return
       }
 
@@ -577,12 +581,16 @@ export default function OpportunitiesPage() {
           niche_id: niche.id,
         }),
       })
-      if (response.ok) {
-        const data = await response.json()
-        setWhyThisWorksContent(data.content)
+
+      if (!response.ok) {
+        throw new Error("Failed to generate")
       }
+
+      const data = await response.json()
+      setWhyThisWorksContent(data.content || "Unable to generate analysis for this niche.")
     } catch (error) {
       console.error("Failed to fetch Why This Works:", error)
+      setWhyThisWorksContent("Unable to load analysis for this niche. Try selecting it again.")
     } finally {
       setLoadingWhyThisWorks(false)
     }
@@ -691,6 +699,34 @@ export default function OpportunitiesPage() {
     fetchActiveOffer()
   }, [pathname])
 
+  // Fetch niche_user_state when selectedNiche changes
+  useEffect(() => {
+    if (!selectedNiche) {
+      setNicheState(undefined)
+      return
+    }
+
+    const fetchNicheState = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        setNicheState(null)
+        return
+      }
+
+      const { data } = await supabase
+        .from("niche_user_state")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("niche_id", selectedNiche.id)
+        .maybeSingle()
+
+      // If no record exists, set to null (not undefined) - this means "research" stage
+      setNicheState(data || null)
+    }
+
+    fetchNicheState()
+  }, [selectedNiche?.id, supabase])
+
   useEffect(() => {
     if (selectedNiche) {
       fetchAiSuggestions(selectedNiche)
@@ -708,11 +744,16 @@ export default function OpportunitiesPage() {
     }
   }, [selectedNiche?.id, loadWhyThisWorks])
 
-  // Auto-expand sections based on current stage when niche or stage changes
+  // Auto-expand sections based on current stage when niche state is fetched
+  // Only fires AFTER nicheState has been fetched (not undefined)
   useEffect(() => {
+    // Don't fire if no niche selected
     if (!selectedNiche) return
+    // Don't fire if nicheState hasn't been fetched yet (undefined)
+    // nicheState === null means fetched but no record exists (new niche = research stage)
+    if (nicheState === undefined) return
     
-    const nicheState = selectedNiche.user_state
+    // Determine current stage from fetched nicheState
     let currentStage = nicheState?.stage || "research"
     
     // Infer stage if not explicitly set
@@ -735,7 +776,7 @@ export default function OpportunitiesPage() {
       revival: currentStage === "revival",
       audit: false, // audit is special, only visible when ghl_connected
     })
-  }, [selectedNiche?.id, selectedNiche?.user_state?.stage, activeOffer])
+  }, [selectedNiche?.id, nicheState, activeOffer])
 
   useEffect(() => {
     let filtered = [...allNiches]
@@ -778,23 +819,25 @@ export default function OpportunitiesPage() {
     setFilteredNiches(filtered)
   }, [allNiches, searchQuery, industryFilter, statusFilter, favouritesOnly, sortBy])
 
+  // Handle niche selection - reset all state immediately to prevent stale data
   const handleNicheSelect = (niche: Niche) => {
+    // Reset everything immediately on niche change
     setSelectedNiche(niche)
-    // Open the appropriate card based on current stage
-    const stageId = DB_STATUS_TO_STAGE[niche.user_state?.status || "Research"] || "research"
-    if (stageId === "research") {
-      setResearchOpen(true)
-      setMessagingOpen(false)
-      setOutreachOpen(false)
-    } else if (stageId === "shortlisted") {
-      setResearchOpen(false)
-      setMessagingOpen(true)
-      setOutreachOpen(false)
-    } else {
-      setResearchOpen(false)
-      setMessagingOpen(false)
-      setOutreachOpen(true)
-    }
+    setNicheState(undefined) // undefined = not yet fetched (different from null = no record)
+    setWhyThisWorksContent(null)
+    setLoadingWhyThisWorks(false)
+    setAiSuggestions(null)
+    // Reset expanded sections to default (will be updated by auto-expand effect after state loads)
+    setExpandedSections({
+      whyThisWorks: true,
+      research: true,
+      offer: false,
+      outreach: false,
+      outreachTracker: false,
+      demo: false,
+      revival: false,
+      audit: false,
+    })
   }
 
   const toggleFavourite = async (niche: Niche) => {
@@ -1472,17 +1515,23 @@ export default function OpportunitiesPage() {
 
                   {/* Calculate current stage for use in stage tracker and section headers */}
                   {(() => {
-                    const nicheState = selectedNiche?.user_state
-                    let currentStage = nicheState?.stage || "research"
+                    // Use fetched nicheState, not selectedNiche.user_state
+                    // Default to "research" when nicheState is undefined (not fetched) or null (no record)
+                    let currentStage = "research"
                     
-                    // If no explicit stage, infer from state
-                    if (!nicheState?.stage) {
-                      if (nicheState?.ghl_connected) currentStage = "revival"
-                      else if (nicheState?.coffee_date_completed) currentStage = "demo"
-                      else if (nicheState?.outreach_generated) currentStage = "outreach"
-                      else if (nicheState?.offer_id || activeOffer) currentStage = "offer"
-                      else if (nicheState?.research_notes_added && nicheState?.customer_profile_generated && nicheState?.aov_calculator_completed) currentStage = "offer"
-                      else currentStage = "research"
+                    // Only calculate stage if nicheState has been fetched (not undefined)
+                    if (nicheState !== undefined && nicheState !== null) {
+                      currentStage = nicheState.stage || "research"
+                      
+                      // Infer stage if not explicitly set
+                      if (!nicheState.stage) {
+                        if (nicheState.ghl_connected) currentStage = "revival"
+                        else if (nicheState.coffee_date_completed) currentStage = "demo"
+                        else if (nicheState.outreach_generated) currentStage = "outreach"
+                        else if (nicheState.offer_id || activeOffer) currentStage = "offer"
+                        else if (nicheState.research_notes_added && nicheState.customer_profile_generated && nicheState.aov_calculator_completed) currentStage = "offer"
+                        else currentStage = "research"
+                      }
                     }
                     
                     const stageIndex = PIPELINE_STAGES.findIndex(s => s.key === currentStage)
