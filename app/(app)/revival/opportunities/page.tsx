@@ -398,14 +398,20 @@ export default function OpportunitiesPage() {
   const supabase = createClient()
   const router = useRouter()
   const pathname = usePathname()
-  // Active offer state - fetched directly from database
+// Active offer state - fetched directly from database
   const [activeOffer, setActiveOffer] = useState<{
     id: string
     service_name: string
     price_point: string
     pricing_model: string
+    niche: string | null
   } | null>(null)
   const [offerLoading, setOfferLoading] = useState(true)
+  
+  // Check if active offer matches the selected niche
+  const nicheMatches = activeOffer !== null && 
+    selectedNiche !== null &&
+    activeOffer.niche?.toLowerCase().trim() === selectedNiche.niche_name?.toLowerCase().trim()
 
   const [updatingChannel, setUpdatingChannel] = useState<string | null>(null)
 
@@ -509,7 +515,7 @@ export default function OpportunitiesPage() {
     
     const { data } = await supabase
       .from("offers")
-      .select("id, service_name, price_point, pricing_model")
+      .select("id, service_name, price_point, pricing_model, niche")
       .eq("user_id", user.id)
       .eq("is_active", true)
       .maybeSingle()
@@ -1493,7 +1499,22 @@ export default function OpportunitiesPage() {
                         <Loader2 className="animate-spin h-5 w-5 text-[#00AAFF]" />
                         <span className="text-sm text-white/60">Loading...</span>
                       </div>
-                    ) : activeOffer ? (
+                    ) : !activeOffer ? (
+                      <>
+                        <p className="text-sm text-white/70">
+                          Build your offer for this niche before reaching out
+                        </p>
+                        <Button
+                          asChild
+                          className="w-full bg-[#00AAFF] hover:bg-[#0099EE] text-white shadow-lg shadow-[#00AAFF]/30"
+                        >
+                          <Link href={`/offer/builder?niche=${encodeURIComponent(selectedNiche.niche_name)}&problem=${encodeURIComponent(`${selectedNiche.industry_name || "These"} businesses have dormant customer lists they struggle to reactivate`)}&outcome=${encodeURIComponent("Reactivating 5-10% of dormant leads generates significant recurring revenue")}`}>
+                            Build your offer
+                            <ChevronRight className="h-4 w-4 ml-1" />
+                          </Link>
+                        </Button>
+                      </>
+                    ) : nicheMatches ? (
                       <>
                         <div className="bg-white/[0.03] border border-white/10 rounded-lg p-3 space-y-2">
                           <p className="text-sm font-medium text-white">{activeOffer.service_name}</p>
@@ -1527,16 +1548,28 @@ export default function OpportunitiesPage() {
                       </>
                     ) : (
                       <>
-                        <p className="text-sm text-white/70">
-                          Build your offer for this niche before reaching out
-                        </p>
+                        <div className="bg-white/[0.03] border border-white/10 rounded-lg p-3 space-y-2">
+                          <p className="text-sm font-medium text-white">{activeOffer.service_name}</p>
+                          <p className="text-xs text-white/40">
+                            Your active offer is for {activeOffer.niche || "a different niche"}
+                          </p>
+                        </div>
                         <Button
                           asChild
                           className="w-full bg-[#00AAFF] hover:bg-[#0099EE] text-white shadow-lg shadow-[#00AAFF]/30"
                         >
-                          <Link href={`/offer/builder?niche=${encodeURIComponent(selectedNiche.niche_name)}&problem=${encodeURIComponent(`${selectedNiche.industry_name || "These"} businesses have dormant customer lists they struggle to reactivate`)}&outcome=${encodeURIComponent("Reactivating 5-10% of dormant leads generates significant recurring revenue")}`}>
-                            Build your offer
+                          <Link href={`/offer/builder?niche=${encodeURIComponent(selectedNiche.niche_name)}&problem=${encodeURIComponent(`${selectedNiche.industry_name || "These"} businesses have dormant customer lists they struggle to reactivate`)}&outcome=${encodeURIComponent("Reactivating 5-10% of dormant leads generates significant recurring revenue")}&mode=new`}>
+                            Build offer for this niche
                             <ChevronRight className="h-4 w-4 ml-1" />
+                          </Link>
+                        </Button>
+                        <Button
+                          asChild
+                          variant="outline"
+                          className="w-full border-white/20 text-white hover:bg-white/10"
+                        >
+                          <Link href="/outreach">
+                            Use current offer for outreach
                           </Link>
                         </Button>
                       </>
