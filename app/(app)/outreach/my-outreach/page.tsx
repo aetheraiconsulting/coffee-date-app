@@ -137,14 +137,14 @@ export default function MyOutreachPage() {
             <CardContent className="p-12 text-center">
               <Send className="h-12 w-12 text-white/20 mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-white mb-2">
-                No outreach generated yet
+                Your saved outreach batches will appear here
               </h3>
               <p className="text-white/50 text-sm mb-6">
-                Go to Opportunities to select a niche and start generating outreach messages.
+                Generate messages for a niche to get started.
               </p>
               <Button asChild className="bg-[#00AAFF] hover:bg-[#0099EE] text-white">
                 <Link href="/revival/opportunities">
-                  Go to Opportunities
+                  Browse opportunities
                 </Link>
               </Button>
             </CardContent>
