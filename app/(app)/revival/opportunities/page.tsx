@@ -1844,7 +1844,7 @@ export default function OpportunitiesPage() {
                                 asChild
                                 className="w-full bg-[#00AAFF] hover:bg-[#0099EE] text-white"
                               >
-                                <Link href={`/offer/builder?niche=${encodeURIComponent(selectedNiche.niche_name)}&problem=${encodeURIComponent(selectedNiche.user_state?.customer_profile?.pain_points || `${selectedNiche.industry_name || "These"} businesses have dormant customer lists`)}&outcome=${encodeURIComponent(`Target MRR: $${selectedNiche.user_state?.target_monthly_recurring || "3000"}`)}&mode=new`}>
+                                <Link href={`/offer/builder?niche=${encodeURIComponent(selectedNiche.niche_name)}&problem=${encodeURIComponent(selectedNiche.user_state?.customer_profile?.pain_points || `${selectedNiche.industry_name || "These"} businesses have dormant customer lists`)}&outcome=${encodeURIComponent(`Target MRR: $${selectedNiche.user_state?.target_monthly_recurring || "3000"}`)}`}>
                                   Build offer for this niche
                                   <ChevronRight className="h-4 w-4 ml-1" />
                                 </Link>
