@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Loader2, Sparkles, Copy, Check, Search, ChevronDown } from "lucide-react"
+import { Loader2, Sparkles, Copy, Check, Search, ChevronDown, Wand2 } from "lucide-react"
 import { generatePrompt } from "@/app/actions/generate-prompt"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -33,6 +33,9 @@ export default function PromptGeneratorForm({ userId }: PromptGeneratorFormProps
   const [niches, setNiches] = useState<Niche[]>([])
   const [nicheSearchQuery, setNicheSearchQuery] = useState("")
   const [nichePopoverOpen, setNichePopoverOpen] = useState(false)
+  const [isPrefilling, setIsPrefilling] = useState(false)
+  const [prefillUrl, setPrefillUrl] = useState("")
+  const [aiPrefilled, setAiPrefilled] = useState(false)
 
   const [formData, setFormData] = useState({
     businessName: "",
@@ -84,6 +87,42 @@ export default function PromptGeneratorForm({ userId }: PromptGeneratorFormProps
     setNichePopoverOpen(false)
   }
 
+  const handlePrefill = async () => {
+    if (!prefillUrl.trim()) return
+    
+    setIsPrefilling(true)
+    try {
+      const response = await fetch("/api/ai-prefill", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ website: prefillUrl }),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success && data.prefillData) {
+          setFormData((prev) => ({
+            ...prev,
+            businessName: data.prefillData.businessName || prev.businessName,
+            shortService: data.prefillData.shortService || prev.shortService,
+            valueProp: data.prefillData.valueProp || prev.valueProp,
+            nicheQuestion: data.prefillData.nicheQuestion || prev.nicheQuestion,
+            regionTone: data.prefillData.regionTone || prev.regionTone,
+            industryTraining: data.prefillData.industryTraining || prev.industryTraining,
+            openingHours: data.prefillData.openingHours || prev.openingHours,
+            promiseLine: data.prefillData.promiseLine || prev.promiseLine,
+            website: data.prefillData.website || prev.website,
+          }))
+          setAiPrefilled(true)
+        }
+      }
+    } catch (error) {
+      console.error("Error prefilling form:", error)
+    } finally {
+      setIsPrefilling(false)
+    }
+  }
+
   const handleGenerate = async () => {
     setIsGenerating(true)
     try {
@@ -91,6 +130,7 @@ export default function PromptGeneratorForm({ userId }: PromptGeneratorFormProps
         ...formData,
         niche: formData.nicheId ? formData.nicheName : formData.customNiche || formData.nicheName,
         serviceType: formData.nicheId ? formData.nicheName : formData.customNiche || formData.serviceType,
+        aiPrefilled,
       }
       const result = await generatePrompt(dataToSend, userId)
       if (result.success && result.androidId && result.prompt) {
@@ -166,6 +206,52 @@ export default function PromptGeneratorForm({ userId }: PromptGeneratorFormProps
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
+        {/* AI Prefill Section */}
+        <div className="bg-gradient-to-r from-[#00A8FF]/10 to-transparent border border-[#00A8FF]/20 rounded-lg p-4">
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex-1">
+              <Label htmlFor="prefillUrl" className="text-white text-sm mb-2 block">
+                Prefill with AI
+              </Label>
+              <div className="flex gap-2">
+                <Input
+                  id="prefillUrl"
+                  placeholder="Enter client website URL..."
+                  value={prefillUrl}
+                  onChange={(e) => setPrefillUrl(e.target.value)}
+                  className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
+                />
+                <Button
+                  onClick={handlePrefill}
+                  disabled={isPrefilling || !prefillUrl.trim()}
+                  className="bg-[#00A8FF] text-white hover:bg-[#0099EE] whitespace-nowrap"
+                >
+                  {isPrefilling ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Analyzing...
+                    </>
+                  ) : (
+                    <>
+                      <Wand2 className="h-4 w-4 mr-2" />
+                      Prefill
+                    </>
+                  )}
+                </Button>
+              </div>
+              <p className="text-xs text-white/40 mt-2">
+                Enter a website URL and we'll automatically extract business details to prefill the form.
+              </p>
+            </div>
+          </div>
+          {aiPrefilled && (
+            <div className="mt-3 flex items-center gap-2 text-sm text-[#00A8FF]">
+              <Check className="h-4 w-4" />
+              Form prefilled with AI - review and adjust as needed
+            </div>
+          )}
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-2">
             <Label htmlFor="businessName" className="text-white">

@@ -17,6 +17,7 @@ interface PromptFormData {
   openingHours: string
   promiseLine: string
   additionalContext?: string
+  aiPrefilled?: boolean
 }
 
 export async function generatePrompt(formData: PromptFormData, userId: string) {
@@ -33,6 +34,7 @@ export async function generatePrompt(formData: PromptFormData, userId: string) {
         user_id: userId,
         name: formData.androidName,
         prompt,
+        ai_prefilled: formData.aiPrefilled || false,
         business_context: {
           businessName: formData.businessName,
           company_name: formData.businessName,
