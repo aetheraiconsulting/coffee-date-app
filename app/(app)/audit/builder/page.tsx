@@ -107,6 +107,7 @@ function AuditBuilderContent() {
   const [questions, setQuestions] = useState<AuditQuestion[]>(AI_AUDIT_QUESTIONS)
   const [currentStep, setCurrentStep] = useState(0)
   const [saving, setSaving] = useState(false)
+  const [exporting, setExporting] = useState(false)
   const [loading, setLoading] = useState(true)
   const [niches, setNiches] = useState<Niche[]>([])
   const [nicheSearch, setNicheSearch] = useState("")
@@ -315,81 +316,52 @@ function AuditBuilderContent() {
     return Math.round((answeredQuestions / questions.length) * 100)
   }
 
-  function handleExportPDF() {
-    const answeredQuestions = questions.filter((q) => responses[q.id]?.trim())
+  async function handleExport() {
+    if (!auditId) {
+      toast({ title: "Save the audit first", description: "Please save before exporting", variant: "destructive" })
+      return
+    }
 
-    const content = `
-═══════════════════════════════════════════════════════════════
-                    AI READINESS AUDIT REPORT
-                    Aether AI Lab
-═══════════════════════════════════════════════════════════════
+    // Check if AI insights have been generated
+    if (!editedInsights && !aiInsights) {
+      toast({ 
+        title: "Generate AI insights first", 
+        description: "Generate AI insights before exporting the report", 
+        variant: "destructive" 
+      })
+      return
+    }
 
-CLIENT: ${auditName}
-WEBSITE: ${websiteUrl || "N/A"}
-BUSINESS SIZE: ${businessSize || "N/A"}
-DATE: ${new Date().toLocaleDateString()}
-COMPLETION: ${calculateCompletion()}%
+    setExporting(true)
+    try {
+      const response = await fetch("/api/audit/report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ audit_id: auditId })
+      })
 
-═══════════════════════════════════════════════════════════════
-                    AUDIT RESPONSES
-═══════════════════════════════════════════════════════════════
+      if (!response.ok) throw new Error("Export failed")
 
-${answeredQuestions
-  .map(
-    (q, i) => `
-${i + 1}. ${q.question}
+      const html = await response.text()
+      const blob = new Blob([html], { type: "text/html" })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `${auditName.replace(/\s+/g, "-")}-AI-Audit-Report.html`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
 
-${responses[q.id] || "No response provided"}
-
-───────────────────────────────────────────────────────────────
-`,
-  )
-  .join("")}
-
-${
-  aiInsights
-    ? `
-═══════════════════════════════════════════════════════════════
-                    AI INSIGHTS & RECOMMENDATIONS
-═══════════════════════════════════════════════════════════════
-
-TOP 3 BOTTLENECKS:
-${aiInsights.bottlenecks.map((b, i) => `${i + 1}. ${b}`).join("\n")}
-
-TOP 3 QUICK WINS:
-${aiInsights.quickWins.map((w, i) => `${i + 1}. ${w}`).join("\n")}
-
-90-DAY ROADMAP:
-${aiInsights.roadmap.map((r, i) => `${i + 1}. ${r}`).join("\n")}
-
-ESTIMATED FINANCIAL IMPACT:
-${aiInsights.financialImpact}
-
-`
-    : ""
-}
-═══════════════════════════════════════════════════════════════
-
-Signature: ____________________________________________________
-
-Date: _________________________________________________________
-
-═══════════════════════════════════════════════════════════════
-                    Powered by Aether AI Lab
-═══════════════════════════════════════════════════════════════
-`
-
-    const blob = new Blob([content], { type: "text/plain" })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = `${auditName.replace(/\s+/g, "-")}-AI-Audit-Report.txt`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
-
-    toast({ title: "Exported", description: "Audit report exported successfully" })
+      toast({
+        title: "Report exported",
+        description: "Open the HTML file and use File > Print > Save as PDF"
+      })
+    } catch {
+      toast({ title: "Export failed", description: "Please try again", variant: "destructive" })
+    } finally {
+      setExporting(false)
+    }
   }
 
   async function generateAIInsights() {
@@ -621,12 +593,16 @@ Date: _________________________________________________________
               </Button>
               <Button
                 variant="outline"
-                onClick={handleExportPDF}
-                disabled={!auditName}
+                onClick={handleExport}
+                disabled={!auditName || exporting}
                 className="border-white/20 hover:border-[#3a8bff]/60 hover:bg-[#3a8bff]/10 text-white bg-transparent"
               >
-                <Download className="h-4 w-4 mr-2" />
-                Export
+                {exporting ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4 mr-2" />
+                )}
+                {exporting ? "Exporting..." : "Export Report"}
               </Button>
               <Button
                 onClick={() => handleSave(false)}

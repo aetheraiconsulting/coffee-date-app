@@ -45,7 +45,22 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Failed to generate share link" }, { status: 500 })
   }
 
-  const shareUrl = `${process.env.NEXT_PUBLIC_APP_URL || "https://coffee-date-app.vercel.app"}/audit/${shareToken}`
+  // Fetch user's subdomain for custom link
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("subdomain")
+    .eq("id", user.id)
+    .maybeSingle()
+
+  const mainDomain = process.env.NEXT_PUBLIC_MAIN_DOMAIN || "aetherrevive.com"
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || `https://${mainDomain}`
+
+  // Use subdomain if available, otherwise fall back to main domain
+  const baseUrl = profile?.subdomain
+    ? `https://${profile.subdomain}.${mainDomain}`
+    : appUrl
+
+  const shareUrl = `${baseUrl}/audit/${shareToken}`
 
   return NextResponse.json({ share_token: shareToken, share_url: shareUrl })
 }
