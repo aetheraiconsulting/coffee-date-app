@@ -30,10 +30,10 @@ export async function POST(request: Request) {
       body: JSON.stringify({
         model: "claude-sonnet-4-20250514",
         max_tokens: 500,
-        system: "You are the AI engine inside Aether Revive, an AI client acquisition system. Generate a complete sellable service offer for someone building their first AI agency. Return valid JSON only. No markdown. No explanation. Just the JSON object.",
+        system: "You are the AI engine inside Aether Revive, an AI client acquisition system. Generate a complete sellable service offer for someone building their first AI agency. Always use USD. Never use GBP or any other currency. Return valid JSON only. No markdown. No explanation. Just the JSON object.",
         messages: [{
           role: "user",
-          content: `Generate a complete service offer based on:\nNiche: ${niche}\nProblem they solve: ${problem}\nOutcome they deliver: ${outcome}\n\nReturn this exact JSON:\n{\n  "service_name": "short specific service name max 6 words",\n  "outcome_statement": "one sentence exact result the client gets",\n  "price_point": "specific price appropriate for a beginner e.g. £500/month or £750 one-off",\n  "guarantee": "simple risk-reducing guarantee statement",\n  "confidence_score": "strong or needs_work or weak",\n  "confidence_reason": "one sentence explaining the score"\n}`
+          content: `Generate a complete service offer based on:\nNiche: ${niche}\nProblem they solve: ${problem}\nOutcome they deliver: ${outcome}\n\nReturn this exact JSON:\n{\n  "service_name": "short specific service name max 6 words",\n  "outcome_statement": "one sentence exact result the client gets",\n  "price_point": "suggest the most appropriate pricing model for this specific service type. Use USD only. For lead generation or revival services use performance-based pricing e.g. $X per qualified lead or 10-15% of recovered revenue. For ongoing AI services use monthly retainer e.g. $500-$1500/month. For one-off audits or setup use project pricing e.g. $750-$2500. Match the model to the niche and outcome, do not default to a fixed monthly retainer for every service type.",\n  "pricing_model": "retainer or performance or project or hybrid — whichever fits this service",\n  "guarantee": "simple risk-reducing guarantee statement",\n  "confidence_score": "strong or needs_work or weak",\n  "confidence_reason": "one sentence explaining the score"\n}`
         }]
       })
     })
@@ -60,6 +60,7 @@ export async function POST(request: Request) {
         service_name: offer.service_name,
         outcome_statement: offer.outcome_statement,
         price_point: offer.price_point,
+        pricing_model: offer.pricing_model,
         guarantee: offer.guarantee,
         confidence_score: offer.confidence_score,
         confidence_reason: offer.confidence_reason,
