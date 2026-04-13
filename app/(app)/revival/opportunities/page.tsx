@@ -374,6 +374,13 @@ export default function OpportunitiesPage() {
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [industryFilter, setIndustryFilter] = useState<string>("all")
+  
+  // Reset selected niche when industry filter changes
+  const handleIndustryChange = (value: string) => {
+    setIndustryFilter(value)
+    setSelectedNiche(null)
+    setAiSuggestions(null)
+  }
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [favouritesOnly, setFavouritesOnly] = useState(false)
   const [sortBy, setSortBy] = useState<string>("score")
@@ -998,7 +1005,7 @@ export default function OpportunitiesPage() {
             />
           </div>
 
-          <Select value={industryFilter} onValueChange={setIndustryFilter}>
+          <Select value={industryFilter} onValueChange={handleIndustryChange}>
             <SelectTrigger className="w-[180px] bg-zinc-800 border-zinc-700 text-white">
               <SelectValue placeholder="All Industries" />
             </SelectTrigger>
