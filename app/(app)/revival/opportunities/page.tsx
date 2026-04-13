@@ -1170,19 +1170,20 @@ export default function OpportunitiesPage() {
                             <span className="text-xs text-[#808080]">Score: {score.pipelineScore}</span>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <Button
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              // Navigate to outreach with this niche pre-selected
-                              window.location.href = "/revival"
-                            }}
-                            className="h-7 px-3 text-xs bg-[#00AAFF] hover:bg-[#0099EE] text-white"
-                          >
-                            Start Outreach
-                          </Button>
-                          <button
+                        <div className="flex flex-col items-end gap-2 shrink-0">
+                          <div className="flex items-center gap-2">
+                            <Button
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                // Navigate to outreach with this niche pre-selected
+                                window.location.href = "/revival"
+                              }}
+                              className="h-7 px-3 text-xs bg-[#00AAFF] hover:bg-[#0099EE] text-white"
+                            >
+                              Start Outreach
+                            </Button>
+                            <button
                             onClick={(e) => {
                               e.stopPropagation()
                               toggleFavourite(niche)
@@ -1197,7 +1198,23 @@ export default function OpportunitiesPage() {
                                   : "text-white/30 hover:text-white/50",
                               )}
                             />
-                          </button>
+                            </button>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              const params = new URLSearchParams({
+                                niche: niche.niche_name,
+                                problem: niche.description || "",
+                              })
+                              window.location.href = `/offer/builder?${params.toString()}`
+                            }}
+                            className="h-6 px-2 text-xs text-white/50 hover:text-white hover:bg-white/10"
+                          >
+                            Build offer &rarr;
+                          </Button>
                         </div>
                       </div>
                     </Card>

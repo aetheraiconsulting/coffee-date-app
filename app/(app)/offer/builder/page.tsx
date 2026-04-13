@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useState, useEffect } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -24,6 +24,7 @@ interface GeneratedOffer {
 
 export default function OfferBuilderPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { refreshState } = useUserState()
   
   const [step, setStep] = useState<"input" | "generating" | "preview">("input")
@@ -32,6 +33,21 @@ export default function OfferBuilderPage() {
   const [outcome, setOutcome] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [offer, setOffer] = useState<GeneratedOffer | null>(null)
+  const [preloaded, setPreloaded] = useState(false)
+
+  // Pre-fill from URL params
+  useEffect(() => {
+    const nicheParam = searchParams.get("niche")
+    const problemParam = searchParams.get("problem")
+    
+    if (nicheParam) {
+      setNiche(nicheParam)
+      setPreloaded(true)
+    }
+    if (problemParam) {
+      setProblem(problemParam)
+    }
+  }, [searchParams])
 
   const canGenerate = niche.trim() && problem.trim() && outcome.trim()
 
@@ -114,6 +130,15 @@ export default function OfferBuilderPage() {
         {step === "input" && (
           <Card className="bg-white/[0.03] border-white/10">
             <CardContent className="p-6 space-y-6">
+              {/* Preloaded Banner */}
+              {preloaded && (
+                <div className="p-3 bg-[#00AAFF]/10 border border-[#00AAFF]/30 rounded-lg">
+                  <p className="text-[#00AAFF] text-sm">
+                    Niche pre-loaded from your opportunities. Add the outcome you deliver and generate your offer.
+                  </p>
+                </div>
+              )}
+
               {/* Niche Input */}
               <div className="space-y-2">
                 <Label className="text-white">Your niche</Label>
