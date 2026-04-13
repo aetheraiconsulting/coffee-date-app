@@ -15,11 +15,9 @@ import {
   Check,
   Copy,
   RefreshCw,
-  Linkedin,
-  Instagram,
-  Mail,
   ChevronRight,
   Pencil,
+  Download,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
@@ -33,8 +31,7 @@ type OutreachMessage = {
   subject_line: string | null
   status: "draft" | "sent" | "replied" | "no_reply"
   channel: Channel
-  contact_name: string | null
-  business_name: string | null
+  note: string | null
   created_at: string
 }
 
@@ -66,13 +63,17 @@ function formatPricingModel(model: string): string {
 }
 
 export default function OutreachPage() {
-  const [view, setView] = useState<"loading" | "no_offer" | "generate" | "messages">("loading")
+  const [view, setView] = useState<"loading" | "no_offer" | "ready">("loading")
   const [activeOffer, setActiveOffer] = useState<ActiveOffer | null>(null)
-  const [messages, setMessages] = useState<OutreachMessage[]>([])
-  const [channel, setChannel] = useState<Channel>("linkedin")
+  const [activeChannel, setActiveChannel] = useState<Channel>("linkedin")
   const [prospectContext, setProspectContext] = useState("")
   const [generating, setGenerating] = useState(false)
   const [userId, setUserId] = useState<string | null>(null)
+
+  // Independent message state for each channel
+  const [linkedinMessages, setLinkedinMessages] = useState<OutreachMessage[]>([])
+  const [instagramMessages, setInstagramMessages] = useState<OutreachMessage[]>([])
+  const [emailMessages, setEmailMessages] = useState<OutreachMessage[]>([])
 
   const { toast } = useToast()
   const supabase = createClient()
@@ -106,22 +107,40 @@ export default function OutreachPage() {
 
     setActiveOffer(offer)
 
-    // Check for existing draft messages for this offer
-    const { data: existingMessages } = await supabase
+    // Fetch all messages for this offer and split by channel
+    const { data: allMessages } = await supabase
       .from("outreach_messages")
       .select("*")
       .eq("user_id", user.id)
       .eq("offer_id", offer.id)
-      .eq("status", "draft")
       .order("created_at", { ascending: true })
 
-    if (existingMessages && existingMessages.length > 0) {
-      setMessages(existingMessages)
-      setView("messages")
-    } else {
-      setView("generate")
+    setLinkedinMessages(allMessages?.filter(m => m.channel === "linkedin") || [])
+    setInstagramMessages(allMessages?.filter(m => m.channel === "instagram") || [])
+    setEmailMessages(allMessages?.filter(m => m.channel === "email") || [])
+
+    setView("ready")
+  }
+
+  const getChannelMessages = (channel: Channel): OutreachMessage[] => {
+    switch (channel) {
+      case "linkedin": return linkedinMessages
+      case "instagram": return instagramMessages
+      case "email": return emailMessages
     }
   }
+
+  const setChannelMessages = (channel: Channel, messages: OutreachMessage[]) => {
+    switch (channel) {
+      case "linkedin": setLinkedinMessages(messages); break
+      case "instagram": setInstagramMessages(messages); break
+      case "email": setEmailMessages(messages); break
+    }
+  }
+
+  const currentMessages = getChannelMessages(activeChannel)
+  const sentCount = currentMessages.filter(m => m.status === "sent").length
+  const totalCount = currentMessages.length
 
   const handleGenerate = async () => {
     if (!activeOffer) return
@@ -132,7 +151,7 @@ export default function OutreachPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          channel,
+          channel: activeChannel,
           prospect_context: prospectContext || undefined,
         }),
       })
@@ -143,12 +162,11 @@ export default function OutreachPage() {
         throw new Error(data.error || "Failed to generate messages")
       }
 
-      setMessages(data.messages)
-      setView("messages")
+      setChannelMessages(activeChannel, data.messages)
 
       toast({
         title: "Messages Generated",
-        description: "20 outreach messages ready to send",
+        description: `20 ${activeChannel} messages ready to send`,
       })
     } catch (error: any) {
       toast({
@@ -164,16 +182,15 @@ export default function OutreachPage() {
   const handleRegenerate = async () => {
     if (!activeOffer || !userId) return
 
-    // Delete existing drafts
+    // Delete existing messages for this channel only
     await supabase
       .from("outreach_messages")
       .delete()
       .eq("user_id", userId)
       .eq("offer_id", activeOffer.id)
-      .eq("status", "draft")
+      .eq("channel", activeChannel)
 
-    setMessages([])
-    setView("generate")
+    setChannelMessages(activeChannel, [])
   }
 
   const handleMarkSent = async (messageId: string) => {
@@ -187,8 +204,9 @@ export default function OutreachPage() {
       return
     }
 
-    setMessages(prev =>
-      prev.map(m => (m.id === messageId ? { ...m, status: "sent" as const } : m))
+    setChannelMessages(
+      activeChannel,
+      currentMessages.map(m => (m.id === messageId ? { ...m, status: "sent" as const } : m))
     )
   }
 
@@ -204,15 +222,64 @@ export default function OutreachPage() {
       .update({ [field]: value })
       .eq("id", messageId)
 
-    setMessages(prev =>
-      prev.map(m => (m.id === messageId ? { ...m, [field]: value } : m))
+    setChannelMessages(
+      activeChannel,
+      currentMessages.map(m => (m.id === messageId ? { ...m, [field]: value } : m))
     )
+  }
+
+  const handleNoteUpdate = async (messageId: string, note: string) => {
+    await supabase
+      .from("outreach_messages")
+      .update({ note })
+      .eq("id", messageId)
+
+    setChannelMessages(
+      activeChannel,
+      currentMessages.map(m => (m.id === messageId ? { ...m, note } : m))
+    )
+  }
+
+  const downloadTextMessages = (messages: OutreachMessage[], channel: string) => {
+    const content = messages
+      .map((m, i) => `Message ${i + 1}:\n${m.message_text}`)
+      .join("\n\n---\n\n")
+    const blob = new Blob([content], { type: "text/plain" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `${channel}-messages-${new Date().toISOString().split("T")[0]}.txt`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const downloadEmailMessages = (messages: OutreachMessage[]) => {
+    const header = "Subject Line,Message Body\n"
+    const rows = messages
+      .map(m => `"${(m.subject_line || "").replace(/"/g, '""')}","${m.message_text.replace(/"/g, '""')}"`)
+      .join("\n")
+    const blob = new Blob([header + rows], { type: "text/csv" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `email-messages-${new Date().toISOString().split("T")[0]}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const handleDownload = () => {
+    if (activeChannel === "email") {
+      downloadEmailMessages(currentMessages)
+    } else {
+      downloadTextMessages(currentMessages, activeChannel)
+    }
   }
 
   const markOutreachStarted = async () => {
     if (!userId) return
 
-    const sentCount = messages.filter(m => m.status === "sent").length
+    const allSent = [...linkedinMessages, ...instagramMessages, ...emailMessages]
+      .filter(m => m.status === "sent").length
 
     await supabase
       .from("outreach")
@@ -220,15 +287,12 @@ export default function OutreachPage() {
         user_id: userId,
         started: true,
         first_sent_at: new Date().toISOString(),
-        total_sent: sentCount,
+        total_sent: allSent,
       }, { onConflict: "user_id" })
 
     await refreshState()
     router.push("/dashboard")
   }
-
-  const sentCount = messages.filter(m => m.status === "sent").length
-  const totalCount = messages.length
 
   // Loading state
   if (view === "loading") {
@@ -269,17 +333,18 @@ export default function OutreachPage() {
     )
   }
 
-  // Generate view
-  if (view === "generate" && activeOffer) {
-    return (
-      <div className="bg-black min-h-screen p-8">
-        <div className="max-w-2xl mx-auto space-y-6">
-          <div>
-            <h1 className="text-3xl font-bold text-white">Generate Outreach</h1>
-            <p className="text-white/60 mt-1">Create personalized messages for your prospects</p>
-          </div>
+  // Ready state
+  return (
+    <div className="bg-black min-h-screen p-8">
+      <div className="max-w-3xl mx-auto space-y-6">
+        {/* Header */}
+        <div>
+          <h1 className="text-3xl font-bold text-white">Outreach Messages</h1>
+          <p className="text-white/60 mt-1">Generate and manage messages for each channel</p>
+        </div>
 
-          {/* Offer Summary Card */}
+        {/* Offer Summary Card */}
+        {activeOffer && (
           <Card className="bg-white/[0.03] border-white/10">
             <CardContent className="p-5">
               <div className="flex items-start justify-between">
@@ -303,194 +368,199 @@ export default function OutreachPage() {
               </div>
             </CardContent>
           </Card>
+        )}
 
-          {/* Channel Selector */}
-          <div className="space-y-3">
-            <Label className="text-white/70">Channel</Label>
-            <div className="grid grid-cols-3 gap-3">
-              {(["linkedin", "instagram", "email"] as Channel[]).map((ch) => (
-                <button
-                  key={ch}
-                  onClick={() => setChannel(ch)}
-                  className={cn(
-                    "flex items-center justify-center gap-2 py-3 px-4 rounded-lg border transition-all",
-                    channel === ch
-                      ? "bg-[#00AAFF] border-[#00AAFF] text-white"
-                      : "bg-white/[0.03] border-white/10 text-white/50 hover:border-white/20"
-                  )}
-                >
-                  {ch === "linkedin" && <Linkedin className="h-4 w-4" />}
-                  {ch === "instagram" && <Instagram className="h-4 w-4" />}
-                  {ch === "email" && <Mail className="h-4 w-4" />}
-                  <span className="capitalize">{ch}</span>
-                </button>
-              ))}
-            </div>
-            <p className="text-white/40 text-sm">{channelDescriptions[channel]}</p>
-          </div>
-
-          {/* Prospect Context */}
-          <div className="space-y-2">
-            <Label className="text-white/70">Any specific context about your prospects?</Label>
-            <Textarea
-              placeholder="e.g. focus on owner-operated businesses, avoid franchises, mention local presence"
-              value={prospectContext}
-              onChange={(e) => setProspectContext(e.target.value)}
-              className="bg-white/5 border-white/10 text-white placeholder:text-white/30 min-h-[80px]"
-            />
-          </div>
-
-          {/* Generate Button */}
-          <Button
-            onClick={handleGenerate}
-            disabled={generating}
-            className="w-full bg-[#00AAFF] hover:bg-[#0099EE] text-white py-6 text-lg"
-          >
-            {generating ? (
-              <>
-                <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                Claude is writing your messages...
-              </>
-            ) : (
-              <>
-                <Sparkles className="h-5 w-5 mr-2" />
-                Generate 20 messages
-              </>
-            )}
-          </Button>
-        </div>
-      </div>
-    )
-  }
-
-  // Messages view
-  return (
-    <div className="bg-black min-h-screen p-8">
-      <div className="max-w-3xl mx-auto space-y-6">
-        {/* Header with Progress */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-white">Your Messages</h1>
-            <p className="text-white/60 mt-1">{sentCount} of {totalCount} sent</p>
-          </div>
-          <Button
-            variant="ghost"
-            onClick={handleRegenerate}
-            className="text-white/50 hover:text-white hover:bg-white/10"
-          >
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Regenerate messages
-          </Button>
-        </div>
-
-        {/* Progress Bar */}
-        <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-[#00AAFF] transition-all duration-300"
-            style={{ width: `${(sentCount / totalCount) * 100}%` }}
-          />
-        </div>
-
-        {/* Messages */}
-        <div className="space-y-4">
-          {messages.map((message) => (
-            <Card
-              key={message.id}
+        {/* Channel Tabs */}
+        <div className="flex border-b border-white/10">
+          {(["linkedin", "instagram", "email"] as Channel[]).map(channel => (
+            <button
+              key={channel}
+              onClick={() => setActiveChannel(channel)}
               className={cn(
-                "bg-white/[0.03] border-white/10",
-                message.status === "sent" && "border-emerald-500/30 bg-emerald-500/5"
+                "px-6 py-3 text-sm font-medium capitalize border-b-2 transition-colors",
+                activeChannel === channel
+                  ? "border-[#00AAFF] text-white"
+                  : "border-transparent text-white/40 hover:text-white/60"
               )}
             >
-              <CardContent className="p-4 space-y-3">
-                {/* Status Badge */}
-                <div className="flex items-center justify-between">
-                  <span
-                    className={cn(
-                      "text-xs px-2 py-0.5 rounded-full",
-                      message.status === "draft"
-                        ? "bg-white/10 text-white/50"
-                        : "bg-[#00AAFF]/10 text-[#00AAFF]"
-                    )}
-                  >
-                    {message.status === "draft" ? "Draft" : "Sent"}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleCopy(message.message_text, message.subject_line)}
-                      className="h-7 px-2 text-xs text-white/40 hover:text-white hover:bg-white/10"
-                    >
-                      <Copy className="h-3 w-3 mr-1" />
-                      Copy
-                    </Button>
-                    {message.status === "draft" && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleMarkSent(message.id)}
-                        className="h-7 px-2 text-xs text-white/40 hover:text-white hover:bg-white/10"
-                      >
-                        <Check className="h-3 w-3 mr-1" />
-                        Mark as sent
-                      </Button>
-                    )}
-                  </div>
-                </div>
-
-                {/* Subject Line (email only) */}
-                {message.channel === "email" && (
-                  <div className="space-y-1">
-                    <Label className="text-xs text-white/40">Subject Line</Label>
-                    <Input
-                      value={message.subject_line || ""}
-                      onChange={(e) => handleUpdateMessage(message.id, "subject_line", e.target.value)}
-                      className="bg-white/5 border-white/10 text-white text-sm"
-                      disabled={message.status === "sent"}
-                    />
-                  </div>
-                )}
-
-                {/* Message Text */}
-                <Textarea
-                  value={message.message_text}
-                  onChange={(e) => handleUpdateMessage(message.id, "message_text", e.target.value)}
-                  className="bg-white/5 border-white/10 text-white min-h-[100px] resize-none"
-                  disabled={message.status === "sent"}
-                />
-
-                {/* Contact/Business Name */}
-                <div className="grid grid-cols-2 gap-3">
-                  <Input
-                    placeholder="Contact name"
-                    value={message.contact_name || ""}
-                    onChange={(e) => handleUpdateMessage(message.id, "contact_name", e.target.value)}
-                    className="bg-white/5 border-white/10 text-white text-sm placeholder:text-white/30"
-                    disabled={message.status === "sent"}
-                  />
-                  <Input
-                    placeholder="Business name"
-                    value={message.business_name || ""}
-                    onChange={(e) => handleUpdateMessage(message.id, "business_name", e.target.value)}
-                    className="bg-white/5 border-white/10 text-white text-sm placeholder:text-white/30"
-                    disabled={message.status === "sent"}
-                  />
-                </div>
-              </CardContent>
-            </Card>
+              {channel}
+              {getChannelMessages(channel).length > 0 && (
+                <span className="ml-2 text-xs bg-[#00AAFF]/20 text-[#00AAFF] px-2 py-0.5 rounded-full">
+                  {getChannelMessages(channel).length}
+                </span>
+              )}
+            </button>
           ))}
         </div>
 
-        {/* Done Button */}
-        {sentCount >= 5 && (
-          <Button
-            variant="ghost"
-            onClick={markOutreachStarted}
-            className="w-full text-white/50 hover:text-white hover:bg-white/10 py-6"
-          >
-            I&apos;m done sending for now
-            <ChevronRight className="h-4 w-4 ml-1" />
-          </Button>
+        {/* Tab Content */}
+        {currentMessages.length === 0 ? (
+          // Generate view for this channel
+          <div className="space-y-6">
+            <p className="text-white/50 text-sm">{channelDescriptions[activeChannel]}</p>
+
+            {/* Prospect Context */}
+            <div className="space-y-2">
+              <Label className="text-white/70">Any specific context about your prospects? (optional)</Label>
+              <Textarea
+                placeholder="e.g. focus on owner-operated businesses, avoid franchises, mention local presence"
+                value={prospectContext}
+                onChange={(e) => setProspectContext(e.target.value)}
+                className="bg-white/5 border-white/10 text-white placeholder:text-white/30 min-h-[80px]"
+              />
+            </div>
+
+            {/* Generate Button */}
+            <Button
+              onClick={handleGenerate}
+              disabled={generating}
+              className="w-full bg-[#00AAFF] hover:bg-[#0099EE] text-white py-6 text-lg"
+            >
+              {generating ? (
+                <>
+                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                  Claude is writing your messages...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-5 w-5 mr-2" />
+                  Generate 20 messages
+                </>
+              )}
+            </Button>
+          </div>
+        ) : (
+          // Messages view for this channel
+          <div className="space-y-4">
+            {/* Header with Progress and Actions */}
+            <div className="flex items-center justify-between">
+              <p className="text-white/60">{sentCount} of {totalCount} sent</p>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleDownload}
+                  className="text-white/50 hover:text-white hover:bg-white/10"
+                >
+                  <Download className="h-4 w-4 mr-1" />
+                  Download all
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleRegenerate}
+                  className="text-white/50 hover:text-white hover:bg-white/10"
+                >
+                  <RefreshCw className="h-4 w-4 mr-1" />
+                  Regenerate
+                </Button>
+              </div>
+            </div>
+
+            {/* Progress Bar */}
+            <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-[#00AAFF] transition-all duration-300"
+                style={{ width: `${totalCount > 0 ? (sentCount / totalCount) * 100 : 0}%` }}
+              />
+            </div>
+
+            {/* Messages */}
+            <div className="space-y-4">
+              {currentMessages.map((message) => (
+                <Card
+                  key={message.id}
+                  className={cn(
+                    "bg-white/[0.03] border-white/10",
+                    message.status === "sent" && "border-emerald-500/30 bg-emerald-500/5"
+                  )}
+                >
+                  <CardContent className="p-4 space-y-3">
+                    {/* Status Badge */}
+                    <div className="flex items-center justify-between">
+                      <span
+                        className={cn(
+                          "text-xs px-2 py-0.5 rounded-full",
+                          message.status === "draft"
+                            ? "bg-white/10 text-white/50"
+                            : "bg-[#00AAFF]/10 text-[#00AAFF]"
+                        )}
+                      >
+                        {message.status === "draft" ? "Draft" : "Sent"}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleCopy(message.message_text, message.subject_line)}
+                          className="h-7 px-2 text-xs text-white/40 hover:text-white hover:bg-white/10"
+                        >
+                          <Copy className="h-3 w-3 mr-1" />
+                          Copy
+                        </Button>
+                        {message.status === "draft" && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleMarkSent(message.id)}
+                            className="h-7 px-2 text-xs text-white/40 hover:text-white hover:bg-white/10"
+                          >
+                            <Check className="h-3 w-3 mr-1" />
+                            Mark as sent
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Subject Line (email only) */}
+                    {message.channel === "email" && (
+                      <div className="space-y-1">
+                        <Label className="text-xs text-white/40">Subject Line</Label>
+                        <Input
+                          value={message.subject_line || ""}
+                          onChange={(e) => handleUpdateMessage(message.id, "subject_line", e.target.value)}
+                          className="bg-white/5 border-white/10 text-white text-sm"
+                          disabled={message.status === "sent"}
+                        />
+                      </div>
+                    )}
+
+                    {/* Message Text */}
+                    <Textarea
+                      value={message.message_text}
+                      onChange={(e) => handleUpdateMessage(message.id, "message_text", e.target.value)}
+                      className="bg-white/5 border-white/10 text-white min-h-[100px] resize-none"
+                      disabled={message.status === "sent"}
+                    />
+
+                    {/* Optional Note */}
+                    <Input
+                      placeholder="e.g. sent to John at BrightSky Roofing"
+                      value={message.note || ""}
+                      onBlur={(e) => handleNoteUpdate(message.id, e.target.value)}
+                      onChange={(e) => setChannelMessages(
+                        activeChannel,
+                        currentMessages.map(m => m.id === message.id ? { ...m, note: e.target.value } : m)
+                      )}
+                      className="bg-white/5 border-white/10 text-white text-sm placeholder:text-white/30"
+                    />
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            {/* Done Button */}
+            {sentCount >= 5 && (
+              <Button
+                variant="ghost"
+                onClick={markOutreachStarted}
+                className="w-full text-white/50 hover:text-white hover:bg-white/10 py-6"
+              >
+                I&apos;m done sending for now
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            )}
+          </div>
         )}
       </div>
     </div>
