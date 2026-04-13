@@ -191,6 +191,40 @@ export default function DemoChat({ android, userId, autoPresent = false }: DemoC
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [presentationMode])
 
+  // Hide sidebar and header when in presentation mode
+  useEffect(() => {
+    const sidebar = document.querySelector('aside') || 
+                    document.querySelector('[data-sidebar]') ||
+                    document.querySelector('nav')
+    
+    const header = document.querySelector('header')
+
+    if (presentationMode) {
+      if (sidebar) (sidebar as HTMLElement).style.display = 'none'
+      if (header) (header as HTMLElement).style.display = 'none'
+    } else {
+      if (sidebar) (sidebar as HTMLElement).style.display = ''
+      if (header) (header as HTMLElement).style.display = ''
+    }
+
+    return () => {
+      if (sidebar) (sidebar as HTMLElement).style.display = ''
+      if (header) (header as HTMLElement).style.display = ''
+    }
+  }, [presentationMode])
+
+  // Prevent body scrolling when in presentation mode
+  useEffect(() => {
+    if (presentationMode) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [presentationMode])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!input.trim() || isLoading) return
@@ -212,13 +246,38 @@ export default function DemoChat({ android, userId, autoPresent = false }: DemoC
   if (presentationMode) {
     return (
       <div 
-        className="fixed inset-0 flex items-center justify-center"
-        style={{ background: '#080B0F', zIndex: 9999 }}
+        style={{ 
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 99999,
+          background: '#080B0F',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
       >
         {/* Exit button — top right corner, subtle */}
         <button
           onClick={() => setPresentationMode(false)}
-          className="absolute top-4 right-4 flex items-center gap-2 px-3 py-1.5 text-xs text-white/30 hover:text-white/60 border border-white/10 hover:border-white/20 rounded-lg transition-colors z-10"
+          style={{
+            position: 'absolute',
+            top: '16px',
+            right: '16px',
+            zIndex: 100000,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '6px 12px',
+            fontSize: '12px',
+            color: 'rgba(255,255,255,0.4)',
+            background: 'transparent',
+            border: '0.5px solid rgba(255,255,255,0.15)',
+            borderRadius: '6px',
+            cursor: 'pointer',
+          }}
         >
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
             <path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
@@ -227,7 +286,7 @@ export default function DemoChat({ android, userId, autoPresent = false }: DemoC
         </button>
 
         {/* Phone mockup centred */}
-        <div className="flex items-center justify-center w-full h-full p-8">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%', padding: '32px' }}>
           <div
             className="relative overflow-hidden"
             style={{
