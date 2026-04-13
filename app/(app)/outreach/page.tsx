@@ -94,13 +94,40 @@ export default function OutreachPage() {
     }
     setUserId(user.id)
 
-    // Fetch active offer
-    const { data: offer } = await supabase
-      .from("offers")
-      .select("*")
-      .eq("user_id", user.id)
-      .eq("is_active", true)
+    // First try to get offer via profiles.offer_id
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("offer_id")
+      .eq("id", user.id)
       .maybeSingle()
+
+    let offer = null
+
+    if (profile?.offer_id) {
+      const { data: offerById } = await supabase
+        .from("offers")
+        .select("*")
+        .eq("id", profile.offer_id)
+        .maybeSingle()
+      
+      if (offerById) {
+        offer = offerById
+      }
+    }
+
+    // Fallback: get most recent active offer directly
+    if (!offer) {
+      const { data: activeOffer } = await supabase
+        .from("offers")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("is_active", true)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      
+      offer = activeOffer
+    }
 
     if (!offer) {
       setView("no_offer")

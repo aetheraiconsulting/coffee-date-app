@@ -80,16 +80,18 @@ export default function OfferBuilderPage() {
   const [editingServiceName, setEditingServiceName] = useState(false)
   const [editingOutcome, setEditingOutcome] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [currentOfferId, setCurrentOfferId] = useState<string | null>(null)
 
   // Extract URL params
   const nicheParam = searchParams.get("niche")
   const problemParam = searchParams.get("problem")
   const outcomeParam = searchParams.get("outcome")
   const modeParam = searchParams.get("mode")
+  const editParam = searchParams.get("edit")
   
   // URL params always take priority over mode=new
   const hasParams = !!nicheParam || !!problemParam || !!outcomeParam
-  const isNewMode = modeParam === "new" && !hasParams
+  const isNewMode = modeParam === "new" && !hasParams && !editParam
 
   // Pre-fill from URL params and auto-generate if all present
   useEffect(() => {
@@ -120,38 +122,50 @@ export default function OfferBuilderPage() {
     }
   }, [])
 
-  // Load existing active offer when opened without URL params (edit mode)
+  // Load existing offer when editing or when opened without URL params
   useEffect(() => {
-    // Only load existing offer if not in new mode and no params present
-    if (!isNewMode && !hasParams) {
-      const loadExistingOffer = async () => {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) return
-        
-        const { data } = await supabase
-          .from("offers")
-          .select("*")
+    // Skip if generating from URL params
+    if (hasParams) return
+    // Skip if new mode without edit param
+    if (isNewMode && !editParam) return
+
+    const loadOffer = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      let query = supabase.from("offers").select("*")
+      
+      if (editParam) {
+        // Load specific offer by ID
+        query = query.eq("id", editParam)
+      } else {
+        // Load active offer
+        query = query
           .eq("user_id", user.id)
           .eq("is_active", true)
-          .maybeSingle()
-        
-        if (data) {
-          setServiceName(data.service_name || "")
-          setOutcomeStatement(data.outcome_statement || "")
-          setPricingModel(data.pricing_model || "50_profit_share")
-          // Parse price value from formatted price_point
-          const priceMatch = data.price_point?.match(/\d+/)
-          if (priceMatch) setPriceValue(priceMatch[0])
-          setGuarantee(data.guarantee || "")
-          setNiche(data.niche || "")
-          setConfidenceScore(data.confidence_score || "strong")
-          setConfidenceReason(data.confidence_reason || "")
-          setStep("preview")
-        }
+          .order("created_at", { ascending: false })
+          .limit(1)
       }
-      loadExistingOffer()
+
+      const { data: offer } = await query.maybeSingle()
+
+      if (offer) {
+        setServiceName(offer.service_name || "")
+        setOutcomeStatement(offer.outcome_statement || "")
+        setPricingModel(offer.pricing_model || "50_profit_share")
+        // Parse price value from formatted price_point
+        const priceMatch = offer.price_point?.match(/\d+/)
+        if (priceMatch) setPriceValue(priceMatch[0])
+        setGuarantee(offer.guarantee || "")
+        setNiche(offer.niche || "")
+        setConfidenceScore(offer.confidence_score || "strong")
+        setConfidenceReason(offer.confidence_reason || "")
+        setCurrentOfferId(offer.id) // Store the ID for saving
+        setStep("preview")
+      }
     }
-  }, [])
+    loadOffer()
+  }, [editParam])
 
   // Trigger auto-generation
   useEffect(() => {
@@ -273,8 +287,25 @@ export default function OfferBuilderPage() {
           .from("profiles")
           .update({ offer_id: newOffer.id })
           .eq("id", user.id)
+      } else if (currentOfferId) {
+        // EDIT MODE with specific offer ID: Update that offer
+        const { error: updateError } = await supabase
+          .from("offers")
+          .update({
+            service_name: serviceName,
+            outcome_statement: outcomeStatement,
+            price_point: pricePointFormatted,
+            guarantee,
+            confidence_score: confidenceScore,
+            confidence_reason: confidenceReason,
+            pricing_model: pricingModel,
+            niche,
+          })
+          .eq("id", currentOfferId)
+
+        if (updateError) throw updateError
       } else {
-        // EDIT MODE: Update existing active offer or insert if none exists
+        // EDIT MODE without specific ID: Update existing active offer or insert new
         const { data: existingOffer } = await supabase
           .from("offers")
           .select("id")
