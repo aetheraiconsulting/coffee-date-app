@@ -18,6 +18,8 @@ import {
   PlayCircle,
   Eye,
   FileDown,
+  Link2,
+  UserCheck,
 } from "lucide-react"
 import { useState, useEffect } from "react"
 import { useToast } from "@/hooks/use-toast"
@@ -46,6 +48,9 @@ interface Audit {
   niche_id?: string
   completion_percentage?: number
   completed_at?: string
+  share_token?: string
+  prospect_submitted_at?: string
+  prospect_name?: string
 }
 
 interface Niche {
@@ -433,7 +438,7 @@ Date: _________________________________________________________
                       <CardTitle className="text-lg text-white line-clamp-1 group-hover:text-[#3a8bff] transition-colors">
                         {audit.name}
                       </CardTitle>
-                      <div className="flex items-center gap-2 mt-2">
+                      <div className="flex items-center gap-2 mt-2 flex-wrap">
                         <Badge
                           variant="outline"
                           className={
@@ -444,6 +449,18 @@ Date: _________________________________________________________
                         >
                           {isCompleted ? "Completed" : "In Progress"}
                         </Badge>
+                        {audit.share_token && (
+                          <Badge variant="outline" className="border-[#00AAFF]/50 bg-[#00AAFF]/10 text-[#00AAFF]">
+                            <Link2 className="h-3 w-3 mr-1" />
+                            Shared
+                          </Badge>
+                        )}
+                        {audit.prospect_submitted_at && (
+                          <Badge variant="outline" className="border-purple-500/50 bg-purple-500/10 text-purple-400">
+                            <UserCheck className="h-3 w-3 mr-1" />
+                            Client Submitted
+                          </Badge>
+                        )}
                         {audit.industry && (
                           <Badge variant="outline" className="border-white/20 text-white/60">
                             {audit.industry}
