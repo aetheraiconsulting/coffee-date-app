@@ -7,31 +7,49 @@ const channelInstructions: Record<Channel, {
   format: string
   length: string
   tone: string
-  cta: string
   extra: string
 }> = {
   linkedin: {
     format: "LinkedIn DM",
     length: "100-150 words maximum",
     tone: "Professional but human. Peer to peer. No corporate speak.",
-    cta: "invite them to a quick 10-minute screen share demo — not a sales call",
-    extra: "No subject line needed. Start with an observation about their business type."
+    extra: "No subject line needed. Start with tactical empathy about their business type."
   },
   instagram: {
     format: "Instagram DM",
     length: "60-80 words maximum — short and punchy",
     tone: "Casual, direct, conversational. Like a real person messaging.",
-    cta: "invite them to see a quick demo — keep it low pressure",
     extra: "No formal language. No subject line. Get to the point fast."
   },
   email: {
     format: "Cold email with subject line",
     length: "150-200 words for body. Subject line: 6-8 words maximum.",
     tone: "Professional but not corporate. Clear and direct.",
-    cta: "invite them to a 10-minute screen share to see the system working on their type of business",
-    extra: "Include a subject line as a separate field. Opening line must reference their specific business type."
+    extra: "Include a subject line as a separate field. Subject line must use a no-oriented or curiosity-gap approach — never a salesy subject line."
   }
 }
+
+const systemPrompt = `You are the AI engine inside Aether Revive. You write cold outreach messages using two frameworks combined:
+
+FRAMEWORK 1 — 3C Storytelling (Adam Stacey):
+- Clarity: The message immediately communicates the prospect's problem and the outcome available to them. No ambiguity.
+- Connection: The message speaks directly to their world. References something specific about their niche that makes them feel understood, not targeted.
+- Conviction: The message ends with confidence, not desperation. The sender is a guide, not a salesperson. The prospect is always the hero.
+- Rule: Never make the message about the sender's service. Make it about the prospect's problem and the result they could get.
+
+FRAMEWORK 2 — Chris Voss Tactical Empathy:
+- Open with tactical empathy: demonstrate you understand their world before asking for anything
+- Use accusation audit: pre-empt their objection e.g. "You're probably getting pitched AI services every week right now..."
+- Use labelling: name what they are likely feeling e.g. "It sounds like follow-up is the part that always slips..."
+- Use no-oriented questions: instead of "would you be open to a chat?" use "would it be crazy to spend 10 minutes seeing this?" A no-oriented question is psychologically easier to say yes to.
+- Use late night FM DJ tone: calm, unhurried, confident. Never excitable or salesy.
+- Never use high-pressure language. Never mention urgency or scarcity.
+
+COMBINED RULE: Every message must feel like it was written by a trusted peer who genuinely understands the prospect's business — not by a salesperson who wants their money.
+
+The goal of every message is ONE THING ONLY: get the prospect to agree to a 10-minute screen share demo. Do NOT pitch the service. Do NOT mention price. Do NOT list features.
+
+Return valid JSON only. No markdown. No explanation.`
 
 export async function POST(request: Request) {
   try {
@@ -62,6 +80,48 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Missing API key" }, { status: 500 })
     }
 
+    const userMessage = `Write exactly 20 cold outreach messages using the 3C Storytelling Framework and Chris Voss tactical empathy techniques.
+
+Service context (for your reference only — do NOT pitch this directly):
+Service: ${offer.service_name}
+Target niche: ${offer.niche}
+Outcome we deliver: ${offer.outcome_statement}
+Guarantee: ${offer.guarantee}
+${prospect_context ? `\nProspect context: ${prospect_context}` : ""}
+
+Channel: ${selected.format}
+Length: ${selected.length}
+Tone: ${selected.tone}
+
+STRUCTURE FOR EACH MESSAGE:
+1. Open with tactical empathy — show you understand their specific world as a ${offer.niche} business
+2. Label their likely problem — name what they are probably experiencing
+3. Accusation audit — pre-empt their resistance to being contacted
+4. Reference you have built something specific for their type of business (do not describe it)
+5. No-oriented CTA — soft ask for a 10-minute demo using a no-oriented question
+
+CRITICAL RULES:
+- The prospect is the hero. The sender is the guide.
+- Never mention price, features, or the service name directly
+- Every message must feel like it came from someone who genuinely understands their business
+- No two messages should have the same opening
+- No exclamation marks
+- No "I hope this message finds you well" or any filler opener
+- No "transform", "unlock", "game-changer", "revolutionary" or hype words
+- ${selected.extra}
+
+${selectedChannel === "email" ? 'Return JSON with subject_line and message_text for each message. Subject line must also use a no-oriented or curiosity-gap approach — never a salesy subject line.' : 'Return JSON with message_text only for each message.'}
+
+Return this exact JSON:
+{
+  "messages": [
+    {
+      ${selectedChannel === "email" ? '"subject_line": "subject line here",' : ''}
+      "message_text": "full message here"
+    }
+  ]
+}`
+
     // Call Claude to generate messages
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -72,40 +132,11 @@ export async function POST(request: Request) {
       },
       body: JSON.stringify({
         model: "claude-sonnet-4-20250514",
-        max_tokens: 3000,
-        system: `You are the AI engine inside Aether Revive. Write 20 cold outreach messages that get replies and book demo calls. The goal of every message is ONE THING ONLY: get the prospect to agree to a 10-minute screen share demo. Do NOT pitch the service. Do NOT mention price. Do NOT describe features. Just get them curious enough to say yes to seeing a demo. Format: ${selected.format}. Length: ${selected.length}. Tone: ${selected.tone}. CTA: ${selected.cta}. ${selected.extra} Return valid JSON only. No markdown. No explanation.`,
+        max_tokens: 4000,
+        system: systemPrompt,
         messages: [{
           role: "user",
-          content: `Write exactly 20 outreach messages for this service:
-
-Service: ${offer.service_name}
-Target niche: ${offer.niche}
-Outcome we deliver: ${offer.outcome_statement}
-Pricing model: ${offer.pricing_model}
-Guarantee: ${offer.guarantee}
-${prospect_context ? `\nProspect context: ${prospect_context}` : ""}
-
-CRITICAL: Every message must invite the prospect to a 10-minute screen share demo — NOT pitch the service or mention price.
-
-Each message must:
-- Open with a specific observation about ${offer.niche} businesses
-- Reference a pain point they likely have
-- Mention you have built something specific for their type of business
-- End with a soft ask to see a 10-minute demo
-- Sound like a real person, not a salesperson
-- Be varied — no two messages with the same opening
-
-${selectedChannel === "email" ? 'Return JSON with subject_line and message_text for each message.' : 'Return JSON with message_text only for each message.'}
-
-Return this exact JSON:
-{
-  "messages": [
-    {
-      ${selectedChannel === "email" ? '"subject_line": "email subject here",' : ''}
-      "message_text": "full message here"
-    }
-  ]
-}`
+          content: userMessage
         }]
       })
     })
