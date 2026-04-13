@@ -50,6 +50,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useRouter } from "next/navigation"
+import { useUserState } from "@/context/StateContext"
 
 function EditableCounter({
   value,
@@ -397,6 +398,15 @@ export default function OpportunitiesPage() {
   const { toast } = useToast()
   const supabase = createClient()
   const router = useRouter()
+  const { missionState } = useUserState()
+  
+  // Check if user has an active offer
+  const hasOffer = missionState !== "no_offer" && missionState !== "no_niche"
+  const [activeOffer, setActiveOffer] = useState<{
+    service_name: string
+    price_point: string
+    pricing_model: string
+  } | null>(null)
 
   const [updatingChannel, setUpdatingChannel] = useState<string | null>(null)
 
@@ -488,6 +498,30 @@ export default function OpportunitiesPage() {
   useEffect(() => {
     loadData()
   }, [loadData])
+
+  // Fetch active offer when hasOffer changes
+  useEffect(() => {
+    async function fetchActiveOffer() {
+      if (!hasOffer) {
+        setActiveOffer(null)
+        return
+      }
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      
+      const { data } = await supabase
+        .from("offers")
+        .select("service_name, price_point, pricing_model")
+        .eq("user_id", user.id)
+        .eq("is_active", true)
+        .single()
+      
+      if (data) {
+        setActiveOffer(data)
+      }
+    }
+    fetchActiveOffer()
+  }, [hasOffer, supabase])
 
   useEffect(() => {
     if (selectedNiche) {
@@ -972,20 +1006,11 @@ export default function OpportunitiesPage() {
                 </div>
                 <div className="flex gap-3">
                   <Button
-                    variant="outline"
                     onClick={() => setSelectedNiche(topOpportunity)}
-                    className="border-white/20 text-white hover:bg-white/10"
-                  >
-                    View Details
-                  </Button>
-                  <Button
-                    asChild
                     className="bg-[#00AAFF] hover:bg-[#0099EE] text-white shadow-lg shadow-[#00AAFF]/30"
                   >
-                    <Link href="/revival">
-                      Start Outreach
-                      <ChevronRight className="h-4 w-4 ml-1" />
-                    </Link>
+                    Select Niche
+                    <ChevronRight className="h-4 w-4 ml-1" />
                   </Button>
                 </div>
               </div>
@@ -1170,19 +1195,7 @@ export default function OpportunitiesPage() {
                             <span className="text-xs text-[#808080]">Score: {score.pipelineScore}</span>
                           </div>
                         </div>
-                        <div className="flex flex-col items-end gap-2 shrink-0">
-                          <div className="flex items-center gap-2">
-                            <Button
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                // Navigate to outreach with this niche pre-selected
-                                window.location.href = "/revival"
-                              }}
-                              className="h-7 px-3 text-xs bg-[#00AAFF] hover:bg-[#0099EE] text-white"
-                            >
-                              Start Outreach
-                            </Button>
+                        <div className="flex items-center gap-2 shrink-0">
                             <button
                             onClick={(e) => {
                               e.stopPropagation()
@@ -1199,15 +1212,17 @@ export default function OpportunitiesPage() {
                               )}
                             />
                             </button>
-                          </div>
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={(e) => {
                               e.stopPropagation()
+                              const painPoint = `${niche.industry_name || "These"} businesses have dormant customer lists they struggle to reactivate`
+                              const outcome = `Reactivating 5-10% of dormant leads generates significant recurring revenue`
                               const params = new URLSearchParams({
                                 niche: niche.niche_name,
-                                problem: niche.description || "",
+                                problem: painPoint,
+                                outcome: outcome,
                               })
                               window.location.href = `/offer/builder?${params.toString()}`
                             }}
@@ -1445,37 +1460,63 @@ export default function OpportunitiesPage() {
                     </p>
                   </div>
 
-{/* Next Step Section */}
+{/* Your Next Move Section */}
                   <div className="bg-[#00AAFF]/10 border border-[#00AAFF]/30 rounded-xl p-5 space-y-4">
                     <div className="flex items-center gap-2">
                       <ChevronRight className="h-5 w-5 text-[#00AAFF]" />
-                      <h3 className="text-sm font-semibold text-white">Next Step</h3>
+                      <h3 className="text-sm font-semibold text-white">Your next move</h3>
                     </div>
-                    <p className="text-sm text-white/70">
-                      Send your first 20 outreach messages to begin generating replies
-                    </p>
-                    <div className="space-y-2">
-                      <Button
-                        asChild
-                        className="w-full bg-[#00AAFF] hover:bg-[#0099EE] text-white shadow-lg shadow-[#00AAFF]/30"
-                      >
-                        <Link href="/revival">
-                          Start Outreach
-                          <ChevronRight className="h-4 w-4 ml-1" />
-                        </Link>
-                      </Button>
-                      <p className="text-xs text-white/40 text-center">This creates your first pipeline entry</p>
-                    </div>
-                    <Button
-                      variant="outline"
-                      className="w-full border-white/20 text-white hover:bg-white/10"
-                      onClick={() => {
-                        // Scroll to details or expand research section
-                        setResearchOpen(true)
-                      }}
-                    >
-                      View Details
-                    </Button>
+                    
+                    {!hasOffer ? (
+                      <>
+                        <p className="text-sm text-white/70">
+                          Build your offer for this niche before reaching out
+                        </p>
+                        <Button
+                          asChild
+                          className="w-full bg-[#00AAFF] hover:bg-[#0099EE] text-white shadow-lg shadow-[#00AAFF]/30"
+                        >
+                          <Link href={`/offer/builder?niche=${encodeURIComponent(selectedNiche.niche_name)}&problem=${encodeURIComponent(`${selectedNiche.industry_name || "These"} businesses have dormant customer lists they struggle to reactivate`)}&outcome=${encodeURIComponent("Reactivating 5-10% of dormant leads generates significant recurring revenue")}`}>
+                            Build your offer
+                            <ChevronRight className="h-4 w-4 ml-1" />
+                          </Link>
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        {activeOffer && (
+                          <div className="bg-white/[0.03] border border-white/10 rounded-lg p-3 space-y-2">
+                            <p className="text-sm font-medium text-white">{activeOffer.service_name}</p>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm text-white/70">{activeOffer.price_point}</span>
+                              {activeOffer.pricing_model && (
+                                <span className="text-xs px-2 py-0.5 rounded-full bg-[#00AAFF]/10 text-[#00AAFF] border border-[#00AAFF]/30 capitalize">
+                                  {activeOffer.pricing_model}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                        <Button
+                          asChild
+                          className="w-full bg-[#00AAFF] hover:bg-[#0099EE] text-white shadow-lg shadow-[#00AAFF]/30"
+                        >
+                          <Link href="/outreach">
+                            Generate outreach messages
+                            <ChevronRight className="h-4 w-4 ml-1" />
+                          </Link>
+                        </Button>
+                        <Button
+                          asChild
+                          variant="outline"
+                          className="w-full border-white/20 text-white hover:bg-white/10"
+                        >
+                          <Link href="/offer/builder">
+                            Edit offer
+                          </Link>
+                        </Button>
+                      </>
+                    )}
                   </div>
 
                   {/* AI Insights Panel */}
