@@ -22,8 +22,19 @@ export async function middleware(request: NextRequest) {
     return NextResponse.rewrite(url)
   }
 
+  // If subdomain request hitting /quiz — rewrite to public quiz page
+  if (subdomain && (url.pathname === "/quiz" || url.pathname === "/quiz/")) {
+    url.pathname = `/quiz/s/${subdomain}`
+    return NextResponse.rewrite(url)
+  }
+
   // Allow all /audit/* and /api/audit/* paths through without auth (for public audit forms)
   if (url.pathname.startsWith("/audit/") || url.pathname === "/audit" || url.pathname.startsWith("/api/audit/")) {
+    return NextResponse.next()
+  }
+
+  // Allow all /quiz/u/* and /quiz/s/* and /api/quiz/* paths through without auth (for public quiz)
+  if (url.pathname.startsWith("/quiz/u/") || url.pathname.startsWith("/quiz/s/") || url.pathname.startsWith("/api/quiz/")) {
     return NextResponse.next()
   }
 
