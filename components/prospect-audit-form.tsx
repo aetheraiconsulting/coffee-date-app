@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
-import { ChevronRight, ChevronLeft, CheckCircle2, Loader2 } from "lucide-react"
+import { ChevronRight, ChevronLeft, CheckCircle2, Loader2, Mic, MicOff } from "lucide-react"
 
 interface Branding {
   logo_url?: string
@@ -34,10 +34,89 @@ export default function ProspectAuditForm({ code, subdomain }: ProspectAuditForm
   const [saving, setSaving] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [starting, setStarting] = useState(false)
+  const [activeVoiceField, setActiveVoiceField] = useState<string | null>(null)
+  const [voiceSupported, setVoiceSupported] = useState(false)
   
   const autoSaveTimeout = useRef<NodeJS.Timeout>()
+  const recognitionRef = useRef<SpeechRecognition | null>(null)
   const categorizedQuestions = getQuestionsByCategory()
   const accentColour = branding?.brand_colour || "#00AAFF"
+
+  // Check for voice recognition support
+  useEffect(() => {
+    const SpeechRecognition = window.SpeechRecognition || (window as unknown as { webkitSpeechRecognition?: typeof window.SpeechRecognition }).webkitSpeechRecognition
+    if (SpeechRecognition) {
+      setVoiceSupported(true)
+    }
+  }, [])
+
+  // Start/stop voice recognition
+  function toggleVoice(questionId: string) {
+    const SpeechRecognition = window.SpeechRecognition || (window as unknown as { webkitSpeechRecognition?: typeof window.SpeechRecognition }).webkitSpeechRecognition
+    
+    if (!SpeechRecognition) return
+
+    // If already recording this field, stop it
+    if (activeVoiceField === questionId && recognitionRef.current) {
+      recognitionRef.current.stop()
+      setActiveVoiceField(null)
+      return
+    }
+
+    // Stop any existing recognition
+    if (recognitionRef.current) {
+      recognitionRef.current.stop()
+    }
+
+    const recognition = new SpeechRecognition()
+    recognition.continuous = true
+    recognition.interimResults = true
+    recognition.lang = "en-US"
+
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
+      let finalTranscript = ""
+      let interimTranscript = ""
+
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript
+        if (event.results[i].isFinal) {
+          finalTranscript += transcript
+        } else {
+          interimTranscript += transcript
+        }
+      }
+
+      if (finalTranscript) {
+        setResponses(prev => ({
+          ...prev,
+          [questionId]: (prev[questionId] || "") + finalTranscript + " "
+        }))
+      }
+    }
+
+    recognition.onerror = () => {
+      setActiveVoiceField(null)
+      recognitionRef.current = null
+    }
+
+    recognition.onend = () => {
+      setActiveVoiceField(null)
+      recognitionRef.current = null
+    }
+
+    recognitionRef.current = recognition
+    recognition.start()
+    setActiveVoiceField(questionId)
+  }
+
+  // Cleanup recognition on unmount
+  useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop()
+      }
+    }
+  }, [])
 
   // Hide any app chrome on mount (sidebar, header, navigation)
   useEffect(() => {
@@ -321,22 +400,42 @@ export default function ProspectAuditForm({ code, subdomain }: ProspectAuditForm
                       </span>
                     )}
                   </div>
-                  {q.type === "textarea" ? (
-                    <Textarea
-                      value={responses[q.id] || ""}
-                      onChange={(e) => setResponses({ ...responses, [q.id]: e.target.value })}
-                      rows={3}
-                      className="bg-white/5 border-white/10 text-white placeholder:text-white/30"
-                      placeholder="Your answer..."
-                    />
-                  ) : (
-                    <Input
-                      value={responses[q.id] || ""}
-                      onChange={(e) => setResponses({ ...responses, [q.id]: e.target.value })}
-                      className="bg-white/5 border-white/10 text-white placeholder:text-white/30"
-                      placeholder="Your answer..."
-                    />
-                  )}
+                  <div className="relative">
+                    {q.type === "textarea" ? (
+                      <Textarea
+                        value={responses[q.id] || ""}
+                        onChange={(e) => setResponses({ ...responses, [q.id]: e.target.value })}
+                        rows={3}
+                        className="bg-white/5 border-white/10 text-white placeholder:text-white/30 pr-12"
+                        placeholder={activeVoiceField === q.id ? "Listening..." : "Your answer..."}
+                      />
+                    ) : (
+                      <Input
+                        value={responses[q.id] || ""}
+                        onChange={(e) => setResponses({ ...responses, [q.id]: e.target.value })}
+                        className="bg-white/5 border-white/10 text-white placeholder:text-white/30 pr-12"
+                        placeholder={activeVoiceField === q.id ? "Listening..." : "Your answer..."}
+                      />
+                    )}
+                    {voiceSupported && (
+                      <button
+                        type="button"
+                        onClick={() => toggleVoice(q.id)}
+                        className={`absolute right-2 top-2 p-2 rounded-lg transition-colors ${
+                          activeVoiceField === q.id
+                            ? "bg-red-500/20 text-red-400 animate-pulse"
+                            : "bg-white/5 text-white/40 hover:text-white hover:bg-white/10"
+                        }`}
+                        title={activeVoiceField === q.id ? "Stop recording" : "Voice input"}
+                      >
+                        {activeVoiceField === q.id ? (
+                          <MicOff className="h-4 w-4" />
+                        ) : (
+                          <Mic className="h-4 w-4" />
+                        )}
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
