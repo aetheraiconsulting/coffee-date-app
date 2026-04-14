@@ -6,7 +6,7 @@ export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname
 
   // Allow public audit pages regardless of subdomain or auth
-  if (pathname.startsWith("/audit/")) {
+  if (pathname.startsWith("/audit/") || pathname === "/audit") {
     return NextResponse.next()
   }
 
