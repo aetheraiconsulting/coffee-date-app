@@ -22,8 +22,8 @@ export async function middleware(request: NextRequest) {
     return NextResponse.rewrite(url)
   }
 
-  // Allow all /audit/* paths through without auth
-  if (url.pathname.startsWith("/audit/") || url.pathname === "/audit") {
+  // Allow all /audit/* and /api/audit/* paths through without auth (for public audit forms)
+  if (url.pathname.startsWith("/audit/") || url.pathname === "/audit" || url.pathname.startsWith("/api/audit/")) {
     return NextResponse.next()
   }
 
