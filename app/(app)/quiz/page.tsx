@@ -26,11 +26,13 @@ import {
   ExternalLink,
   Eye,
   Globe,
+  Copy,
 } from "lucide-react"
 import { useState, useEffect } from "react"
 import { useToast } from "@/hooks/use-toast"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -121,6 +123,7 @@ export default function QuizHomePage() {
   const [analyticsOpen, setAnalyticsOpen] = useState(false)
   const [selectedQuizForAnalytics, setSelectedQuizForAnalytics] = useState<SavedQuiz | null>(null)
   const [userSubdomain, setUserSubdomain] = useState<string | null>(null)
+  const [quizShareCode, setQuizShareCode] = useState<string | null>(null)
 
   // Create Quiz Wizard State
   const [wizardOpen, setWizardOpen] = useState(false)
@@ -225,10 +228,11 @@ export default function QuizHomePage() {
       } = await supabase.auth.getUser()
       if (!user) return
 
-      const { data, error } = await supabase.from("profiles").select("subdomain").eq("id", user.id).single()
+      const { data, error } = await supabase.from("profiles").select("subdomain, quiz_share_code").eq("id", user.id).single()
 
       if (error) throw error
       setUserSubdomain(data?.subdomain || null)
+      setQuizShareCode(data?.quiz_share_code || null)
     } catch (error) {
       console.error("Error loading subdomain:", error)
     }
@@ -452,6 +456,52 @@ ${quizLink}
           </Button>
         </div>
       </div>
+
+      {/* Permanent Quiz Link */}
+      {quizShareCode && (
+        <div className="border border-[#00AAFF]/20 bg-[#00AAFF]/5 rounded-xl p-5">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <p className="text-[#00AAFF] text-xs font-semibold uppercase tracking-wider mb-1">
+                Your permanent quiz link
+              </p>
+              <p className="text-white/50 text-sm">
+                Share this link with any prospect. Completed quizzes appear here automatically.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 bg-white/[0.03] border border-white/10 rounded-lg p-3">
+            <code className="text-sm text-white/70 flex-1 truncate">
+              {userSubdomain
+                ? `https://${userSubdomain}.aetherrevive.com/quiz`
+                : `https://aetherrevive.com/quiz/u/${quizShareCode}`
+              }
+            </code>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                const link = userSubdomain
+                  ? `https://${userSubdomain}.aetherrevive.com/quiz`
+                  : `https://aetherrevive.com/quiz/u/${quizShareCode}`
+                navigator.clipboard.writeText(link)
+                toast({ title: "Link copied", description: "Send this to your prospects" })
+              }}
+              className="text-[#00AAFF] hover:text-white hover:bg-white/5 shrink-0"
+            >
+              <Copy className="h-4 w-4 mr-1" />
+              Copy
+            </Button>
+          </div>
+          {!userSubdomain && (
+            <p className="text-white/30 text-xs mt-2">
+              Set up a custom subdomain in{" "}
+              <Link href="/settings" className="text-[#00AAFF] hover:underline">Settings</Link>{" "}
+              for a branded link
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Quiz Grid */}
       {isLoading ? (
