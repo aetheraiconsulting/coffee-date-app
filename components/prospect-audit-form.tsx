@@ -610,7 +610,7 @@ export default function ProspectAuditForm({ code, subdomain }: ProspectAuditForm
             </div>
           )}
 
-          {branding?.calendar_link && (
+          {branding?.calendar_link ? (
             <a
               href={branding.calendar_link}
               target="_blank"
@@ -628,6 +628,18 @@ export default function ProspectAuditForm({ code, subdomain }: ProspectAuditForm
             >
               Book your results review
             </a>
+          ) : (
+            <p style={{ 
+              color: "rgba(255,255,255,0.6)", 
+              fontSize: "14px", 
+              margin: 0,
+              padding: "14px 24px",
+              background: "rgba(255,255,255,0.03)",
+              borderRadius: "8px",
+              border: "0.5px solid rgba(255,255,255,0.1)"
+            }}>
+              Our team will be in touch shortly to discuss your results.
+            </p>
           )}
         </div>
       </main>
