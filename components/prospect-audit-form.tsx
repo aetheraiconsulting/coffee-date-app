@@ -114,15 +114,10 @@ export default function ProspectAuditForm({ code, subdomain }: ProspectAuditForm
   }
 
   async function handleStart() {
-    console.log("[v0] handleStart called, prospectName:", prospectName, "prospectEmail:", prospectEmail, "userId:", userId)
-    if (!prospectName.trim() || !prospectEmail.trim()) {
-      console.log("[v0] Name or email empty, returning early")
-      return
-    }
+    if (!prospectName.trim() || !prospectEmail.trim()) return
     
     setStarting(true)
     try {
-      console.log("[v0] Calling /api/audit/create-from-prospect with userId:", userId)
       const response = await fetch("/api/audit/create-from-prospect", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -133,20 +128,16 @@ export default function ProspectAuditForm({ code, subdomain }: ProspectAuditForm
         })
       })
       
-      console.log("[v0] API response status:", response.status)
       if (!response.ok) {
         const errorData = await response.json()
-        console.log("[v0] API error response:", errorData)
         throw new Error(errorData.error || "Failed to create audit")
       }
       
       const data = await response.json()
-      console.log("[v0] API success, audit_id:", data.audit_id)
       setAuditId(data.audit_id)
       setStep("questions")
-      console.log("[v0] Step set to questions")
     } catch (error) {
-      console.error("[v0] Error starting audit:", error)
+      console.error("Error starting audit:", error)
     } finally {
       setStarting(false)
     }
