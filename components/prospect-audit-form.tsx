@@ -128,7 +128,10 @@ export default function ProspectAuditForm({ code, subdomain }: ProspectAuditForm
         })
       })
       
-      if (!response.ok) throw new Error("Failed to create audit")
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Failed to create audit")
+      }
       
       const data = await response.json()
       setAuditId(data.audit_id)
