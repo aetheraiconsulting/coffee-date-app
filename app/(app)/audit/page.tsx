@@ -20,6 +20,7 @@ import {
   FileDown,
   Link2,
   UserCheck,
+  Copy,
 } from "lucide-react"
 import { useState, useEffect } from "react"
 import { useToast } from "@/hooks/use-toast"
@@ -58,9 +59,15 @@ interface Niche {
   niche_name: string
 }
 
+interface UserProfile {
+  audit_share_code: string | null
+  subdomain: string | null
+}
+
 export default function AuditHomePage() {
   const [audits, setAudits] = useState<Audit[]>([])
   const [niches, setNiches] = useState<Niche[]>([])
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
@@ -75,13 +82,21 @@ export default function AuditHomePage() {
 
   async function loadData() {
     try {
-      const [auditsRes, nichesRes] = await Promise.all([
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      const [auditsRes, nichesRes, profileRes] = await Promise.all([
         supabase.from("audits").select("*").order("created_at", { ascending: false }),
         supabase.from("niches").select("id, niche_name").order("niche_name"),
+        user ? supabase.from("profiles").select("audit_share_code, subdomain").eq("id", user.id).maybeSingle() : Promise.resolve({ data: null }),
       ])
 
       if (auditsRes.error) throw auditsRes.error
       if (nichesRes.error) throw nichesRes.error
+      
+      if (profileRes.data) {
+        setUserProfile(profileRes.data)
+      }
 
       // Calculate completion percentage for each audit
       const auditsWithCompletion = (auditsRes.data || []).map((audit) => ({
@@ -287,6 +302,52 @@ Date: _________________________________________________________
           </Link>
         </div>
       </div>
+
+      {/* Permanent Audit Link */}
+      {userProfile && (
+        <div className="border border-[#00AAFF]/20 bg-[#00AAFF]/5 rounded-xl p-5">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <p className="text-[#00AAFF] text-xs font-semibold uppercase tracking-wider mb-1">
+                Your permanent audit link
+              </p>
+              <p className="text-white/50 text-sm">
+                Share this link with any prospect. Completed audits appear here automatically.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 bg-white/[0.03] border border-white/10 rounded-lg p-3">
+            <code className="text-sm text-white/70 flex-1 truncate">
+              {userProfile.subdomain
+                ? `https://${userProfile.subdomain}.aetherrevive.com/audit`
+                : `https://aetherrevive.com/audit/u/${userProfile.audit_share_code}`
+              }
+            </code>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                const link = userProfile.subdomain
+                  ? `https://${userProfile.subdomain}.aetherrevive.com/audit`
+                  : `https://aetherrevive.com/audit/u/${userProfile.audit_share_code}`
+                navigator.clipboard.writeText(link)
+                toast({ title: "Link copied", description: "Send this to your prospects" })
+              }}
+              className="text-[#00AAFF] hover:text-white hover:bg-white/5 shrink-0"
+            >
+              <Copy className="h-4 w-4 mr-1" />
+              Copy
+            </Button>
+          </div>
+          {!userProfile.subdomain && (
+            <p className="text-white/30 text-xs mt-2">
+              Set up a custom subdomain in{" "}
+              <Link href="/settings" className="text-[#00AAFF] hover:underline">Settings</Link>{" "}
+              for a branded link
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Summary Tiles */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

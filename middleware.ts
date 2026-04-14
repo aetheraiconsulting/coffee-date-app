@@ -6,7 +6,7 @@ export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname
 
   // Allow public audit pages regardless of subdomain or auth
-  if (pathname.startsWith("/audit/")) {
+  if (pathname.startsWith("/audit/") || pathname === "/audit") {
     return NextResponse.next()
   }
 
@@ -22,6 +22,13 @@ export async function middleware(request: NextRequest) {
 
     if (isSubdomain) {
       const subdomain = hostname.split(".")[0]
+
+      // Rewrite /audit on subdomain to /audit/s/[subdomain]
+      if (pathname === "/audit") {
+        const url = request.nextUrl.clone()
+        url.pathname = `/audit/s/${subdomain}`
+        return NextResponse.rewrite(url)
+      }
 
       // Only allow quiz and audit pages on subdomains
       if (pathname.startsWith("/quiz/") || pathname.startsWith("/audit/")) {
