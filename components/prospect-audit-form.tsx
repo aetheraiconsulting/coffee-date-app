@@ -16,13 +16,15 @@ interface Branding {
 }
 
 interface ProspectAuditFormProps {
-  userId: string
-  branding: Branding | null
-  shareCode?: string
+  code?: string
+  subdomain?: string
 }
 
-export function ProspectAuditForm({ userId, branding }: ProspectAuditFormProps) {
-  const [step, setStep] = useState<"intro" | "questions" | "review" | "submitted">("intro")
+export default function ProspectAuditForm({ code, subdomain }: ProspectAuditFormProps) {
+  const [step, setStep] = useState<"loading" | "error" | "intro" | "questions" | "review" | "submitted">("loading")
+  const [userId, setUserId] = useState<string | null>(null)
+  const [branding, setBranding] = useState<Branding | null>(null)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [prospectName, setProspectName] = useState("")
   const [prospectEmail, setProspectEmail] = useState("")
   const [responses, setResponses] = useState<Record<string, string>>({})
@@ -36,6 +38,33 @@ export function ProspectAuditForm({ userId, branding }: ProspectAuditFormProps) 
   const autoSaveTimeout = useRef<NodeJS.Timeout>()
   const categorizedQuestions = getQuestionsByCategory()
   const accentColour = branding?.brand_colour || "#00AAFF"
+
+  // Fetch user data on mount
+  useEffect(() => {
+    async function fetchUserData() {
+      try {
+        const params = new URLSearchParams()
+        if (code) params.set("code", code)
+        if (subdomain) params.set("subdomain", subdomain)
+
+        const response = await fetch(`/api/audit/teaser?${params}`)
+        if (!response.ok) {
+          const data = await response.json()
+          throw new Error(data.error || "Invalid link")
+        }
+
+        const data = await response.json()
+        setUserId(data.user_id)
+        setBranding(data.branding || null)
+        setStep("intro")
+      } catch (error) {
+        setErrorMessage(error instanceof Error ? error.message : "This audit link is invalid or expired")
+        setStep("error")
+      }
+    }
+
+    fetchUserData()
+  }, [code, subdomain])
 
   // Auto-save every 30 seconds
   useEffect(() => {
@@ -128,6 +157,32 @@ export function ProspectAuditForm({ userId, branding }: ProspectAuditFormProps) 
   const answeredCount = Object.values(responses).filter(v => v && v.trim()).length
   const totalQuestions = AI_AUDIT_QUESTIONS.length
   const progressPercent = Math.round((answeredCount / totalQuestions) * 100)
+
+  // Loading State
+  if (step === "loading") {
+    return (
+      <div className="min-h-screen bg-[#050709] flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-white/50" />
+      </div>
+    )
+  }
+
+  // Error State
+  if (step === "error") {
+    return (
+      <div className="min-h-screen bg-[#050709] flex items-center justify-center p-6">
+        <div className="text-center max-w-md">
+          <div className="w-14 h-14 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center mx-auto mb-6">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+              <path d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </div>
+          <h2 className="text-xl font-bold text-white mb-2">Link not found</h2>
+          <p className="text-white/50 text-sm">{errorMessage}</p>
+        </div>
+      </div>
+    )
+  }
 
   // Intro Step
   if (step === "intro") {

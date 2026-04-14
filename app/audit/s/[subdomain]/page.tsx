@@ -3,9 +3,9 @@
 import { useParams } from "next/navigation"
 import ProspectAuditForm from "@/components/prospect-audit-form"
 
-export default function PublicAuditByCodePage() {
+export default function SubdomainAuditPage() {
   const params = useParams()
-  const code = params.code as string
+  const subdomain = params.subdomain as string
 
-  return <ProspectAuditForm code={code} />
+  return <ProspectAuditForm subdomain={subdomain} />
 }

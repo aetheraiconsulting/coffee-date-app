@@ -23,6 +23,13 @@ export async function middleware(request: NextRequest) {
     if (isSubdomain) {
       const subdomain = hostname.split(".")[0]
 
+      // Rewrite /audit on subdomain to /audit/s/[subdomain]
+      if (pathname === "/audit") {
+        const url = request.nextUrl.clone()
+        url.pathname = `/audit/s/${subdomain}`
+        return NextResponse.rewrite(url)
+      }
+
       // Only allow quiz and audit pages on subdomains
       if (pathname.startsWith("/quiz/") || pathname.startsWith("/audit/")) {
         const requestHeaders = new Headers(request.headers)

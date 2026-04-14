@@ -2,6 +2,53 @@ import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 import Anthropic from "@anthropic-ai/sdk"
 
+// GET: Fetch user info by code or subdomain (for initial form load)
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url)
+  const code = searchParams.get("code")
+  const subdomain = searchParams.get("subdomain")
+
+  if (!code && !subdomain) {
+    return NextResponse.json({ error: "Missing code or subdomain" }, { status: 400 })
+  }
+
+  const supabase = await createClient()
+
+  let profile = null
+  if (code) {
+    const { data } = await supabase
+      .from("profiles")
+      .select("id, full_name, audit_share_code")
+      .eq("audit_share_code", code)
+      .maybeSingle()
+    profile = data
+  } else if (subdomain) {
+    const { data } = await supabase
+      .from("profiles")
+      .select("id, full_name, subdomain")
+      .eq("subdomain", subdomain)
+      .maybeSingle()
+    profile = data
+  }
+
+  if (!profile) {
+    return NextResponse.json({ error: "Invalid audit link" }, { status: 404 })
+  }
+
+  // Fetch branding
+  const { data: branding } = await supabase
+    .from("user_branding")
+    .select("logo_url, company_name, brand_colour, calendar_link")
+    .eq("user_id", profile.id)
+    .maybeSingle()
+
+  return NextResponse.json({
+    user_id: profile.id,
+    branding
+  })
+}
+
+// POST: Generate teaser after audit submission
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { token, audit_id } = await request.json()
