@@ -4,10 +4,19 @@ export default function AuditPublicLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <body style={{ margin: 0, padding: 0, background: "#080B0F", minHeight: "100vh" }}>
-        {children}
-      </body>
-    </html>
+    <div
+      style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 99999,
+        background: "#080B0F",
+        overflowY: "auto",
+      }}
+    >
+      {children}
+    </div>
   )
 }
