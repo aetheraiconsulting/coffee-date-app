@@ -39,6 +39,24 @@ export default function ProspectAuditForm({ code, subdomain }: ProspectAuditForm
   const categorizedQuestions = getQuestionsByCategory()
   const accentColour = branding?.brand_colour || "#00AAFF"
 
+  // Hide any app chrome on mount (sidebar, header, navigation)
+  useEffect(() => {
+    const sidebar = document.querySelector("aside") ||
+      document.querySelector("[data-sidebar]") ||
+      document.querySelector("nav")
+    const header = document.querySelector("header")
+
+    if (sidebar) (sidebar as HTMLElement).style.display = "none"
+    if (header) (header as HTMLElement).style.display = "none"
+    document.body.style.overflow = "hidden"
+
+    return () => {
+      if (sidebar) (sidebar as HTMLElement).style.display = ""
+      if (header) (header as HTMLElement).style.display = ""
+      document.body.style.overflow = ""
+    }
+  }, [])
+
   // Fetch user data on mount
   useEffect(() => {
     async function fetchUserData() {
