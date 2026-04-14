@@ -10,8 +10,8 @@ import Image from "next/image"
 
 interface QuizQuestion {
   id: string
-  question: string
-  options: { label: string; value: number }[]
+  text: string
+  options: { text: string; value: number }[]
 }
 
 interface Branding {
@@ -431,7 +431,7 @@ export default function QuizFunnelForm({ code, subdomain }: QuizFunnelFormProps)
         <div className="flex-1 flex items-center justify-center">
           <div className="w-full max-w-lg">
             <h2 className="text-xl md:text-2xl font-semibold text-white mb-8 text-center">
-              {question?.question}
+              {question?.text}
             </h2>
             
             <div className="space-y-3">
@@ -446,7 +446,7 @@ export default function QuizFunnelForm({ code, subdomain }: QuizFunnelFormProps)
                   }`}
                   style={answers[question.id] === option.value ? { borderColor: accentColor } : {}}
                 >
-                  <span className="text-white">{option.label}</span>
+                  <span className="text-white">{option.text}</span>
                 </button>
               ))}
             </div>
