@@ -553,14 +553,14 @@ export default function SeedDemoDataPage() {
             stage: nicheStages[i],
             offer_id: offerIds[i],
             outreach_generated: true,
-            outreach_start_date: new Date(Date.now() - (10 - i * 3) * 24 * 60 * 60 * 1000).toISOString(),
+            outreach_start_date: new Date(Date.now() - (10 - i * 3) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
             outreach_messages_sent: i === 0 ? 14 : i === 1 ? 17 : 16,
             coffee_date_completed: i < 2,
-            coffee_date_completed_at: i < 2 ? new Date(Date.now() - (4 - i) * 24 * 60 * 60 * 1000).toISOString() : null,
             ghl_connected: i === 0,
             android_built: i < 2,
             status: i === 0 ? "Win" : i === 1 ? "Coffee Date Demo" : "Outreach in Progress",
             win_completed: i === 0,
+            win_completed_at: i === 0 ? new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString() : null,
             win_type: i === 0 ? "revival" : null,
           }, { onConflict: "user_id,niche_id" })
 
