@@ -494,8 +494,27 @@ export default function SeedDemoDataPage() {
             { service: "AI Patient Concierge", priority: "high", problem_solved: "2-3 hours daily answering repetitive patient questions", expected_outcome: "80% reduction in routine enquiries to front desk", pricing_model: "$497/month", implementation_time: "1 week" },
           ],
           edited_insights: {
-            custom_notes: "Dr Mitchell mentioned she tried a mailer campaign 3 years ago but it was too expensive and had low response rates. AI SMS reactivation is significantly cheaper and gets 5-10x higher response rates.",
-            follow_up_actions: ["Send proposal within 24 hours", "Schedule implementation call for next Tuesday", "Prepare Dentrix integration documentation"],
+            executive_summary: "Mitchell Family Dental has built strong patient relationships over 18 years but is leaving significant revenue on the table through an untouched dormant patient database. The practice has approximately 1,800 patients who haven't been seen in 12+ months, representing over $34,000 in immediate recoverable revenue. Additionally, manual patient communication is consuming 2-3 hours of front desk time daily that could be eliminated with AI automation.",
+            bottlenecks: [
+              { issue: "No systematic dormant patient reactivation", evidence: "Thousands of patients haven't been contacted in years", impact: "Significant lost revenue from existing relationship base" },
+              { issue: "Manual patient communication consuming front desk time", evidence: "2-3 hours daily on repetitive questions", impact: "Staff capacity wasted on tasks AI can handle" },
+              { issue: "No automated appointment reminder system", evidence: "Manual phone calls for reminders", impact: "No-shows costing an estimated $800-1,200 per week" },
+            ],
+            quick_wins: [
+              { action: "Deploy AI dormant patient reactivation", timeline: "48 hours", outcome: "Re-engage 15-20% of dormant patients within 30 days" },
+              { action: "AI FAQ chatbot for website", timeline: "1 week", outcome: "Eliminate 2-3 hours of daily repetitive questions from front desk" },
+              { action: "Automated SMS appointment reminders", timeline: "24 hours", outcome: "Reduce no-shows by 40-60%" },
+            ],
+            roadmap: [
+              { phase: "Week 1", focus: "Deploy dormant patient reactivation campaign", outcome: "Begin re-engaging 1,800+ dormant patients" },
+              { phase: "Week 2-3", focus: "Implement AI appointment reminders and confirmations", outcome: "Reduce no-shows by 40-60%" },
+              { phase: "Month 2", focus: "Add AI chatbot for common patient questions", outcome: "Free up 2-3 hours of front desk time daily" },
+            ],
+            financial_impact: "Based on 1,800 dormant patients and an average treatment value of $380, reactivating just 5% generates $34,200 in recovered revenue. Combined with reduced no-shows and saved admin time, total first-year impact could exceed $60,000.",
+            service_recommendations: [
+              { service: "Dead Lead Revival", priority: "critical", problem_solved: "1,800+ dormant patients with no reactivation system", expected_outcome: "15-20% reactivation rate within 30 days", pricing_model: "50% profit share on recovered revenue", why_now: "Every day without reactivation is lost revenue to competing practices", included: true },
+              { service: "AI Patient Concierge", priority: "high", problem_solved: "2-3 hours daily answering repetitive patient questions", expected_outcome: "80% reduction in routine enquiries to front desk", pricing_model: "$497/month", why_now: "Front desk is at capacity — automation frees them for higher-value tasks", included: true },
+            ],
           },
           report_ready: true,
           completed_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
@@ -571,8 +590,27 @@ export default function SeedDemoDataPage() {
             { service: "AI Speed to Lead", priority: "high", problem_solved: "24-48 hour response time losing jobs to competitors", expected_outcome: "Sub-60-second response time 24/7", pricing_model: "$397/month", implementation_time: "48 hours" },
           ],
           edited_insights: {
-            custom_notes: "Mike already uses GoHighLevel which makes integration seamless. He's heading into busy season in 6 weeks so timing is perfect for reactivation campaign.",
-            follow_up_actions: ["Send proposal by end of day", "Include GHL integration details", "Mention busy season urgency in proposal"],
+            executive_summary: "Thornton HVAC Solutions is losing significant revenue through an unconverted quote database that has never been systematically followed up. With 600 quotes at an average job value of $1,400, there's over $840,000 in potential revenue sitting dormant in their CRM. Additionally, slow response times to new quote requests are costing jobs to faster competitors.",
+            bottlenecks: [
+              { issue: "Unconverted quote database not being followed up systematically", evidence: "Hundreds of quotes sent over 2 years with no reactivation", impact: "Significant lost revenue to competitors from warm prospects" },
+              { issue: "Slow response time to new quote requests", evidence: "Often takes 24-48 hours to respond", impact: "Losing jobs to competitors who respond faster" },
+              { issue: "No automated seasonal maintenance reminders", evidence: "Relying on customers to remember to schedule", impact: "Missing recurring revenue opportunities" },
+            ],
+            quick_wins: [
+              { action: "Deploy AI dead lead revival for 600 unconverted quotes", timeline: "24 hours via existing GHL account", outcome: "Re-engage warm prospects before they commit to competitors" },
+              { action: "AI instant quote response system", timeline: "48 hours", outcome: "Respond to quote requests in under 60 seconds 24/7" },
+              { action: "Automated seasonal maintenance reminders", timeline: "1 week", outcome: "Proactively reach out to past customers before peak season" },
+            ],
+            roadmap: [
+              { phase: "Week 1", focus: "Launch dead lead revival for 600 unconverted quotes", outcome: "Begin recovering lost revenue immediately" },
+              { phase: "Week 2", focus: "Deploy AI speed-to-lead for instant quote responses", outcome: "Stop losing jobs to faster competitors" },
+              { phase: "Month 2", focus: "Implement seasonal maintenance reminder system", outcome: "Build recurring revenue from existing customer base" },
+            ],
+            financial_impact: "With 600 unconverted quotes at an average job value of $1,400, reactivating just 8% generates $67,200 in recovered revenue. Combined with faster quote response and seasonal reminders, total first-year impact could exceed $100,000.",
+            service_recommendations: [
+              { service: "Dead Lead Revival", priority: "critical", problem_solved: "600 unconverted quotes with no follow-up system", expected_outcome: "8-12% reactivation rate within 30 days", pricing_model: "50% profit share on recovered revenue", why_now: "Busy season is 6 weeks away — recover revenue before competitors do", included: true },
+              { service: "AI Speed to Lead", priority: "high", problem_solved: "24-48 hour response time losing jobs to competitors", expected_outcome: "Sub-60-second response time 24/7", pricing_model: "$397/month", why_now: "HVAC is a speed game — first to respond usually wins", included: true },
+            ],
           },
           report_ready: true,
           completed_at: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
