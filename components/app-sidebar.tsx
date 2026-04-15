@@ -28,7 +28,7 @@ const menuSections = [
   {
     label: "Core",
     items: [
-      { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
+      { icon: LayoutDashboard, label: "Mission Control", href: "/dashboard" },
       { icon: TrendingUp, label: "Pipeline", href: "/pipeline" },
       { icon: Target, label: "Opportunities", href: "/revival/opportunities" },
       { icon: Wand2, label: "Build Offer", href: "/offer/builder?mode=new", indent: true },
