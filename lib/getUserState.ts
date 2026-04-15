@@ -89,9 +89,9 @@ export async function getUserState(): Promise<UserState | null> {
   const favouritesCount = nichesData?.filter((n) => n.is_favourite)?.length || 0
   const outreachCount = outreachMessagesData?.filter((m) => m.status === "sent")?.length || 0
   const repliesCount = replyCount ?? 0
-  const callsCount = callScriptCount ?? 0
+  const callsCount = completedCallCount ?? 0 // Only count completed calls to match Pipeline page
   const proposalsCount = proposalsData?.length || 0
-  const winsCount = nichesData?.filter((n) => n.status === "Win")?.length || 0
+  const winsCount = proposalsData?.filter((p) => p.deal_status === "won")?.length || 0 // Count won deals from proposals to match Pipeline page
   const conversationsCount = conversations?.length || 0
   const activeConversationsCount = conversations?.filter((c) => c.status === "active")?.length || 0
 
