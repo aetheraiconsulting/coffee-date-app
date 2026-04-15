@@ -97,16 +97,16 @@ export default function UpgradePage() {
       {/* Promo code */}
       <div className="mb-5">
         <label className="text-white/40 text-xs uppercase tracking-wider block mb-2">
-          Student or promo code (optional)
+          Discount code (optional)
         </label>
         <input
           value={promoCode}
           onChange={e => setPromoCode(e.target.value.toUpperCase())}
-          placeholder="Enter code e.g. STUDENT2026"
+          placeholder="Enter discount code"
           className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white text-sm focus:border-[#00AAFF]/50 outline-none"
         />
         <p className="text-white/25 text-xs mt-1.5">
-          Students get 12 months completely free
+          Have a discount code? Enter it above
         </p>
       </div>
 
