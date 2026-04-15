@@ -121,11 +121,12 @@ export function AppSidebar() {
         <ChevronLeft className={cn("h-4 w-4 transition-transform duration-200", isCollapsed && "rotate-180")} />
       </Button>
 
-      <div className="border-b border-white/10 flex items-center h-[73px] px-6 justify-between">
-        <div className="flex items-center gap-3">
+      <div className="border-b border-white/10 flex items-center h-[73px] px-4 justify-start">
+        {isCollapsed ? (
           <Image src="/images/aether-revive-logo.png" alt="Aether Revive" width={32} height={32} className="flex-shrink-0" />
-          {!isCollapsed && <h1 className="text-xl font-semibold text-white">Aether Revive</h1>}
-        </div>
+        ) : (
+          <Image src="/images/aether-revive-logo.png" alt="Aether Revive" width={180} height={50} className="object-contain" />
+        )}
       </div>
 
       <nav className="flex-1 p-4 space-y-6 overflow-y-auto">
