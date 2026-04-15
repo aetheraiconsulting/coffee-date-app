@@ -32,35 +32,43 @@ export async function POST(request: Request) {
   let discounts: Stripe.Checkout.SessionCreateParams.Discount[] = []
   let isStudentCode = false
 
-  if (promo_code) {
-    const { data: code } = await supabase
+  if (promo_code && promo_code.trim()) {
+    const cleanCode = promo_code.trim().toUpperCase()
+    
+    const { data: code, error: codeError } = await supabase
       .from("promo_codes")
       .select("*")
-      .eq("code", promo_code.toUpperCase().trim())
+      .eq("code", cleanCode)
       .eq("is_active", true)
       .maybeSingle()
 
-    if (code && code.discount_type === "months_free" && code.discount_value === 12) {
-      isStudentCode = true
-      const coupon = await stripe.coupons.create({
-        percent_off: 100,
-        duration: "repeating",
-        duration_in_months: 12,
-      })
-      discounts = [{ coupon: coupon.id }]
+    console.log("Promo code lookup:", cleanCode, code, codeError)
 
-      await supabase
-        .from("promo_codes")
-        .update({ uses_count: (code.uses_count || 0) + 1 })
-        .eq("id", code.id)
-
-      await supabase
-        .from("profiles")
-        .update({
-          promo_code_used: promo_code.toUpperCase().trim(),
-          subscription_tier: "student"
+    if (code) {
+      if (code.discount_type === "months_free" && code.discount_value === 12) {
+        isStudentCode = true
+        
+        const coupon = await stripe.coupons.create({
+          percent_off: 100,
+          duration: "repeating",
+          duration_in_months: 12,
+          name: "Discount code — 12 months free",
         })
-        .eq("id", user.id)
+        discounts = [{ coupon: coupon.id }]
+
+        await supabase
+          .from("promo_codes")
+          .update({ uses_count: (code.uses_count || 0) + 1 })
+          .eq("id", code.id)
+
+        await supabase
+          .from("profiles")
+          .update({
+            promo_code_used: cleanCode,
+            subscription_tier: "discounted"
+          })
+          .eq("id", user.id)
+      }
     }
   }
 
