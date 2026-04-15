@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import Link from "next/link"
+import Image from "next/image"
 import { useState } from "react"
 import { useToast } from "@/hooks/use-toast"
 import { Loader2 } from 'lucide-react'
@@ -85,21 +86,13 @@ export default function LoginPage() {
         <div className="relative z-10">
           {/* Logo */}
           <div className="flex items-center gap-3 mb-20">
-            <div 
-              className="w-10 h-10 rounded-xl flex items-center justify-center"
-              style={{ background: 'rgba(0,170,255,0.1)', border: '0.5px solid rgba(0,170,255,0.2)' }}
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z" fill="#00AAFF" />
-                <path d="M19 3L20 6L23 7L20 8L19 11L18 8L15 7L18 6L19 3Z" fill="#00AAFF" fillOpacity="0.6" />
-              </svg>
-            </div>
-            <span 
-              className="text-lg text-white tracking-tight"
-              style={{ fontFamily: 'var(--font-manrope)', fontWeight: 800 }}
-            >
-              AETHER <span className="text-[#00AAFF]">AI</span> LAB
-            </span>
+            <Image 
+              src="/images/aether-revive-logo.png" 
+              alt="Aether Revive" 
+              width={120} 
+              height={120}
+              className="opacity-90"
+            />
           </div>
 
           {/* Main message */}
@@ -153,22 +146,14 @@ export default function LoginPage() {
           }}
         >
           {/* Mobile Logo - only visible on mobile */}
-          <div className="flex lg:hidden items-center justify-center gap-3 mb-8">
-            <div 
-              className="w-10 h-10 rounded-xl flex items-center justify-center"
-              style={{ background: 'rgba(0,170,255,0.1)', border: '0.5px solid rgba(0,170,255,0.2)' }}
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z" fill="#00AAFF" />
-                <path d="M19 3L20 6L23 7L20 8L19 11L18 8L15 7L18 6L19 3Z" fill="#00AAFF" fillOpacity="0.6" />
-              </svg>
-            </div>
-            <span 
-              className="text-lg text-white tracking-tight"
-              style={{ fontFamily: 'var(--font-manrope)', fontWeight: 800 }}
-            >
-              AETHER <span className="text-[#00AAFF]">AI</span> LAB
-            </span>
+          <div className="flex lg:hidden items-center justify-center mb-8">
+            <Image 
+              src="/images/aether-revive-logo.png" 
+              alt="Aether Revive" 
+              width={100} 
+              height={100}
+              className="opacity-90"
+            />
           </div>
 
           <div className="space-y-6">
