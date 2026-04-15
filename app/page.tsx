@@ -1,381 +1,249 @@
-import Link from 'next/link'
-import Image from 'next/image'
-import { FileText, Clock, MessageCircle, Check, Play } from 'lucide-react'
+import Link from "next/link"
+import { PricingSection } from "@/components/pricing-section"
 
-export default function LandingPage() {
+export default function HomePage() {
   return (
-    <div className="min-h-screen bg-[#080B0F] text-white">
-      {/* SECTION 1 — NAV */}
-      <nav className="border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
-        <div className="max-w-[1200px] mx-auto px-6 py-4 flex items-center justify-between">
-          <Image 
-            src="/images/aether-revive-logo.png" 
-            alt="Aether Revive" 
-            width={100} 
-            height={40}
-            className="opacity-90"
-          />
-          <div className="flex items-center gap-3">
-            <Link
-              href="/login"
-              className="px-5 py-2.5 text-sm font-medium text-white rounded-lg transition-colors hover:bg-white/5"
-              style={{ border: '0.5px solid rgba(255,255,255,0.06)' }}
-            >
+    <div style={{ background: "#080B0F", minHeight: "100vh", color: "white" }}>
+
+      {/* NAVIGATION */}
+      <nav style={{ background: "rgba(8,11,15,0.95)", borderBottom: "0.5px solid rgba(255,255,255,0.06)", position: "sticky", top: 0, zIndex: 50, padding: "0 24px" }}>
+        <div style={{ maxWidth: "1100px", margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", height: "64px" }}>
+          <div style={{ display: "flex", alignItems: "center" }}>
+            <img 
+              src="/images/aether-revive-logo.png" 
+              alt="Aether Revive" 
+              style={{ height: "72px", width: "auto", objectFit: "contain" }} 
+            />
+          </div>
+          <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+            <a href="#pricing" style={{ color: "rgba(255,255,255,0.5)", fontSize: "14px", textDecoration: "none", padding: "8px 16px" }}>
+              Pricing
+            </a>
+            <Link href="/login" style={{ color: "rgba(255,255,255,0.5)", fontSize: "14px", textDecoration: "none", padding: "8px 16px" }}>
               Sign in
             </Link>
-            <Link
-              href="/signup"
-              className="px-5 py-2.5 text-sm font-medium text-black bg-[#00AAFF] rounded-lg hover:bg-[#00AAFF]/90 transition-colors"
-            >
-              Get started
+            <Link href="/signup" style={{ background: "#00AAFF", color: "#000", fontWeight: "700", fontSize: "14px", padding: "8px 20px", borderRadius: "8px", textDecoration: "none" }}>
+              Start free →
             </Link>
           </div>
         </div>
       </nav>
 
-      {/* SECTION 2 — HERO */}
-      <section className="relative pt-20 pb-16 md:pt-28 md:pb-24 overflow-hidden">
-        {/* Subtle radial blue glow */}
-        <div 
-          className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[500px] opacity-15 pointer-events-none"
-          style={{
-            background: 'radial-gradient(ellipse at center, #00AAFF 0%, transparent 70%)',
-          }}
-        />
-        
-        <div className="relative max-w-[900px] mx-auto px-6 text-center">
-          {/* Badges */}
-          <div className="flex flex-wrap items-center justify-center gap-3 mb-10">
-            <span 
-              className="px-4 py-1.5 text-sm rounded-full"
-              style={{ 
-                border: '0.5px solid rgba(255,255,255,0.12)', 
-                background: 'rgba(255,255,255,0.03)',
-                color: 'rgba(255,255,255,0.5)'
-              }}
-            >
-              AI Client Acquisition System
-            </span>
-            <span 
-              className="flex items-center gap-2 px-4 py-1.5 text-sm rounded-full text-[#00AAFF]"
-              style={{ 
-                border: '0.5px solid rgba(0,170,255,0.25)', 
-                background: 'rgba(0,170,255,0.08)'
-              }}
-            >
-              <span className="w-2 h-2 rounded-full bg-[#00AAFF]" />
-              First replies in 24–72 hours
-            </span>
-          </div>
+      {/* HERO */}
+      <section style={{ padding: "80px 24px", textAlign: "center", maxWidth: "760px", margin: "0 auto" }}>
+        <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", background: "rgba(0,170,255,0.08)", border: "0.5px solid rgba(0,170,255,0.2)", borderRadius: "20px", padding: "6px 14px", fontSize: "12px", color: "#00AAFF", fontWeight: "600", marginBottom: "24px", letterSpacing: "0.5px" }}>
+          <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#00AAFF" }} />
+          AI CLIENT ACQUISITION SYSTEM
+        </div>
 
-          {/* Headline */}
-          <h1 
-            className="text-[38px] md:text-[64px] lg:text-[72px] mb-6 text-balance"
-            style={{ 
-              fontFamily: 'var(--font-manrope)',
-              fontWeight: 800,
-              lineHeight: 1.0,
-              letterSpacing: '-0.02em'
-            }}
-          >
-            Get your first AI client{' '}
-            <span className="text-[#00AAFF]">in 14 days</span> — proven system
-          </h1>
+        <h1 style={{ fontSize: "clamp(36px, 6vw, 64px)", fontWeight: "900", color: "white", lineHeight: "1.1", margin: "0 0 20px", letterSpacing: "-1px" }}>
+          Stop trying to figure out AI.
+          <br />
+          <span style={{ color: "#00AAFF" }}>Get your first client instead.</span>
+        </h1>
 
-          {/* Subheadline */}
-          <p 
-            className="text-base md:text-lg max-w-[700px] mx-auto mb-5 leading-relaxed"
-            style={{ color: 'rgba(255,255,255,0.5)' }}
-          >
-            Turn old leads into deals, run AI audits, and close clients — all inside one workspace built for agency growth.
-          </p>
+        <p style={{ fontSize: "clamp(16px, 2.5vw, 20px)", color: "rgba(255,255,255,0.5)", lineHeight: "1.6", margin: "0 0 36px", maxWidth: "560px", marginLeft: "auto", marginRight: "auto" }}>
+          A step-by-step system that tells you exactly what to do, writes everything for you, and gets you to your first paying AI client.
+        </p>
 
-          {/* Social proof */}
-          <p className="text-[13px] mb-10" style={{ color: 'rgba(255,255,255,0.3)' }}>
-            Used by 200+ people building their first AI income
-          </p>
+        <div style={{ display: "flex", gap: "12px", justifyContent: "center", flexWrap: "wrap", marginBottom: "20px" }}>
+          <Link href="/signup" style={{ background: "#00AAFF", color: "#000", fontWeight: "800", fontSize: "16px", padding: "16px 36px", borderRadius: "10px", textDecoration: "none", display: "inline-block" }}>
+            Start your 14-day sprint (free) →
+          </Link>
+        </div>
 
-          {/* CTAs */}
-          <div className="flex flex-wrap items-center justify-center gap-4 mb-6">
-            <Link
-              href="/signup"
-              className="px-8 py-3.5 text-sm font-medium text-black bg-[#00AAFF] rounded-lg hover:bg-[#00AAFF]/90 transition-colors"
-            >
-              Start free
-            </Link>
-            <button 
-              className="flex items-center gap-2 px-6 py-3.5 text-sm font-medium text-white rounded-lg hover:bg-white/5 transition-colors"
-              style={{ border: '0.5px solid rgba(255,255,255,0.15)' }}
-            >
-              <span className="w-5 h-5 rounded-full flex items-center justify-center" style={{ border: '1px solid rgba(255,255,255,0.3)' }}>
-                <Play className="w-2.5 h-2.5 fill-white" />
-              </span>
-              Watch 90-sec demo
-            </button>
-          </div>
+        <p style={{ color: "rgba(255,255,255,0.2)", fontSize: "13px" }}>
+          No experience needed · No tech setup · Cancel anytime
+        </p>
+      </section>
 
-          {/* Microtrust */}
-          <p className="text-xs" style={{ color: 'rgba(255,255,255,0.2)' }}>
-            No experience needed · No tech setup required · Cancel anytime
-          </p>
+      {/* SOCIAL PROOF BAR */}
+      <section style={{ borderTop: "0.5px solid rgba(255,255,255,0.06)", borderBottom: "0.5px solid rgba(255,255,255,0.06)", padding: "24px" }}>
+        <div style={{ maxWidth: "900px", margin: "0 auto", display: "flex", justifyContent: "center", gap: "48px", flexWrap: "wrap" }}>
+          {[
+            { value: "14 days", label: "avg to first client" },
+            { value: "$0", label: "to start" },
+            { value: "1,300+", label: "niches to target" },
+            { value: "24–72hrs", label: "first replies" },
+          ].map(stat => (
+            <div key={stat.label} style={{ textAlign: "center" }}>
+              <p style={{ color: "white", fontWeight: "800", fontSize: "22px", margin: "0 0 2px" }}>{stat.value}</p>
+              <p style={{ color: "rgba(255,255,255,0.3)", fontSize: "12px", margin: 0 }}>{stat.label}</p>
+            </div>
+          ))}
         </div>
       </section>
 
-      {/* SECTION 3 — STAT BAR */}
-      <section style={{ borderTop: '0.5px solid rgba(255,255,255,0.06)', borderBottom: '0.5px solid rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.02)' }}>
-        <div className="max-w-[1000px] mx-auto px-6 md:px-12 py-6">
-          <div className="flex flex-col md:flex-row items-center justify-center gap-6 md:gap-0">
-            <div className="text-center md:flex-1">
-              <div style={{ fontFamily: 'var(--font-manrope)', fontWeight: 800 }} className="text-2xl text-white">200+</div>
-              <div className="text-sm" style={{ color: 'rgba(255,255,255,0.45)' }}>users</div>
+      {/* HOW IT WORKS */}
+      <section style={{ padding: "80px 24px", maxWidth: "900px", margin: "0 auto" }}>
+        <div style={{ textAlign: "center", marginBottom: "48px" }}>
+          <p style={{ color: "#00AAFF", fontSize: "11px", fontWeight: "700", letterSpacing: "2px", textTransform: "uppercase", marginBottom: "12px" }}>
+            THE SYSTEM
+          </p>
+          <h2 style={{ color: "white", fontSize: "clamp(28px, 4vw, 40px)", fontWeight: "800", margin: "0 0 12px" }}>
+            Five moves. Fourteen days. First client.
+          </h2>
+          <p style={{ color: "rgba(255,255,255,0.4)", fontSize: "16px", margin: 0 }}>
+            Every step is guided. Every word is written for you.
+          </p>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+          {[
+            { num: "01", title: "Pick your niche", desc: "Browse 1,300+ business types. The system shows you which ones have the highest revenue potential for AI services." },
+            { num: "02", title: "Your offer is written for you", desc: "Claude builds a niche-specific AI service offer in under 60 seconds. Pricing model, guarantee, and outcome statement included." },
+            { num: "03", title: "Send 20 messages — already written", desc: "LinkedIn, Instagram, and email outreach written using proven sales frameworks. Every message invites prospects to a demo — not a sales call." },
+            { num: "04", title: "Run the demo live on a call", desc: "Show prospects their own business being handled by AI in real time. Present mode hides the product — they only see the demo." },
+            { num: "05", title: "Send a proposal and get paid", desc: "Claude writes the proposal from your call notes. Performance-based pricing means the client has no reason to say no." },
+          ].map(step => (
+            <div key={step.num} style={{ display: "flex", gap: "20px", padding: "24px", background: "rgba(255,255,255,0.02)", borderRadius: "12px", border: "0.5px solid rgba(255,255,255,0.06)" }}>
+              <div style={{ flexShrink: 0, width: "40px", height: "40px", borderRadius: "8px", background: "rgba(0,170,255,0.1)", border: "0.5px solid rgba(0,170,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <span style={{ color: "#00AAFF", fontWeight: "800", fontSize: "13px" }}>{step.num}</span>
+              </div>
+              <div>
+                <p style={{ color: "white", fontWeight: "700", fontSize: "16px", margin: "0 0 4px" }}>{step.title}</p>
+                <p style={{ color: "rgba(255,255,255,0.45)", fontSize: "14px", lineHeight: "1.6", margin: 0 }}>{step.desc}</p>
+              </div>
             </div>
-            <div className="hidden md:block w-px h-10" style={{ background: 'rgba(255,255,255,0.08)' }} />
-            <div className="text-center md:flex-1">
-              <div style={{ fontFamily: 'var(--font-manrope)', fontWeight: 800 }} className="text-2xl text-white">£0</div>
-              <div className="text-sm" style={{ color: 'rgba(255,255,255,0.45)' }}>to start</div>
-            </div>
-            <div className="hidden md:block w-px h-10" style={{ background: 'rgba(255,255,255,0.08)' }} />
-            <div className="text-center md:flex-1">
-              <div style={{ fontFamily: 'var(--font-manrope)', fontWeight: 800 }} className="text-2xl text-white">14 days</div>
-              <div className="text-sm" style={{ color: 'rgba(255,255,255,0.45)' }}>avg to first client</div>
-            </div>
-          </div>
+          ))}
         </div>
       </section>
 
-      {/* SECTION 4 — HOW IT WORKS */}
-      <section className="py-20 md:py-28">
-        <div className="max-w-[1200px] mx-auto px-6">
-          <p className="text-[11px] font-medium tracking-[1.5px] text-center mb-12" style={{ color: 'rgba(255,255,255,0.45)' }}>
-            HOW IT WORKS
-          </p>
-          
-          <div className="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-2">
+      {/* WHAT IS INSIDE */}
+      <section style={{ padding: "80px 24px", background: "rgba(255,255,255,0.01)", borderTop: "0.5px solid rgba(255,255,255,0.06)", borderBottom: "0.5px solid rgba(255,255,255,0.06)" }}>
+        <div style={{ maxWidth: "1000px", margin: "0 auto" }}>
+          <div style={{ textAlign: "center", marginBottom: "48px" }}>
+            <p style={{ color: "#00AAFF", fontSize: "11px", fontWeight: "700", letterSpacing: "2px", textTransform: "uppercase", marginBottom: "12px" }}>THE TOOLS</p>
+            <h2 style={{ color: "white", fontSize: "clamp(28px, 4vw, 40px)", fontWeight: "800", margin: 0 }}>
+              Everything you need. Nothing you do not.
+            </h2>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "16px" }}>
             {[
-              { num: 1, label: 'Find an opportunity' },
-              { num: 2, label: 'Contact prospects' },
-              { num: 3, label: 'Run an AI audit' },
-              { num: 4, label: 'Close the deal' },
-              { num: 5, label: 'Deliver with AI' },
-            ].map((step, i) => (
-              <div key={step.num} className="flex items-center gap-2 md:gap-2">
-                <div className="flex flex-col items-center gap-2">
-                  <div 
-                    className="w-[30px] h-[30px] rounded-full flex items-center justify-center"
-                    style={{ border: '0.5px solid rgba(0,170,255,0.3)', background: 'rgba(0,170,255,0.1)' }}
-                  >
-                    <span style={{ fontFamily: 'var(--font-manrope)', fontWeight: 800 }} className="text-xs text-[#00AAFF]">{step.num}</span>
-                  </div>
-                  <span className="text-xs text-center whitespace-nowrap" style={{ color: 'rgba(255,255,255,0.45)' }}>{step.label}</span>
-                </div>
-                {i < 4 && (
-                  <span className="hidden md:block mx-2" style={{ color: 'rgba(255,255,255,0.2)' }}>→</span>
-                )}
+              { title: "AI Audit Tool", money: "Turn a simple form into a $500+ paid audit", desc: "Send prospects a branded audit link. They fill it in. Claude analyses their responses and generates a professional report you sell." },
+              { title: "Dead Lead Revival", money: "Turn old leads into new revenue for your client", desc: "Connect GoHighLevel and watch AI re-engage dormant contacts automatically. Performance-based — your client only pays on results." },
+              { title: "Coffee Date Demo", money: "Close on conviction, not pitch", desc: "Run a live AI demo on any Google Meet call. Presentation mode hides the product. The prospect only sees AI handling their business." },
+              { title: "Outreach Engine", money: "20 messages written in 30 seconds", desc: "Claude writes channel-specific outreach using tactical empathy and the 3C framework. LinkedIn, Instagram, and email — ready to send." },
+              { title: "Quiz Funnel", money: "Turn cold traffic into warm audit leads", desc: "Share a branded quiz link. Prospects get an AI readiness score. The quiz feeds directly into your audit pipeline automatically." },
+              { title: "Mission Control", money: "Know exactly what to do every day", desc: "Claude generates your daily mission based on your pipeline, your pace, and your 14-day sprint. No guessing. Just execute." },
+            ].map(tool => (
+              <div key={tool.title} style={{ background: "rgba(255,255,255,0.02)", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: "14px", padding: "24px" }}>
+                <p style={{ color: "white", fontWeight: "700", fontSize: "16px", margin: "0 0 6px" }}>{tool.title}</p>
+                <p style={{ color: "#00AAFF", fontSize: "13px", fontWeight: "600", margin: "0 0 10px" }}>{tool.money}</p>
+                <p style={{ color: "rgba(255,255,255,0.4)", fontSize: "14px", lineHeight: "1.6", margin: 0 }}>{tool.desc}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* SECTION 5 — FEATURES */}
-      <section className="py-20 md:py-28">
-        <div className="max-w-[1200px] mx-auto px-6">
-          <p className="text-[11px] font-medium tracking-[1.5px] text-center mb-3" style={{ color: 'rgba(255,255,255,0.45)' }}>
-            {"WHAT'S INSIDE"}
-          </p>
-          <h2 
-            className="text-[26px] md:text-[28px] text-white text-center mb-14"
-            style={{ fontFamily: 'var(--font-manrope)', fontWeight: 800 }}
-          >
-            Everything you need to get and close clients
-          </h2>
-          
-          <div className="grid md:grid-cols-3 gap-6">
-            {/* Card 1 */}
-            <div 
-              className="rounded-xl p-6"
-              style={{ background: 'rgba(255,255,255,0.03)', border: '0.5px solid rgba(255,255,255,0.08)' }}
-            >
-              <div 
-                className="w-[34px] h-[34px] rounded-lg flex items-center justify-center mb-4"
-                style={{ background: 'rgba(0,170,255,0.1)', border: '0.5px solid rgba(0,170,255,0.2)' }}
-              >
-                <FileText className="w-4 h-4 text-[#00AAFF]" />
-              </div>
-              <h3 
-                className="text-[15px] text-white mb-2"
-                style={{ fontFamily: 'var(--font-manrope)', fontWeight: 800 }}
-              >
-                Close clients with AI audits
-              </h3>
-              <p className="text-[13px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.45)' }}>
-                Show businesses where they're losing money — and position your service as the fix.
-              </p>
+      {/* WHO IT IS FOR */}
+      <section style={{ padding: "80px 24px", maxWidth: "760px", margin: "0 auto", textAlign: "center" }}>
+        <p style={{ color: "#00AAFF", fontSize: "11px", fontWeight: "700", letterSpacing: "2px", textTransform: "uppercase", marginBottom: "12px" }}>
+          WHO THIS IS FOR
+        </p>
+        <h2 style={{ color: "white", fontSize: "clamp(28px, 4vw, 40px)", fontWeight: "800", margin: "0 0 16px" }}>
+          You do not need to be technical.
+          <br />You need to be decisive.
+        </h2>
+        <p style={{ color: "rgba(255,255,255,0.5)", fontSize: "17px", lineHeight: "1.7", margin: "0 0 40px" }}>
+          If you have ever said &quot;I want to make money from AI but I do not know where to start&quot; — this is where you start. Aether Revive is used by people who are done watching and ready to earn.
+        </p>
+        <div style={{ display: "flex", justifyContent: "center", gap: "12px", flexWrap: "wrap" }}>
+          {[
+            "Beginners landing their first AI client",
+            "Agency owners adding AI services",
+            "Freelancers building recurring income",
+          ].map(type => (
+            <div key={type} style={{ background: "rgba(255,255,255,0.04)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: "20px", padding: "10px 18px", color: "rgba(255,255,255,0.6)", fontSize: "14px" }}>
+              {type}
             </div>
+          ))}
+        </div>
+      </section>
 
-            {/* Card 2 */}
-            <div 
-              className="rounded-xl p-6"
-              style={{ background: 'rgba(255,255,255,0.03)', border: '0.5px solid rgba(255,255,255,0.08)' }}
-            >
-              <div 
-                className="w-[34px] h-[34px] rounded-lg flex items-center justify-center mb-4"
-                style={{ background: 'rgba(0,170,255,0.1)', border: '0.5px solid rgba(0,170,255,0.2)' }}
-              >
-                <Clock className="w-4 h-4 text-[#00AAFF]" />
-              </div>
-              <h3 
-                className="text-[15px] text-white mb-2"
-                style={{ fontFamily: 'var(--font-manrope)', fontWeight: 800 }}
-              >
-                Turn old leads into new deals
-              </h3>
-              <p className="text-[13px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.45)' }}>
-                Connect your CRM and revive cold contacts using AI-powered messaging sequences.
-              </p>
-            </div>
+      {/* TIMELINE */}
+      <section style={{ padding: "80px 24px", background: "rgba(255,255,255,0.01)", borderTop: "0.5px solid rgba(255,255,255,0.06)", borderBottom: "0.5px solid rgba(255,255,255,0.06)" }}>
+        <div style={{ maxWidth: "700px", margin: "0 auto" }}>
+          <div style={{ textAlign: "center", marginBottom: "48px" }}>
+            <p style={{ color: "#00AAFF", fontSize: "11px", fontWeight: "700", letterSpacing: "2px", textTransform: "uppercase", marginBottom: "12px" }}>WHAT TO EXPECT</p>
+            <h2 style={{ color: "white", fontSize: "clamp(28px, 4vw, 40px)", fontWeight: "800", margin: "0 0 8px" }}>
+              A real timeline.
+            </h2>
+            <p style={{ color: "rgba(255,255,255,0.4)", fontSize: "16px", margin: 0 }}>Not a vague promise.</p>
+          </div>
 
-            {/* Card 3 */}
-            <div 
-              className="rounded-xl p-6"
-              style={{ background: 'rgba(255,255,255,0.03)', border: '0.5px solid rgba(255,255,255,0.08)' }}
-            >
-              <div 
-                className="w-[34px] h-[34px] rounded-lg flex items-center justify-center mb-4"
-                style={{ background: 'rgba(0,170,255,0.1)', border: '0.5px solid rgba(0,170,255,0.2)' }}
-              >
-                <MessageCircle className="w-4 h-4 text-[#00AAFF]" />
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            {[
+              { day: "Day 1", title: "Offer ready. Messages ready. You can start today.", desc: "Niche selected, offer generated, 20 outreach messages written. Everything is done for you." },
+              { day: "Day 3", title: "Replies start coming in.", desc: "The reply assistant handles the conversation. Your only job is to book the demo call." },
+              { day: "Day 7", title: "First demo call booked.", desc: "You run the Coffee Date Demo live. The prospect sees AI handling their business in real time." },
+              { day: "Day 14", title: "First proposal sent. First client in motion.", desc: "Claude writes the proposal from your call notes. Performance-based pricing removes the final objection." },
+            ].map((item, i) => (
+              <div key={item.day} style={{ display: "flex", gap: "20px", paddingBottom: "32px" }}>
+                <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center" }}>
+                  <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "rgba(0,170,255,0.1)", border: "1px solid rgba(0,170,255,0.3)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#00AAFF" }} />
+                  </div>
+                  {i < 3 && (
+                    <div style={{ width: "1px", flex: 1, background: "rgba(0,170,255,0.15)", marginTop: "6px", minHeight: "32px" }} />
+                  )}
+                </div>
+                <div style={{ paddingTop: "6px" }}>
+                  <p style={{ color: "#00AAFF", fontSize: "12px", fontWeight: "700", margin: "0 0 4px", letterSpacing: "0.5px" }}>{item.day}</p>
+                  <p style={{ color: "white", fontWeight: "700", fontSize: "16px", margin: "0 0 4px" }}>{item.title}</p>
+                  <p style={{ color: "rgba(255,255,255,0.4)", fontSize: "14px", lineHeight: "1.6", margin: 0 }}>{item.desc}</p>
+                </div>
               </div>
-              <h3 
-                className="text-[15px] text-white mb-2"
-                style={{ fontFamily: 'var(--font-manrope)', fontWeight: 800 }}
-              >
-                Test before you sell
-              </h3>
-              <p className="text-[13px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.45)' }}>
-                Simulate conversations in the demo sandbox and refine your offer before going live.
-              </p>
-            </div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* SECTION 6 — TWO-COLUMN: WHO + EXPECT */}
-      <section className="py-20 md:py-28" style={{ borderTop: '0.5px solid rgba(255,255,255,0.06)' }}>
-        <div className="max-w-[1200px] mx-auto px-6">
-          <div className="grid md:grid-cols-2 gap-12 md:gap-16">
-            {/* Left column — Who this is for */}
-            <div>
-              <p className="text-[11px] font-medium tracking-[1.5px] mb-3" style={{ color: 'rgba(255,255,255,0.45)' }}>
-                WHO THIS IS FOR
-              </p>
-              <h2 
-                className="text-[22px] text-white mb-2"
-                style={{ fontFamily: 'var(--font-manrope)', fontWeight: 800 }}
-              >
-                Built for people ready to earn from AI
-              </h2>
-              <p className="text-[13px] mb-6" style={{ color: 'rgba(255,255,255,0.45)' }}>
-                No technical background needed. Just follow the system.
-              </p>
-              
-              <div className="space-y-4">
-                {[
-                  'Beginners landing their first AI client',
-                  'Agency owners adding AI services',
-                  'Freelancers building recurring revenue',
-                ].map((item) => (
-                  <div key={item} className="flex items-center gap-3">
-                    <div 
-                      className="w-5 h-5 rounded-full flex items-center justify-center shrink-0"
-                      style={{ background: 'rgba(0,170,255,0.15)' }}
-                    >
-                      <Check className="w-3 h-3 text-white" />
-                    </div>
-                    <span className="text-sm text-white">{item}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Right column — What to expect */}
-            <div>
-              <p className="text-[11px] font-medium tracking-[1.5px] mb-3" style={{ color: 'rgba(255,255,255,0.45)' }}>
-                WHAT YOU CAN EXPECT
-              </p>
-              <h2 
-                className="text-[22px] text-white mb-2"
-                style={{ fontFamily: 'var(--font-manrope)', fontWeight: 800 }}
-              >
-                A real timeline, not a vague promise
-              </h2>
-              <p className="text-[13px] mb-6" style={{ color: 'rgba(255,255,255,0.45)' }}>
-                Most users following the system report these milestones.
-              </p>
-              
-              <div className="space-y-3">
-                {[
-                  { time: '24–72 hrs', text: 'First replies from prospects' },
-                  { time: '7–14 days', text: 'First client conversation booked' },
-                  { time: '30 days', text: 'First deal closed — no tech overwhelm' },
-                ].map((milestone) => (
-                  <div 
-                    key={milestone.time} 
-                    className="rounded-xl px-4 py-3 flex items-center gap-3"
-                    style={{ background: 'rgba(255,255,255,0.02)', border: '0.5px solid rgba(255,255,255,0.06)' }}
-                  >
-                    <span style={{ fontFamily: 'var(--font-manrope)', fontWeight: 800 }} className="text-[11px] text-[#00AAFF]">{milestone.time}</span>
-                    <span className="text-sm text-white">{milestone.text}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
+      {/* PRICING */}
+      <section id="pricing" style={{ padding: "80px 24px", maxWidth: "600px", margin: "0 auto" }}>
+        <div style={{ textAlign: "center", marginBottom: "40px" }}>
+          <p style={{ color: "#00AAFF", fontSize: "11px", fontWeight: "700", letterSpacing: "2px", textTransform: "uppercase", marginBottom: "12px" }}>PRICING</p>
+          <h2 style={{ color: "white", fontSize: "clamp(28px, 4vw, 40px)", fontWeight: "800", margin: "0 0 12px" }}>
+            Start your first AI client sprint
+          </h2>
+          <p style={{ color: "rgba(255,255,255,0.4)", fontSize: "16px", margin: 0 }}>
+            14 days completely free. No credit card required to start.
+          </p>
         </div>
+        <PricingSection />
       </section>
 
-      {/* SECTION 7 — CLOSING CTA */}
-      <section className="relative py-20 md:py-28 overflow-hidden">
-        {/* Subtle radial blue glow at bottom */}
-        <div 
-          className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] opacity-12 pointer-events-none"
-          style={{
-            background: 'radial-gradient(ellipse at center, #00AAFF 0%, transparent 70%)',
-          }}
-        />
-        
-        <div className="relative max-w-[900px] mx-auto px-6 text-center">
-          <h2 
-            className="text-[28px] md:text-[36px] text-white mb-4"
-            style={{ fontFamily: 'var(--font-manrope)', fontWeight: 800 }}
-          >
-            Start your AI service today
+      {/* BOTTOM CTA */}
+      <section style={{ padding: "80px 24px", textAlign: "center", borderTop: "0.5px solid rgba(255,255,255,0.06)" }}>
+        <div style={{ maxWidth: "560px", margin: "0 auto" }}>
+          <h2 style={{ color: "white", fontSize: "clamp(32px, 5vw, 48px)", fontWeight: "900", margin: "0 0 16px", lineHeight: "1.1" }}>
+            Stop watching.
+            <br />Start getting clients.
           </h2>
-          <p className="text-[15px] mb-10 max-w-[640px] mx-auto" style={{ color: 'rgba(255,255,255,0.45)' }}>
-            No experience needed. Just follow the system.
+          <p style={{ color: "rgba(255,255,255,0.4)", fontSize: "17px", margin: "0 0 32px", lineHeight: "1.6" }}>
+            The system is built. You just need to use it.
           </p>
-          
           <Link
             href="/signup"
-            className="inline-block px-10 py-3.5 text-sm font-medium text-black bg-[#00AAFF] rounded-lg hover:bg-[#00AAFF]/90 transition-colors"
+            style={{ display: "inline-block", background: "#00AAFF", color: "#000", fontWeight: "800", fontSize: "18px", padding: "18px 48px", borderRadius: "12px", textDecoration: "none" }}
           >
-            Get started free
+            Start your sprint today →
           </Link>
-          
-          <p className="text-[11px] mt-6" style={{ color: 'rgba(255,255,255,0.2)' }}>
-            No credit card required · No tech setup required · Cancel anytime
+          <p style={{ color: "rgba(255,255,255,0.2)", fontSize: "13px", marginTop: "16px" }}>
+            No experience needed · No tech setup · Cancel anytime
           </p>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="py-8" style={{ borderTop: '0.5px solid rgba(255,255,255,0.06)' }}>
-        <div className="max-w-[1200px] mx-auto px-6 text-center">
-          <p className="text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>
-            © 2026 Aether Revive. All rights reserved.
-          </p>
-        </div>
+      {/* FOOTER */}
+      <footer style={{ padding: "24px", borderTop: "0.5px solid rgba(255,255,255,0.06)", textAlign: "center" }}>
+        <p style={{ color: "rgba(255,255,255,0.2)", fontSize: "13px", margin: 0 }}>
+          © 2026 Aether Revive. All rights reserved.
+        </p>
       </footer>
+
     </div>
   )
 }
