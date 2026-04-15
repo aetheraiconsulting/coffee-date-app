@@ -525,32 +525,49 @@ export default function SeedDemoDataPage() {
       const offerIds = [dentalOffer.id, hvacOffer.id, injuryOffer.id]
 
       for (let i = 0; i < nicheNames.length; i++) {
-        const { data: niche } = await supabase
+        const { data: niche, error: nicheError } = await supabase
           .from("niches")
-          .select("id")
+          .select("id, niche_name")
           .ilike("niche_name", `%${nicheNames[i]}%`)
           .limit(1)
           .maybeSingle()
 
-        if (niche) {
-          await supabase
-            .from("niche_user_state")
-            .upsert({
-              user_id: userId,
-              niche_id: niche.id,
-              stage: nicheStages[i],
-              offer_id: offerIds[i],
-              outreach_generated: true,
-              outreach_start_date: new Date(Date.now() - (10 - i * 3) * 24 * 60 * 60 * 1000).toISOString(),
-              outreach_messages_sent: i === 0 ? 14 : i === 1 ? 17 : 16,
-              coffee_date_completed: i < 2,
-              coffee_date_completed_at: i < 2 ? new Date(Date.now() - (4 - i) * 24 * 60 * 60 * 1000).toISOString() : null,
-              ghl_connected: i === 0,
-              android_built: i < 2,
-              status: i === 0 ? "Win" : i === 1 ? "Coffee Date Demo" : "Outreach in Progress",
-              win_completed: i === 0,
-              win_type: i === 0 ? "revival" : null,
-            }, { onConflict: "user_id,niche_id" })
+        if (nicheError) {
+          addLog(`✗ Niche lookup error for ${nicheNames[i]}: ${nicheError.message}`)
+          continue
+        }
+
+        if (!niche) {
+          addLog(`✗ Niche not found: ${nicheNames[i]}`)
+          continue
+        }
+
+        addLog(`  Found niche: ${niche.niche_name} (${niche.id})`)
+
+        const { error: upsertError } = await supabase
+          .from("niche_user_state")
+          .upsert({
+            user_id: userId,
+            niche_id: niche.id,
+            is_favourite: true,
+            stage: nicheStages[i],
+            offer_id: offerIds[i],
+            outreach_generated: true,
+            outreach_start_date: new Date(Date.now() - (10 - i * 3) * 24 * 60 * 60 * 1000).toISOString(),
+            outreach_messages_sent: i === 0 ? 14 : i === 1 ? 17 : 16,
+            coffee_date_completed: i < 2,
+            coffee_date_completed_at: i < 2 ? new Date(Date.now() - (4 - i) * 24 * 60 * 60 * 1000).toISOString() : null,
+            ghl_connected: i === 0,
+            android_built: i < 2,
+            status: i === 0 ? "Win" : i === 1 ? "Coffee Date Demo" : "Outreach in Progress",
+            win_completed: i === 0,
+            win_type: i === 0 ? "revival" : null,
+          }, { onConflict: "user_id,niche_id" })
+
+        if (upsertError) {
+          addLog(`✗ Failed to update niche_user_state for ${nicheNames[i]}: ${upsertError.message}`)
+        } else {
+          addLog(`  ✓ ${nicheNames[i]} niche state updated with status: ${i === 0 ? "Win" : i === 1 ? "Coffee Date Demo" : "Outreach in Progress"}`)
         }
       }
 
