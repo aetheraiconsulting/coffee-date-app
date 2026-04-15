@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import Image from 'next/image'
 import { FileText, Clock, MessageCircle, Check, Play } from 'lucide-react'
 
 export default function LandingPage() {
@@ -7,9 +8,13 @@ export default function LandingPage() {
       {/* SECTION 1 — NAV */}
       <nav className="border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
         <div className="max-w-[1200px] mx-auto px-6 py-4 flex items-center justify-between">
-          <div style={{ fontFamily: 'var(--font-manrope)' }} className="font-extrabold text-lg tracking-tight">
-            AETHER <span className="text-[#00AAFF]">AI</span> LAB
-          </div>
+          <Image 
+            src="/images/aether-revive-logo.png" 
+            alt="Aether Revive" 
+            width={100} 
+            height={40}
+            className="opacity-90"
+          />
           <div className="flex items-center gap-3">
             <Link
               href="/login"
@@ -367,7 +372,7 @@ export default function LandingPage() {
       <footer className="py-8" style={{ borderTop: '0.5px solid rgba(255,255,255,0.06)' }}>
         <div className="max-w-[1200px] mx-auto px-6 text-center">
           <p className="text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>
-            © 2026 Aether AI Lab. All rights reserved.
+            © 2026 Aether Revive. All rights reserved.
           </p>
         </div>
       </footer>
