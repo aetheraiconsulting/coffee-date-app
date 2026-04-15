@@ -8,11 +8,12 @@ export default function HomePage() {
       {/* NAVIGATION */}
       <nav style={{ background: "rgba(8,11,15,0.95)", borderBottom: "0.5px solid rgba(255,255,255,0.06)", position: "sticky", top: 0, zIndex: 50, padding: "0 24px" }}>
         <div style={{ maxWidth: "1100px", margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", height: "64px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <div style={{ width: "28px", height: "28px", background: "#00AAFF", borderRadius: "6px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <span style={{ color: "#000", fontWeight: "900", fontSize: "14px" }}>A</span>
-            </div>
-            <span style={{ color: "white", fontWeight: "700", fontSize: "16px" }}>Aether Revive</span>
+          <div style={{ display: "flex", alignItems: "center" }}>
+            <img 
+              src="/images/aether-revive-logo.png" 
+              alt="Aether Revive" 
+              style={{ height: "36px", width: "auto", objectFit: "contain" }} 
+            />
           </div>
           <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
             <a href="#pricing" style={{ color: "rgba(255,255,255,0.5)", fontSize: "14px", textDecoration: "none", padding: "8px 16px" }}>
