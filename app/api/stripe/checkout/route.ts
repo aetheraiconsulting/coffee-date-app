@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { stripe } from "@/lib/stripe"
 import { NextResponse } from "next/server"
+import type Stripe from "stripe"
 
 export async function POST(request: Request) {
   const supabase = await createClient()
@@ -76,18 +77,25 @@ export async function POST(request: Request) {
     ? process.env.STRIPE_ANNUAL_PRICE_ID
     : process.env.STRIPE_MONTHLY_PRICE_ID
 
+  // Build subscription_data — skip trial if using a promo code (the discount IS the free period)
+  const subscriptionData: Stripe.Checkout.SessionCreateParams.SubscriptionData = {
+    metadata: {
+      supabase_user_id: user.id,
+      is_discounted: isStudentCode.toString()
+    }
+  }
+  
+  // Only add trial if NOT using a promo code
+  if (!isStudentCode) {
+    subscriptionData.trial_period_days = 14
+  }
+
   const session = await stripe.checkout.sessions.create({
     customer: customerId,
     payment_method_types: ["card"],
     line_items: [{ price: priceId, quantity: 1 }],
     mode: "subscription",
-    subscription_data: {
-      trial_period_days: 14,
-      metadata: {
-        supabase_user_id: user.id,
-        is_student: isStudentCode.toString()
-      }
-    },
+    subscription_data: subscriptionData,
     discounts: discounts.length > 0 ? discounts : undefined,
     success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?subscribed=true`,
     cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/upgrade`,
