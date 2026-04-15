@@ -231,17 +231,21 @@ export default function SeedDemoDataPage() {
         addLog("✓ Outreach table updated")
       }
 
-      // Step 7 — Update sprint start date
+      // Step 7 — Set sprint start date to 7 days ago
       addLog("Setting sprint start date...")
       
-      await supabase
+      const sprintStartDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+
+      const { error: sprintError } = await supabase
         .from("profiles")
-        .update({
-          sprint_start_date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-        })
+        .update({ sprint_start_date: sprintStartDate })
         .eq("id", userId)
 
-      addLog("✓ Sprint start date set to 7 days ago")
+      if (sprintError) {
+        addLog(`✗ Sprint start date failed: ${sprintError.message}`)
+      } else {
+        addLog(`✓ Sprint start date set to 7 days ago`)
+      }
 
       // Step 8 — Update niche_user_state
       addLog("Updating niche user state...")
