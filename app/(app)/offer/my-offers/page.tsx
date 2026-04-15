@@ -355,10 +355,10 @@ export default function MyOffersPage() {
                     
                     <div className="flex items-start justify-between gap-4 flex-1 min-w-0">
                       <div className="flex-1 min-w-0">
-                        {/* Service Name */}
+                        {/* Niche as Title */}
                         <div className="flex items-center gap-3 mb-1">
                           <h3 className="text-lg font-bold text-white truncate">
-                            {offer.service_name}
+                            {offer.niche}
                           </h3>
                         {offer.is_active && (
                           <span className="text-xs px-2 py-0.5 rounded-full bg-[#00AAFF]/10 text-[#00AAFF] border border-[#00AAFF]/30 shrink-0">
@@ -366,9 +366,6 @@ export default function MyOffersPage() {
                           </span>
                         )}
                       </div>
-                      
-                      {/* Niche */}
-                      <p className="text-sm text-white/50 mb-2">{offer.niche}</p>
                       
                       {/* Badges Row */}
                       <div className="flex flex-wrap items-center gap-2 mb-2">

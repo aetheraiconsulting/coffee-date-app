@@ -428,8 +428,7 @@ export default function OutreachPage() {
             <CardContent className="p-5">
               <div className="flex items-start justify-between">
                 <div className="space-y-1">
-                  <h3 className="text-lg font-bold text-white">{activeOffer.service_name}</h3>
-                  <p className="text-white/50 text-sm">{activeOffer.niche}</p>
+                  <h3 className="text-lg font-bold text-white">{activeOffer.niche}</h3>
                   <div className="flex items-center gap-2 mt-2">
                     <span className="text-xs px-2 py-0.5 rounded-full bg-[#00AAFF]/10 text-[#00AAFF] border border-[#00AAFF]/30">
                       {formatPricingModel(activeOffer.pricing_model)}
