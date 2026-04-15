@@ -43,6 +43,10 @@ export interface UserState {
   userId: string
   email: string
   fullName: string | null
+
+  // Subscription
+  subscriptionStatus: string | null
+  trialEndsAt: string | null
 }
 
 export async function getUserState(): Promise<UserState | null> {
@@ -67,7 +71,7 @@ export async function getUserState(): Promise<UserState | null> {
     { count: callScriptCount },
     { count: completedCallCount },
   ] = await Promise.all([
-    supabase.from("profiles").select("full_name, email, sprint_start_date, offer_id").eq("id", user.id).maybeSingle(),
+    supabase.from("profiles").select("full_name, email, sprint_start_date, offer_id, subscription_status, trial_ends_at").eq("id", user.id).maybeSingle(),
     supabase.from("ghl_connections").select("id").eq("user_id", user.id),
     supabase.from("niche_user_state").select("id, is_favourite, status").eq("user_id", user.id),
     supabase.from("outreach_messages").select("id, status").eq("user_id", user.id),
@@ -157,5 +161,7 @@ export async function getUserState(): Promise<UserState | null> {
     userId: user.id,
     email: user.email || "",
     fullName: profile?.full_name || null,
+    subscriptionStatus: profile?.subscription_status || null,
+    trialEndsAt: profile?.trial_ends_at || null,
   }
 }
