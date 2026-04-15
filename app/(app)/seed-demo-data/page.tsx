@@ -407,7 +407,7 @@ export default function SeedDemoDataPage() {
       await supabase.from("proposals").insert(proposals)
       addLog("✓ 4 proposals created — 2 won, 1 pending, 1 ghosted")
 
-      // Step 7 — Create 2 AI audits (client submitted)
+      // Step 7 — Create 2 AI audits (client submitted, completed with full insights)
       addLog("Step 7: Creating 2 AI audits...")
 
       const audits = [
@@ -422,30 +422,43 @@ export default function SeedDemoDataPage() {
           prospect_name: "Dr Sarah Mitchell",
           prospect_email: "sarah@mitchellfamilydental.com",
           prospect_submitted_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+          shared_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+          teaser_content: "Your dental practice has a hidden goldmine: 1,800 dormant patients who haven't been contacted in years. Based on your average treatment value of $380, reactivating just 5% could generate over $34,000 in recovered revenue.",
           responses: {
             business_name: "Mitchell Family Dental",
-            business_description: "Family dental practice serving the local community for 18 years.",
+            business_description: "Family dental practice serving the local community for 18 years. We focus on preventive care and building long-term patient relationships.",
             business_goals: "Grow patient numbers, improve retention, reduce reliance on paid advertising",
             current_tools: "Dentrix practice management software, email newsletters, basic Facebook page",
             old_leads: "Yes definitely — we have thousands of patients who came in a few years ago and we haven't heard from them since",
-            ai_experience: "Beginner",
-            automate_tomorrow: "Following up with patients we haven't seen in over a year",
+            ai_experience: "Beginner — we haven't really explored AI yet but open to learning",
+            automate_tomorrow: "Following up with patients we haven't seen in over a year — it's just impossible to do manually",
+            biggest_challenge: "We spend 2-3 hours daily answering the same questions from patients. Booking, rescheduling, insurance questions.",
+            monthly_marketing_budget: "$2,000-$5,000",
+            decision_timeline: "Ready to move forward in the next 30 days if we find the right solution",
           },
           ai_insights: {
             bottlenecks: [
-              { issue: "No systematic dormant patient reactivation", evidence: "Thousands of patients haven't been contacted in years", impact: "Significant lost revenue from existing relationship base" },
-              { issue: "Manual patient communication consuming front desk time", evidence: "2-3 hours daily on repetitive questions", impact: "Staff capacity wasted on tasks AI can handle" },
+              { issue: "No systematic dormant patient reactivation", evidence: "Thousands of patients haven't been contacted in years", impact: "Significant lost revenue from existing relationship base", priority: "critical" },
+              { issue: "Manual patient communication consuming front desk time", evidence: "2-3 hours daily on repetitive questions", impact: "Staff capacity wasted on tasks AI can handle", priority: "high" },
+              { issue: "No automated appointment reminder system", evidence: "Manual phone calls for reminders", impact: "No-shows costing an estimated $800-1,200 per week", priority: "medium" },
             ],
             quick_wins: [
-              { action: "Deploy AI dormant patient reactivation", timeline: "48 hours", outcome: "Re-engage 15-20% of dormant patients within 30 days" },
-              { action: "AI FAQ chatbot for website", timeline: "1 week", outcome: "Eliminate 2-3 hours of daily repetitive questions from front desk" },
+              { action: "Deploy AI dormant patient reactivation", timeline: "48 hours", outcome: "Re-engage 15-20% of dormant patients within 30 days", estimated_value: "$34,200" },
+              { action: "AI FAQ chatbot for website", timeline: "1 week", outcome: "Eliminate 2-3 hours of daily repetitive questions from front desk", estimated_value: "$2,400/month in saved labour" },
+              { action: "Automated SMS appointment reminders", timeline: "24 hours", outcome: "Reduce no-shows by 40-60%", estimated_value: "$400-720/week recovered" },
             ],
-            financial_impact: "Based on 1,800 dormant patients and an average treatment value of $380, reactivating just 5% generates $34,200 in recovered revenue.",
+            financial_impact: "Based on 1,800 dormant patients and an average treatment value of $380, reactivating just 5% generates $34,200 in recovered revenue. Combined with reduced no-shows and saved admin time, total first-year impact could exceed $60,000.",
+            competitive_advantage: "Your 18 years of patient relationships is your biggest asset — but only if you can systematically re-engage those dormant patients before they find another dentist.",
           },
-          executive_summary: "Mitchell Family Dental has built strong patient relationships over 18 years but is leaving significant revenue on the table through an untouched dormant patient database.",
+          executive_summary: "Mitchell Family Dental has built strong patient relationships over 18 years but is leaving significant revenue on the table through an untouched dormant patient database. The practice has approximately 1,800 patients who haven't been seen in 12+ months, representing over $34,000 in immediate recoverable revenue. Additionally, manual patient communication is consuming 2-3 hours of front desk time daily that could be eliminated with AI automation.",
           service_recommendations: [
-            { service: "Dead Lead Revival", priority: "critical", problem_solved: "1,800+ dormant patients with no reactivation system", expected_outcome: "15-20% reactivation rate within 30 days", pricing_model: "50% profit share on recovered revenue" },
+            { service: "Dead Lead Revival", priority: "critical", problem_solved: "1,800+ dormant patients with no reactivation system", expected_outcome: "15-20% reactivation rate within 30 days", pricing_model: "50% profit share on recovered revenue", implementation_time: "48 hours" },
+            { service: "AI Patient Concierge", priority: "high", problem_solved: "2-3 hours daily answering repetitive patient questions", expected_outcome: "80% reduction in routine enquiries to front desk", pricing_model: "$497/month", implementation_time: "1 week" },
           ],
+          edited_insights: {
+            custom_notes: "Dr Mitchell mentioned she tried a mailer campaign 3 years ago but it was too expensive and had low response rates. AI SMS reactivation is significantly cheaper and gets 5-10x higher response rates.",
+            follow_up_actions: ["Send proposal within 24 hours", "Schedule implementation call for next Tuesday", "Prepare Dentrix integration documentation"],
+          },
           report_ready: true,
           completed_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
         },
@@ -460,35 +473,54 @@ export default function SeedDemoDataPage() {
           prospect_name: "Mike Thornton",
           prospect_email: "mike@thorntonhvac.com",
           prospect_submitted_at: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
+          shared_at: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
+          teaser_content: "Your HVAC business has 600 unconverted quotes sitting in your CRM — that's over $840,000 in potential revenue that went cold. At your average job value of $1,400, reactivating just 8% would recover $67,200.",
           responses: {
             business_name: "Thornton HVAC Solutions",
-            business_description: "Family-owned HVAC company. Residential and light commercial installation, repair and maintenance.",
-            business_goals: "Close more of the quotes we send out, stop losing jobs to competitors",
+            business_description: "Family-owned HVAC company. Residential and light commercial installation, repair and maintenance. Been in business for 12 years.",
+            business_goals: "Close more of the quotes we send out, stop losing jobs to competitors who follow up faster",
             current_tools: "GoHighLevel CRM, QuickBooks, Google My Business",
-            old_leads: "Yes — we have hundreds of quotes we sent out over the last couple of years that never went anywhere",
-            ai_experience: "Experimenting",
-            automate_tomorrow: "Quote follow-up — we lose so many jobs just because we didn't follow up fast enough",
+            old_leads: "Yes — we have hundreds of quotes we sent out over the last couple of years that never went anywhere. We just don't have time to follow up on all of them.",
+            ai_experience: "Experimenting — we've played with ChatGPT for some marketing stuff",
+            automate_tomorrow: "Quote follow-up — we lose so many jobs just because we didn't follow up fast enough. By the time we call back, they've already hired someone else.",
+            biggest_challenge: "Speed to lead. When someone requests a quote, if we don't get back to them within an hour, we lose the job to a competitor.",
+            monthly_marketing_budget: "$1,000-$2,000",
+            decision_timeline: "Can move quickly if it makes sense — we're heading into busy season",
           },
           ai_insights: {
             bottlenecks: [
-              { issue: "Unconverted quote database not being followed up systematically", evidence: "Hundreds of quotes sent over 2 years with no reactivation", impact: "Significant lost revenue to competitors from warm prospects" },
+              { issue: "Unconverted quote database not being followed up systematically", evidence: "Hundreds of quotes sent over 2 years with no reactivation", impact: "Significant lost revenue to competitors from warm prospects", priority: "critical" },
+              { issue: "Slow response time to new quote requests", evidence: "Often takes 24-48 hours to respond", impact: "Losing jobs to competitors who respond faster", priority: "high" },
+              { issue: "No automated seasonal maintenance reminders", evidence: "Relying on customers to remember to schedule", impact: "Missing recurring revenue opportunities", priority: "medium" },
             ],
             quick_wins: [
-              { action: "Deploy AI dead lead revival for 600 unconverted quotes", timeline: "24 hours via existing GHL account", outcome: "Re-engage warm prospects before they commit to competitors" },
+              { action: "Deploy AI dead lead revival for 600 unconverted quotes", timeline: "24 hours via existing GHL account", outcome: "Re-engage warm prospects before they commit to competitors", estimated_value: "$67,200" },
+              { action: "AI instant quote response system", timeline: "48 hours", outcome: "Respond to quote requests in under 60 seconds 24/7", estimated_value: "15-20% increase in close rate" },
+              { action: "Automated seasonal maintenance reminders", timeline: "1 week", outcome: "Proactively reach out to past customers before peak season", estimated_value: "$15,000-25,000/year in recurring maintenance jobs" },
             ],
-            financial_impact: "With 600 unconverted quotes at an average job value of $1,400, reactivating just 8% generates $67,200 in recovered revenue.",
+            financial_impact: "With 600 unconverted quotes at an average job value of $1,400, reactivating just 8% generates $67,200 in recovered revenue. Combined with faster quote response and seasonal reminders, total first-year impact could exceed $100,000.",
+            competitive_advantage: "HVAC is a speed game — the first company to respond usually wins. AI lets you respond instantly 24/7, even when your team is on jobs.",
           },
-          executive_summary: "Thornton HVAC Solutions is losing significant revenue through an unconverted quote database that has never been systematically followed up.",
+          executive_summary: "Thornton HVAC Solutions is losing significant revenue through an unconverted quote database that has never been systematically followed up. With 600 quotes at an average job value of $1,400, there's over $840,000 in potential revenue sitting dormant in their CRM. Additionally, slow response times to new quote requests are costing jobs to faster competitors.",
           service_recommendations: [
-            { service: "Dead Lead Revival", priority: "critical", problem_solved: "600 unconverted quotes with no follow-up system", expected_outcome: "8-12% reactivation rate within 30 days", pricing_model: "50% profit share on recovered revenue" },
+            { service: "Dead Lead Revival", priority: "critical", problem_solved: "600 unconverted quotes with no follow-up system", expected_outcome: "8-12% reactivation rate within 30 days", pricing_model: "50% profit share on recovered revenue", implementation_time: "24 hours" },
+            { service: "AI Speed to Lead", priority: "high", problem_solved: "24-48 hour response time losing jobs to competitors", expected_outcome: "Sub-60-second response time 24/7", pricing_model: "$397/month", implementation_time: "48 hours" },
           ],
+          edited_insights: {
+            custom_notes: "Mike already uses GoHighLevel which makes integration seamless. He's heading into busy season in 6 weeks so timing is perfect for reactivation campaign.",
+            follow_up_actions: ["Send proposal by end of day", "Include GHL integration details", "Mention busy season urgency in proposal"],
+          },
           report_ready: true,
           completed_at: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
         },
       ]
 
-      await supabase.from("audits").insert(audits)
-      addLog("✓ 2 AI audits created — both client submitted with full insights")
+      const { error: auditsError } = await supabase.from("audits").insert(audits)
+      if (auditsError) {
+        addLog(`✗ Failed to create audits: ${auditsError.message}`)
+      } else {
+        addLog("✓ 2 AI audits created — both client submitted with full insights and recommendations")
+      }
 
       // Step 8 — Create 2 Androids
       addLog("Step 8: Creating 2 Androids...")
