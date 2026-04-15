@@ -12,7 +12,7 @@ export default function HomePage() {
             <img 
               src="/images/aether-revive-logo.png" 
               alt="Aether Revive" 
-              style={{ height: "72px", width: "auto", objectFit: "contain" }} 
+              style={{ height: "144px", width: "auto", objectFit: "contain" }} 
             />
           </div>
           <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
