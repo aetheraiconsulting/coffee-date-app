@@ -1852,10 +1852,11 @@ export default function OpportunitiesPage() {
                             </>
                           ) : (
                             <>
-                              <p className="font-semibold text-white">{activeOffer.service_name}</p>
-                              <p className="text-white/50 text-sm">
-                                {activeOffer.price_point} — <span className="capitalize">{activeOffer.pricing_model}</span>
-                              </p>
+<p className="text-white font-bold text-base">{activeOffer.niche}</p>
+  <p className="text-white/40 text-sm">{activeOffer.service_name}</p>
+  <p className="text-white/50 text-sm mt-1">
+  {activeOffer.price_point} — <span className="capitalize">{activeOffer.pricing_model}</span>
+  </p>
                               <Button
                                 asChild
                                 variant="outline"
