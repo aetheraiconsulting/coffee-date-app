@@ -123,8 +123,8 @@ export function AppSidebar() {
 
       <div className="border-b border-white/10 flex items-center h-[73px] px-6 justify-between">
         <div className="flex items-center gap-3">
-          <Image src="/images/aether-logo.png" alt="Aether" width={32} height={32} className="flex-shrink-0" />
-          {!isCollapsed && <h1 className="text-xl font-semibold text-white">Aether AI Lab</h1>}
+          <Image src="/images/aether-revive-logo.png" alt="Aether Revive" width={32} height={32} className="flex-shrink-0" />
+          {!isCollapsed && <h1 className="text-xl font-semibold text-white">Aether Revive</h1>}
         </div>
       </div>
 
