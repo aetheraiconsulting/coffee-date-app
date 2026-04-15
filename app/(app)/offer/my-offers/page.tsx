@@ -355,11 +355,12 @@ export default function MyOffersPage() {
                     
                     <div className="flex items-start justify-between gap-4 flex-1 min-w-0">
                       <div className="flex-1 min-w-0">
-                        {/* Niche as Title */}
+                        {/* Niche as Title, Service Name as Subtitle */}
                         <div className="flex items-center gap-3 mb-1">
-                          <h3 className="text-lg font-bold text-white truncate">
-                            {offer.niche}
-                          </h3>
+                          <div className="min-w-0">
+                            <p className="text-white font-bold text-base truncate">{offer.niche}</p>
+                            <p className="text-white/40 text-sm truncate">{offer.service_name}</p>
+                          </div>
                         {offer.is_active && (
                           <span className="text-xs px-2 py-0.5 rounded-full bg-[#00AAFF]/10 text-[#00AAFF] border border-[#00AAFF]/30 shrink-0">
                             Active
