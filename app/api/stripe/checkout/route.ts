@@ -1,7 +1,14 @@
 import { createClient } from "@/lib/supabase/server"
+import { createClient as createServiceClient } from "@supabase/supabase-js"
 import { stripe } from "@/lib/stripe"
 import { NextResponse } from "next/server"
 import type Stripe from "stripe"
+
+// Service role client to bypass RLS for promo code lookups
+const serviceSupabase = createServiceClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+)
 
 export async function POST(request: Request) {
   const supabase = await createClient()
@@ -36,14 +43,15 @@ export async function POST(request: Request) {
   if (promo_code && promo_code.trim()) {
     const cleanCode = promo_code.trim().toUpperCase()
     
-    const { data: code, error: codeError } = await supabase
+    // Use service role client to bypass RLS on promo_codes table
+    const { data: code, error: codeError } = await serviceSupabase
       .from("promo_codes")
       .select("*")
       .eq("code", cleanCode)
       .eq("is_active", true)
       .maybeSingle()
 
-    console.log("Promo code lookup:", cleanCode, code, codeError)
+    console.log("[v0] Promo code lookup:", cleanCode, "found:", code, "error:", codeError)
 
     if (code) {
       if (code.discount_type === "months_free" && code.discount_value === 12) {
@@ -57,7 +65,7 @@ export async function POST(request: Request) {
         })
         discounts = [{ coupon: coupon.id }]
 
-        await supabase
+        await serviceSupabase
           .from("promo_codes")
           .update({ uses_count: (code.uses_count || 0) + 1 })
           .eq("id", code.id)
