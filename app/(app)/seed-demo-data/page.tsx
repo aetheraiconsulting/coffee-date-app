@@ -410,6 +410,18 @@ export default function SeedDemoDataPage() {
       // Step 7 — Create 2 AI audits (client submitted, completed with full insights)
       addLog("Step 7: Creating 2 AI audits...")
 
+      // Delete existing audits first to avoid duplicates
+      const { error: deleteAuditsError } = await supabase
+        .from("audits")
+        .delete()
+        .eq("user_id", userId)
+
+      if (deleteAuditsError) {
+        addLog(`  Warning: Could not delete existing audits: ${deleteAuditsError.message}`)
+      } else {
+        addLog("  Cleared existing audits")
+      }
+
       const audits = [
         {
           user_id: userId,
@@ -425,16 +437,42 @@ export default function SeedDemoDataPage() {
           shared_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
           teaser_content: "Your dental practice has a hidden goldmine: 1,800 dormant patients who haven't been contacted in years. Based on your average treatment value of $380, reactivating just 5% could generate over $34,000 in recovered revenue.",
           responses: {
+            // Business Overview (5 questions)
             business_name: "Mitchell Family Dental",
-            business_description: "Family dental practice serving the local community for 18 years. We focus on preventive care and building long-term patient relationships.",
-            business_goals: "Grow patient numbers, improve retention, reduce reliance on paid advertising",
-            current_tools: "Dentrix practice management software, email newsletters, basic Facebook page",
-            old_leads: "Yes definitely — we have thousands of patients who came in a few years ago and we haven't heard from them since",
-            ai_experience: "Beginner — we haven't really explored AI yet but open to learning",
-            automate_tomorrow: "Following up with patients we haven't seen in over a year — it's just impossible to do manually",
-            biggest_challenge: "We spend 2-3 hours daily answering the same questions from patients. Booking, rescheduling, insurance questions.",
-            monthly_marketing_budget: "$2,000-$5,000",
-            decision_timeline: "Ready to move forward in the next 30 days if we find the right solution",
+            website_url: "https://mitchellfamilydental.com",
+            business_description: "Family dental practice serving the local community for 18 years. We focus on preventive care and building long-term patient relationships. Our team includes 2 dentists, 4 hygienists, and 3 front desk staff.",
+            business_goals: "Grow patient numbers by 20%, improve retention rates, reduce reliance on paid advertising, and streamline administrative tasks that are eating up staff time.",
+            current_tools: "Dentrix practice management software for scheduling and patient records, Mailchimp for email newsletters, basic Facebook page for social media presence.",
+            // Marketing & Lead Generation (5 questions)
+            lead_generation: "Mostly word of mouth referrals from existing patients. We do some Google Ads for specific services like Invisalign and teeth whitening. Occasional Facebook posts but no real strategy.",
+            lead_capture: "We have a basic contact form on our website that goes to our front desk email. No CRM — everything is managed manually in Dentrix and spreadsheets.",
+            lead_followup: "Front desk calls new enquiries when they have time, usually within 24-48 hours. If they don't answer, we leave a voicemail but rarely follow up again.",
+            old_leads: "Yes definitely — we have thousands of patients who came in a few years ago and we haven't heard from them since. Our database has about 4,500 patients but only 1,200 are active (seen in last 12 months).",
+            marketing_spend: "About $2,500/month on Google Ads, plus maybe $500 on printing and local sponsorships. Most of our time is spent just running the practice day-to-day.",
+            // Sales & Customer Journey (5 questions)
+            sales_process: "Patient finds us online or gets referred, calls or fills out form, front desk books appointment, patient comes in for initial exam, we present treatment plan, patient decides to proceed or think about it.",
+            sales_steps: "5 main steps: enquiry, booking, first visit, treatment planning, acceptance. Front desk handles 1-2, dentists handle 3-4, admin handles follow-up on 5.",
+            manual_tasks: "Treatment plan follow-ups are completely manual — we're supposed to call patients who haven't accepted their treatment plan but it rarely happens. Appointment reminders are also manual phone calls.",
+            sales_metrics: "We track basic numbers like new patients per month and production per provider, but nothing sophisticated. No conversion rates or response times tracked.",
+            sales_cycle: "For routine work like cleanings, same day to 2 weeks. For bigger treatment plans like crowns or implants, can be 1-3 months as people think about it and check insurance.",
+            // Operations & Delivery (5 questions)
+            time_consuming_tasks: "Answering phone calls (2-3 hours daily), confirming appointments manually, following up on unpaid invoices, processing insurance claims, and trying to re-engage patients who haven't been in for a while.",
+            automation_candidates: "Definitely appointment reminders and confirmations. Also patient re-engagement — we know we should reach out to dormant patients but there's never time. Insurance verification would help too.",
+            recurring_admin: "Yes — weekly reports for each provider, monthly insurance reconciliation, daily appointment confirmation calls, and quarterly recall reminders that we try to do but often skip.",
+            team_communication: "Mostly in-person huddles in the morning, then just shouting across the office. We use a shared Outlook calendar but no project management tools.",
+            scaling_bottleneck: "Front desk capacity. They're drowning in phone calls and admin work. We could see more patients if they weren't spending half their day on the phone answering the same questions.",
+            // Customer Service & Retention (5 questions)
+            customer_support: "Phone calls during business hours, email that gets checked a few times a day. No after-hours support except for emergencies which go to the on-call dentist's personal phone.",
+            support_automation: "Nothing automated. Every call and email is handled individually by the front desk team.",
+            repetitive_questions: "Probably 2-3 hours daily on questions like office hours, do you accept my insurance, how do I reschedule, what's included in a cleaning, how much does X cost. Same questions every day.",
+            customer_feedback: "We ask patients to leave Google reviews if they're happy, but no formal system. Maybe 1 in 20 patients actually leaves a review.",
+            customer_retention: "We're supposed to send recall reminders at 6 months but it's inconsistent. No system for re-engaging patients who haven't been in for a year or more. No upselling or cross-selling programs.",
+            // AI Awareness & Readiness (5 questions)
+            ai_experience: "Beginner — we haven't really explored AI yet but open to learning. I've heard about ChatGPT but haven't used it for the practice.",
+            automation_explored: "We tried setting up automated emails through Mailchimp but couldn't figure out how to integrate it with Dentrix. Gave up after a few weeks.",
+            ai_hesitation: "Worried about it feeling impersonal to patients. Also concerned about HIPAA compliance and whether AI can actually handle the nuances of dental patient communication.",
+            automate_tomorrow: "Following up with patients we haven't seen in over a year — it's just impossible to do manually. We have 3,300 dormant patients and no way to reach out to all of them.",
+            success_metric: "If we could reactivate even 10% of our dormant patients, that would be over 300 people. At an average treatment value of $380, that's over $100K in recovered revenue. That would be a massive win.",
           },
           ai_insights: {
             bottlenecks: [
@@ -476,16 +514,42 @@ export default function SeedDemoDataPage() {
           shared_at: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
           teaser_content: "Your HVAC business has 600 unconverted quotes sitting in your CRM — that's over $840,000 in potential revenue that went cold. At your average job value of $1,400, reactivating just 8% would recover $67,200.",
           responses: {
+            // Business Overview (5 questions)
             business_name: "Thornton HVAC Solutions",
-            business_description: "Family-owned HVAC company. Residential and light commercial installation, repair and maintenance. Been in business for 12 years.",
-            business_goals: "Close more of the quotes we send out, stop losing jobs to competitors who follow up faster",
-            current_tools: "GoHighLevel CRM, QuickBooks, Google My Business",
-            old_leads: "Yes — we have hundreds of quotes we sent out over the last couple of years that never went anywhere. We just don't have time to follow up on all of them.",
-            ai_experience: "Experimenting — we've played with ChatGPT for some marketing stuff",
-            automate_tomorrow: "Quote follow-up — we lose so many jobs just because we didn't follow up fast enough. By the time we call back, they've already hired someone else.",
-            biggest_challenge: "Speed to lead. When someone requests a quote, if we don't get back to them within an hour, we lose the job to a competitor.",
-            monthly_marketing_budget: "$1,000-$2,000",
-            decision_timeline: "Can move quickly if it makes sense — we're heading into busy season",
+            website_url: "https://thorntonhvac.com",
+            business_description: "Family-owned HVAC company serving residential and light commercial customers. Installation, repair, and maintenance for heating and cooling systems. Been in business for 12 years with 8 technicians and 2 office staff.",
+            business_goals: "Close more of the quotes we send out (currently around 35% close rate), stop losing jobs to competitors who follow up faster, and build recurring revenue through maintenance agreements.",
+            current_tools: "GoHighLevel CRM for leads and some automation, QuickBooks for invoicing, Google My Business for reviews, ServiceTitan for dispatch (just started using it).",
+            // Marketing & Lead Generation (5 questions)
+            lead_generation: "Google Ads (about 60% of leads), Google My Business organic, Nextdoor, some referrals from real estate agents we've built relationships with. Tried HomeAdvisor but the lead quality was terrible.",
+            lead_capture: "All leads go into GoHighLevel. Website form, phone calls logged by office staff, and Google Ads leads automatically sync. Pretty good at capturing, not great at following up.",
+            lead_followup: "Office tries to call back within 2-4 hours during business hours. After hours leads wait until morning. If we miss them, we try once more then they go cold.",
+            old_leads: "Yes — we have hundreds of quotes we sent out over the last couple of years that never went anywhere. I pulled a report last week and there's 600+ unconverted quotes just sitting there. We just don't have time to follow up on all of them.",
+            marketing_spend: "About $1,500/month on Google Ads, $500 on various subscriptions and software. Time-wise, basically zero — no one has bandwidth to do marketing properly.",
+            // Sales & Customer Journey (5 questions)
+            sales_process: "Lead comes in, office calls back, technician goes out for estimate, we send quote via email, customer either books or ghosts us. For maintenance agreements, similar but we pitch it during service calls.",
+            sales_steps: "4 main steps: lead response, site visit/estimate, quote delivery, close. Office handles 1, techs handle 2-3, office handles 4 and scheduling.",
+            manual_tasks: "Quote follow-up is completely manual and barely happens. Maintenance agreement renewals are manual. Seasonal check-in calls to past customers don't happen because no one has time.",
+            sales_metrics: "We track quote-to-close rate (around 35%), average ticket ($1,400 for installs, $280 for repairs), and response time although we don't love what we see there.",
+            sales_cycle: "Repairs are usually same-day or next-day decision. Installs take 1-2 weeks as people get multiple quotes. Biggest friction is the time between quote and decision — that's where we lose people.",
+            // Operations & Delivery (5 questions)
+            time_consuming_tasks: "Dispatching and scheduling (constant Tetris), answering phone calls about appointment times and costs, chasing unpaid invoices, and trying to remember to follow up on quotes.",
+            automation_candidates: "Quote follow-up sequences, appointment reminders, review requests after service, and seasonal maintenance reminders to past customers.",
+            recurring_admin: "Weekly payroll, monthly reports, daily dispatch scheduling, and we're supposed to do quarterly maintenance reminders but it never happens consistently.",
+            team_communication: "Group text for urgent stuff, morning huddle for daily schedule, GoHighLevel tasks for follow-ups. ServiceTitan is supposed to help but we're still learning it.",
+            scaling_bottleneck: "Can't grow past 8 techs because office can't handle more call volume and scheduling complexity. Also losing too many quotes to slow follow-up.",
+            // Customer Service & Retention (5 questions)
+            customer_support: "Phone calls during business hours, after-hours emergency line goes to on-call tech. Email but it's not checked regularly.",
+            support_automation: "GoHighLevel sends appointment confirmations and some basic automations, but nothing sophisticated. No chatbot or AI.",
+            repetitive_questions: "Probably 1-2 hours daily on pricing questions, appointment availability, do you service my area, how long will it take, can you come sooner. Same stuff over and over.",
+            customer_feedback: "We ask for Google reviews via text after every job — that works pretty well, we have 180+ reviews. But no formal feedback collection or NPS tracking.",
+            customer_retention: "Maintenance agreements are supposed to auto-renew but follow-up is inconsistent. No proactive outreach to past customers before busy seasons. We know we should but there's no time.",
+            // AI Awareness & Readiness (5 questions)
+            ai_experience: "Experimenting — we've played with ChatGPT for writing marketing copy and some email templates. Nothing integrated into our actual workflow though.",
+            automation_explored: "GoHighLevel has some automation we use — appointment reminders, review requests. Tried to set up quote follow-up sequences but couldn't get them to feel personal enough.",
+            ai_hesitation: "Worried customers will know it's not a real person and be turned off. Also concerned about AI saying the wrong thing about pricing or availability.",
+            automate_tomorrow: "Quote follow-up — we lose so many jobs just because we didn't follow up fast enough. By the time we call back, they've already hired someone else. If we could automatically follow up on every quote, we'd close 10-15% more.",
+            success_metric: "If we could increase close rate from 35% to 45% through better follow-up, that's an extra $84,000/year at our current quote volume. Plus reactivating those 600 old quotes could be another $100K+.",
           },
           ai_insights: {
             bottlenecks: [
