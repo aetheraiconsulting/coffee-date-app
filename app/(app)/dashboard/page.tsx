@@ -36,10 +36,23 @@ export default async function DashboardPage() {
     dayInSprint,
     fullName,
     email,
+    subscriptionStatus,
+    trialEndsAt,
   } = state
 
   // Get first name
   const firstName = fullName?.split(" ")[0] || email?.split("@")[0] || "there"
+
+  // Calculate trial days left
+  const trialDaysLeft = trialEndsAt
+    ? Math.max(0, Math.ceil(
+        (new Date(trialEndsAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+      ))
+    : 14
+
+  const isLimited = subscriptionStatus === "limited" ||
+    subscriptionStatus === "cancelled" ||
+    (subscriptionStatus === "trial" && trialDaysLeft === 0)
 
   
 
@@ -95,6 +108,50 @@ export default async function DashboardPage() {
   return (
     <div className="min-h-screen bg-[#080B0F]">
       <div className="max-w-4xl mx-auto p-6 md:p-10 space-y-8">
+        
+        {/* Trial ending soon — shows when 3 or fewer days remain */}
+        {subscriptionStatus === "trial" && trialDaysLeft <= 3 && trialDaysLeft > 0 && (
+          <div className="bg-amber-500/[0.08] border border-amber-500/20 rounded-xl p-4 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse flex-shrink-0" />
+              <div>
+                <p className="text-amber-300 text-sm font-semibold">
+                  Your free trial ends in {trialDaysLeft} day{trialDaysLeft !== 1 ? "s" : ""}
+                </p>
+                <p className="text-amber-300/50 text-xs">
+                  Subscribe now to keep full access to all features
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/upgrade"
+              className="flex-shrink-0 text-xs bg-amber-400 text-black font-bold px-4 py-2 rounded-lg whitespace-nowrap"
+            >
+              Upgrade now →
+            </Link>
+          </div>
+        )}
+
+        {/* Limited access — trial ended or payment failed */}
+        {isLimited && (
+          <div className="bg-red-500/[0.08] border border-red-500/20 rounded-xl p-4 flex items-center justify-between gap-4">
+            <div>
+              <p className="text-red-300 text-sm font-semibold mb-0.5">
+                Your access is limited
+              </p>
+              <p className="text-red-300/50 text-xs">
+                Subscribe to continue generating offers, outreach, audits, and reports
+              </p>
+            </div>
+            <Link
+              href="/upgrade"
+              className="flex-shrink-0 text-xs bg-[#00AAFF] text-black font-bold px-4 py-2 rounded-lg whitespace-nowrap"
+            >
+              Start your sprint →
+            </Link>
+          </div>
+        )}
+
         {/* ============================================
             1. TODAY'S MISSION (PRIMARY FOCUS)
         ============================================ */}

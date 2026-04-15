@@ -3,6 +3,11 @@ import type { NextRequest } from "next/server"
 import { updateSession } from "@/lib/supabase/middleware"
 
 export async function middleware(request: NextRequest) {
+  // Stripe webhook must never require auth
+  if (request.nextUrl.pathname === "/api/stripe/webhook") {
+    return NextResponse.next()
+  }
+
   const url = request.nextUrl.clone()
   const hostname = request.headers.get("host") || ""
   const mainDomain = process.env.NEXT_PUBLIC_MAIN_DOMAIN || "aetherrevive.com"

@@ -11,6 +11,7 @@ import { Upload, Loader2, Check, X, Globe } from "lucide-react"
 import { useEffect, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
 import Image from "next/image"
+import { SubscriptionCard } from "@/components/subscription-card"
 
 const MAIN_DOMAIN = "aetherrevive.com"
 
@@ -38,7 +39,7 @@ export default function SettingsPage() {
       } = await supabase.auth.getUser()
       if (!user) return
 
-      const { data, error } = await supabase.from("profiles").select("*").eq("id", user.id).single()
+      const { data, error } = await supabase.from("profiles").select("*, subscription_status, trial_ends_at, stripe_customer_id, subscription_ends_at").eq("id", user.id).single()
 
       if (error) throw error
 
@@ -211,6 +212,9 @@ export default function SettingsPage() {
         <h1 className="text-3xl font-bold text-white">Settings</h1>
         <p className="text-white/60">Manage your account and profile settings</p>
       </div>
+
+      {/* Subscription Card */}
+      <SubscriptionCard profile={profile} />
 
       <Card className="bg-white/5 border-white/10">
         <CardHeader>
