@@ -50,12 +50,27 @@ export async function POST() {
       .from("call_scripts")
       .select("*")
       .eq("user_id", user.id)
-      .eq("offer_id", profile.offer_id)
-      .single()
+      .eq("offer_id", offer.id)
+      .eq("call_completed", false)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle()
 
     if (existingScript) {
       return NextResponse.json({ script: existingScript })
     }
+
+    // Get reply context if available
+    const { data: recentReplies } = await supabase
+      .from("reply_threads")
+      .select("prospect_reply, suggested_response")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(3)
+
+    const repliesContext = recentReplies?.length
+      ? `\n\nRecent prospect replies for context:\n${recentReplies.map(r => `- "${r.prospect_reply}"`).join("\n")}`
+      : ""
 
     // Generate script via Claude
     const response = await fetch("https://api.anthropic.com/v1/messages", {
@@ -68,31 +83,33 @@ export async function POST() {
       body: JSON.stringify({
         model: "claude-sonnet-4-20250514",
         max_tokens: 1500,
-        system: `You are an expert sales coach creating a discovery call script for a service provider.
-
-The user's offer:
-- Service: ${offer.service_name}
-- Outcome: ${offer.outcome_statement}
-- Price: ${offer.price_point || "To be discussed"}
-- Guarantee: ${offer.guarantee || "None specified"}
-
-Generate a natural, conversational call script with these sections:
-1. Opening (2-3 sentences to build rapport and set the agenda)
-2. Qualification Questions (3-4 questions to understand their situation and pain points)
-3. Objection Responses (3 common objections with smooth responses)
-4. Close Ask (the exact words to ask for the sale or next step)
-
-Return as JSON:
-{
-  "opening": "string",
-  "qualification_questions": "string (numbered list)",
-  "objection_responses": "string (formatted as Objection: ... Response: ...)",
-  "close_ask": "string"
-}`,
+        system: `You are an expert sales coach building call scripts for AI service consultants. 
+You use the Chris Voss tactical empathy framework and SPIN selling methodology.
+The goal of the call is NOT to close immediately — it is to run a 10-minute Coffee Date Demo and then move to a proposal.
+Write in second person, direct and confident. No corporate language. No filler.
+Return valid JSON only. No markdown. No explanation.`,
         messages: [
           {
             role: "user",
-            content: "Generate the call script based on my offer."
+            content: `Build a call preparation script for this AI service consultant.
+
+Their offer:
+Service: ${offer.service_name}
+Niche: ${offer.niche}
+Outcome: ${offer.outcome_statement}
+Pricing: ${offer.pricing_model} — ${offer.price_point}
+Guarantee: ${offer.guarantee}
+${repliesContext}
+
+Return this exact JSON:
+{
+  "opening": "How to open the call — first 30 seconds. Warm, confident, sets the agenda. Reference the demo.",
+  "qualification_questions": "3-4 SPIN questions to ask before the demo. Situation and Problem questions only. One at a time.",
+  "demo_transition": "How to transition from questions into the Coffee Date Demo. Natural, low pressure.",
+  "objection_responses": "Top 3 objections for this niche and how to handle each using Voss techniques.",
+  "close_ask": "How to close after the demo — move toward proposal. No-oriented question format.",
+  "pre_call_checklist": ["item 1", "item 2", "item 3", "item 4", "item 5"]
+}`
           }
         ]
       })
@@ -118,9 +135,10 @@ Return as JSON:
       .from("call_scripts")
       .insert({
         user_id: user.id,
-        offer_id: profile.offer_id,
+        offer_id: offer.id,
         opening: scriptData.opening,
         qualification_questions: scriptData.qualification_questions,
+        demo_transition: scriptData.demo_transition,
         objection_responses: scriptData.objection_responses,
         close_ask: scriptData.close_ask,
       })
