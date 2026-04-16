@@ -20,6 +20,7 @@ import {
   Target,
   RefreshCw,
   ChevronRight,
+  Coffee,
 } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -28,6 +29,7 @@ type CallScript = {
   id: string
   opening: string
   qualification_questions: string
+  demo_transition: string
   objection_responses: string
   close_ask: string
   call_completed: boolean
@@ -349,6 +351,28 @@ export default function CallPrepPage() {
                 </ScrollArea>
               </CardContent>
             </Card>
+
+            {script.demo_transition && (
+              <Card className="bg-card border-[#00AAFF]/30 border-2">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-foreground">
+                    <Coffee className="h-5 w-5 text-[#00AAFF]" />
+                    Transition to Demo
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <p className="text-foreground leading-relaxed whitespace-pre-wrap">
+                    {script.demo_transition}
+                  </p>
+                  <Link href="/demo">
+                    <Button className="bg-[#00AAFF] hover:bg-[#00AAFF]/90 text-white">
+                      <Coffee className="mr-2 h-4 w-4" />
+                      Open Coffee Date Demo
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
+            )}
 
             <Card className="bg-card border-border">
               <CardHeader>
