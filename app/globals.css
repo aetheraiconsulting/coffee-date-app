@@ -281,3 +281,25 @@
 .animate-pulse-once {
   animation: pulse-once 0.6s ease-out;
 }
+
+/* Ensure all Radix UI popover and dropdown content has solid backgrounds */
+[data-radix-popper-content-wrapper] > * {
+  background-color: #0F1318 !important;
+}
+
+[role="listbox"],
+[role="menu"] {
+  background-color: #0F1318 !important;
+}
+
+/* Select dropdown content */
+[data-radix-select-content],
+[data-radix-dropdown-menu-content] {
+  background-color: #0F1318 !important;
+  border: 0.5px solid rgba(255,255,255,0.1) !important;
+}
+
+/* Command/Combobox list backgrounds */
+[cmdk-list] {
+  background-color: #0F1318 !important;
+}

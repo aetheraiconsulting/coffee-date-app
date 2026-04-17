@@ -438,7 +438,7 @@ export default function DeadLeadRevivalPage() {
                 Add GHL Dead Lead Account
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl bg-[#0A0A0A] border border-white/10 max-h-[90vh] overflow-y-auto">
+            <DialogContent className="max-w-2xl bg-[#0F1318] border border-white/10 max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle className="text-[20px] font-semibold text-white">Add GHL Dead Lead Account</DialogTitle>
                 <DialogDescription className="text-[15px] text-white/60">
@@ -493,7 +493,7 @@ export default function DeadLeadRevivalPage() {
                     value={accountName}
                     onChange={(e) => setAccountName(e.target.value)}
                     autoComplete="off"
-                    className="h-11 bg-white/5 border-white/10 text-white placeholder:text-white/40"
+                    className="h-11 bg-[#1A1F26] border-white/15 text-white placeholder:text-white/40"
                   />
                   <p className="text-xs text-white/50">This is the label you'll see inside your dashboard.</p>
                 </div>
@@ -506,7 +506,7 @@ export default function DeadLeadRevivalPage() {
                       placeholder="Search and select a niche..."
                       value={nicheSearch}
                       onChange={(e) => setNicheSearch(e.target.value)}
-                      className="h-11 pl-9 bg-white/5 border-white/10 text-white placeholder:text-white/40"
+                      className="h-11 pl-9 bg-[#1A1F26] border-white/15 text-white placeholder:text-white/40"
                     />
                   </div>
                   {selectedNicheName && (
@@ -525,7 +525,7 @@ export default function DeadLeadRevivalPage() {
                     </div>
                   )}
                   {!selectedNicheId && (
-                    <ScrollArea className="h-[150px] rounded-lg border border-white/10 bg-white/5">
+                    <ScrollArea className="h-[150px] rounded-lg border border-white/10 bg-[#0F1318]">
                       <div className="p-2 space-y-1">
                         {/* Other option at top */}
                         <button
@@ -581,7 +581,7 @@ export default function DeadLeadRevivalPage() {
                     value={locationId}
                     onChange={(e) => setLocationId(e.target.value)}
                     autoComplete="off"
-                    className="h-11 bg-white/5 border-white/10 text-white placeholder:text-white/40"
+                    className="h-11 bg-[#1A1F26] border-white/15 text-white placeholder:text-white/40"
                   />
                   <p className="text-xs text-white/50">
                     In the client sub-account, go to Settings → Business Profile and copy the Location ID.
@@ -600,7 +600,7 @@ export default function DeadLeadRevivalPage() {
                     onChange={(e) => setPrivateIntegrationToken(e.target.value)}
                     autoComplete="new-password"
                     name="ghl-private-integration-token"
-                    className="h-11 bg-white/5 border-white/10 text-white placeholder:text-white/40"
+                    className="h-11 bg-[#1A1F26] border-white/15 text-white placeholder:text-white/40"
                   />
                   <p className="text-xs text-white/50">
                     In the client sub-account, go to Settings → Private Integrations. Create a new integration and
