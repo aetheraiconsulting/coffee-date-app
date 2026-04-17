@@ -370,7 +370,7 @@ export default function DeadLeadRevivalPage() {
                 GoHighLevel is the easiest way to run AI dead lead revival at scale. Create a sub-account for each client and deploy campaigns in minutes.
               </p>
               <a
-                href="https://affiliate.gohighlevel.com?sref=dnotr6y"
+                href="https://www.gohighlevel.com/?fp_ref=aether"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-block bg-[#00AAFF] text-black font-bold text-sm px-5 py-2.5 rounded-lg"
@@ -407,7 +407,7 @@ export default function DeadLeadRevivalPage() {
               Adding a new client? Create a GHL sub-account first.
             </p>
             <a
-              href="https://affiliate.gohighlevel.com?sref=dnotr6y"
+              href="https://www.gohighlevel.com/?fp_ref=aether"
               target="_blank"
               rel="noopener noreferrer"
               className="text-[#00AAFF] text-sm font-semibold hover:underline"
@@ -469,7 +469,7 @@ export default function DeadLeadRevivalPage() {
 
                   <div className="flex gap-3 mt-4 pt-4 border-t border-white/[0.08]">
                     <a
-                      href="https://affiliate.gohighlevel.com?sref=dnotr6y"
+                      href="https://www.gohighlevel.com/?fp_ref=aether"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-xs text-[#00AAFF] hover:underline"
