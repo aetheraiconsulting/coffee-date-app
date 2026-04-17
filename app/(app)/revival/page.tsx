@@ -368,7 +368,7 @@ export default function DeadLeadRevivalPage() {
                 Get GoHighLevel — recommended for dead lead revival
               </p>
               <p className="text-white/50 text-sm mb-4">
-                GoHighLevel is the easiest way to run AI dead lead revival at scale. Create a sub-account for each client and deploy campaigns in minutes.
+                You need a GoHighLevel <strong className="text-white/70">Agency account</strong> to create sub-accounts for each client. A standard account will not work for dead lead revival. Click below to get the right plan.
               </p>
               <a
                 href="https://www.gohighlevel.com/?fp_ref=aether"
@@ -454,7 +454,7 @@ export default function DeadLeadRevivalPage() {
                     Setup checklist
                   </p>
                   {[
-                    { step: "1", text: "Create a sub-account in GHL for this client" },
+                    { step: "1", text: "Create a sub-account in your GHL Agency account for this client" },
                     { step: "2", text: "Import client's dormant lead database as contacts" },
                     { step: "3", text: "Copy the Aether dead lead revival workflow template into the sub-account" },
                     { step: "4", text: "Generate a client Android prompt in Aether Revive and add it to the workflow" },
@@ -482,6 +482,9 @@ export default function DeadLeadRevivalPage() {
                       Build client Android →
                     </a>
                   </div>
+                  <p className="text-amber-400/60 text-xs mt-3">
+                    ⚠️ You need a GHL Agency account to create sub-accounts. A standard account will not work.
+                  </p>
                 </div>
 
                 <div className="space-y-2">
