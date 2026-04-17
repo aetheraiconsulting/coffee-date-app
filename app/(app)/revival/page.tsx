@@ -34,6 +34,7 @@ type GHLConnection = {
   account_name: string | null
   location_id: string | null
   connected_at: string
+  last_synced_at: string | null
 }
 
 export default function DeadLeadRevivalPage() {
@@ -404,7 +405,7 @@ export default function DeadLeadRevivalPage() {
         {accounts.length > 0 && (
           <div className="flex items-center justify-between border border-white/[0.08] rounded-lg px-4 py-3 mb-6">
             <p className="text-white/40 text-sm">
-              Adding a new client? Create a GHL sub-account first.
+              Each client needs their own GHL sub-account — create one before connecting here.
             </p>
             <a
               href="https://www.gohighlevel.com/?fp_ref=aether"
@@ -711,6 +712,14 @@ export default function DeadLeadRevivalPage() {
                     <div className="h-2 w-2 rounded-full bg-[#00A8FF]"></div>
                     Connected {new Date(account.connected_at).toLocaleDateString()}
                   </div>
+                  <div className="flex items-center gap-4 mt-2 mb-3">
+                    <p className="text-white/25 text-xs">
+                      {account.last_synced_at
+                        ? `Last synced ${new Date(account.last_synced_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`
+                        : "Not yet synced"
+                      }
+                    </p>
+                  </div>
                   <div className="flex gap-2">
                     <Button
                       variant="outline"
@@ -718,13 +727,19 @@ export default function DeadLeadRevivalPage() {
                       className="flex-1 h-9 border-white/10 text-white hover:bg-[#00A8FF] hover:text-white hover:border-[#00A8FF] bg-transparent"
                       onClick={() => router.push(`/revival/account/${account.id}`)}
                     >
-                      View Data
+                      View Revival Results →
                     </Button>
                   </div>
                 </CardContent>
               </Card>
             ))}
           </div>
+        )}
+
+        {accounts.length > 0 && (
+          <p className="text-white/25 text-xs text-center mt-6">
+            Connected an account? Click &quot;View Revival Results&quot; to sync conversations and track your results.
+          </p>
         )}
 
         <AlertDialog open={!!accountToDelete} onOpenChange={() => setAccountToDelete(null)}>
