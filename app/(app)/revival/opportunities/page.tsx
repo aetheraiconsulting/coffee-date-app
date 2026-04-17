@@ -2173,8 +2173,8 @@ export default function OpportunitiesPage() {
                                 asChild
                                 className="w-full bg-[#00AAFF] hover:bg-[#0099EE] text-white"
                               >
-                                <Link href="/revival/connect">
-                                  Connect GHL account
+<Link href="/revival">
+  Connect GHL account
                                   <ChevronRight className="h-4 w-4 ml-1" />
                                 </Link>
                               </Button>

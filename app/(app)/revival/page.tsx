@@ -353,6 +353,71 @@ export default function DeadLeadRevivalPage() {
               Connect multiple client sub-accounts to track revivals and AI conversations
             </p>
           </div>
+        </div>
+
+        {/* Show only when user has zero GHL connections */}
+        {accounts.length === 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+            {/* Card 1 — New to GHL */}
+            <div className="border border-[#00AAFF]/20 bg-[#00AAFF]/5 rounded-xl p-5">
+              <p className="text-[#00AAFF] text-xs font-semibold uppercase tracking-wider mb-2">
+                Don&apos;t have GoHighLevel yet?
+              </p>
+              <p className="text-white font-semibold mb-2">
+                Get GoHighLevel — recommended for dead lead revival
+              </p>
+              <p className="text-white/50 text-sm mb-4">
+                GoHighLevel is the easiest way to run AI dead lead revival at scale. Create a sub-account for each client and deploy campaigns in minutes.
+              </p>
+              <a
+                href="https://affiliate.gohighlevel.com?sref=dnotr6y"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-block bg-[#00AAFF] text-black font-bold text-sm px-5 py-2.5 rounded-lg"
+              >
+                Get GoHighLevel →
+              </a>
+              <p className="text-white/25 text-xs mt-2">
+                Affiliate link — we recommend this because it works
+              </p>
+            </div>
+
+            {/* Card 2 — Already have GHL */}
+            <div className="border border-white/10 rounded-xl p-5">
+              <p className="text-white/40 text-xs font-semibold uppercase tracking-wider mb-2">
+                Already have GoHighLevel?
+              </p>
+              <p className="text-white font-semibold mb-2">
+                Connect your first sub-account
+              </p>
+              <p className="text-white/50 text-sm mb-4">
+                Create a sub-account for your client in GHL, import their lead database, then connect it here to start tracking results.
+              </p>
+              <p className="text-white/30 text-xs">
+                Click &quot;Add GHL Account&quot; below to get started
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Show smaller affiliate link when connections exist */}
+        {accounts.length > 0 && (
+          <div className="flex items-center justify-between border border-white/[0.08] rounded-lg px-4 py-3 mb-6">
+            <p className="text-white/40 text-sm">
+              Adding a new client? Create a GHL sub-account first.
+            </p>
+            <a
+              href="https://affiliate.gohighlevel.com?sref=dnotr6y"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[#00AAFF] text-sm font-semibold hover:underline"
+            >
+              Get GoHighLevel →
+            </a>
+          </div>
+        )}
+
+        <div className="flex items-center justify-end">
 
           {/* Update the Add Account modal dialog to include niche selector */}
           <Dialog
@@ -382,6 +447,42 @@ export default function DeadLeadRevivalPage() {
               </DialogHeader>
 
               <div className="space-y-4 py-4">
+                {/* Setup checklist */}
+                <div className="border border-white/[0.08] rounded-lg p-4 mb-5">
+                  <p className="text-white/60 text-xs font-semibold uppercase tracking-wider mb-3">
+                    Setup checklist
+                  </p>
+                  {[
+                    { step: "1", text: "Create a sub-account in GHL for this client" },
+                    { step: "2", text: "Import client's dormant lead database as contacts" },
+                    { step: "3", text: "Copy the Aether dead lead revival workflow template into the sub-account" },
+                    { step: "4", text: "Generate a client Android prompt in Aether Revive and add it to the workflow" },
+                    { step: "5", text: "Connect the sub-account below and start tracking results" },
+                  ].map((item) => (
+                    <div key={item.step} className="flex items-start gap-3 mb-2">
+                      <div className="w-5 h-5 rounded-full bg-[#00AAFF]/15 border border-[#00AAFF]/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <span className="text-[#00AAFF] text-xs font-bold">{item.step}</span>
+                      </div>
+                      <p className="text-white/50 text-sm">{item.text}</p>
+                    </div>
+                  ))}
+
+                  <div className="flex gap-3 mt-4 pt-4 border-t border-white/[0.08]">
+                    <a
+                      href="https://affiliate.gohighlevel.com?sref=dnotr6y"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-[#00AAFF] hover:underline"
+                    >
+                      Get GoHighLevel →
+                    </a>
+                    <span className="text-white/20 text-xs">·</span>
+                    <a href="/prompt-generator" className="text-xs text-white/40 hover:text-white/60">
+                      Build client Android →
+                    </a>
+                  </div>
+                </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="accountName" className="text-sm font-medium text-white">
                     Account Name (Friendly Business Name) *
