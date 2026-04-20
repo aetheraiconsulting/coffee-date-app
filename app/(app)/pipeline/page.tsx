@@ -490,7 +490,13 @@ export default function PipelinePage() {
                 {filteredItems.map((item) => (
                   <Link
                     key={item.id}
-                    href={item.stage === "replied" ? "/outreach" : item.stage === "won" ? "/proposal/builder" : "/outreach"}
+                    href={
+                      item.stage === "won"
+                        ? `/proposal/builder?id=${item.id}`
+                        : item.stage === "replied"
+                          ? "/outreach"
+                          : "/outreach"
+                    }
                     className="flex items-center gap-4 p-4 md:p-5 hover:bg-white/[0.03] transition-all group"
                   >
                     {/* Stage indicator */}

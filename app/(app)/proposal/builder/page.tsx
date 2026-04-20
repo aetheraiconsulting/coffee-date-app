@@ -22,7 +22,9 @@ import {
   CheckCircle2,
   ListChecks,
 } from "lucide-react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
+import Link from "next/link"
+import { ArrowLeft } from "lucide-react"
 
 type Offer = {
   service_name: string
@@ -71,17 +73,23 @@ export default function ProposalBuilderPage() {
   const supabase = createClient()
   const { refreshState } = useUserState()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const proposalIdParam = searchParams?.get("id") ?? null
+  const modeParam = searchParams?.get("mode") ?? null
+  const callIdParam = searchParams?.get("call_id") ?? null
 
   useEffect(() => {
     fetchData()
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [proposalIdParam, modeParam, callIdParam])
 
   const fetchData = async () => {
+    setLoading(true)
     try {
-      // Fetch offer
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
+      // Always load the active offer for context/display
       const { data: profile } = await supabase
         .from("profiles")
         .select("offer_id")
@@ -98,21 +106,52 @@ export default function ProposalBuilderPage() {
         if (offerData) setOffer(offerData)
       }
 
-      // Fetch most recent completed call script
-      const { data: scriptData } = await supabase
-        .from("call_scripts")
-        .select("id, call_notes")
-        .eq("user_id", user.id)
-        .eq("call_completed", true)
-        .order("call_completed_at", { ascending: false })
-        .limit(1)
-        .single()
+      // Load call script: either the one specified via ?call_id= or the most recent completed one
+      if (callIdParam) {
+        const { data: scriptData } = await supabase
+          .from("call_scripts")
+          .select("id, call_notes")
+          .eq("user_id", user.id)
+          .eq("id", callIdParam)
+          .maybeSingle()
+        if (scriptData) setCallScript(scriptData)
+      } else {
+        const { data: scriptData } = await supabase
+          .from("call_scripts")
+          .select("id, call_notes")
+          .eq("user_id", user.id)
+          .eq("call_completed", true)
+          .order("call_completed_at", { ascending: false })
+          .limit(1)
+          .maybeSingle()
+        if (scriptData) setCallScript(scriptData)
+      }
 
-      if (scriptData) setCallScript(scriptData)
+      // Branch 1: ?mode=new — force empty form view
+      if (modeParam === "new") {
+        setProposal(null)
+        setView("notes")
+        return
+      }
 
-      // Fetch the most recent proposal (sent or unsent). If it's sent and already
-      // has a final deal_status (won/lost), we don't want to show it as "active" —
-      // so only surface it if it's pending or unsent.
+      // Branch 2: ?id=<proposalId> — load that specific proposal
+      if (proposalIdParam) {
+        const { data: specific } = await supabase
+          .from("proposals")
+          .select("*")
+          .eq("id", proposalIdParam)
+          .eq("user_id", user.id)
+          .maybeSingle()
+
+        if (specific) {
+          setProposal(specific)
+          setView("proposal")
+          return
+        }
+        // If not found, fall through to default (most recent)
+      }
+
+      // Default: load the most recent proposal (sent or unsent)
       const { data: existingProposal } = await supabase
         .from("proposals")
         .select("*")
@@ -122,16 +161,11 @@ export default function ProposalBuilderPage() {
         .maybeSingle()
 
       if (existingProposal) {
-        const status = existingProposal.deal_status ?? "pending"
-        // Show the proposal view if it's unsent, or if it's sent but outcome still pending
-        if (!existingProposal.sent || status === "pending") {
-          setProposal(existingProposal)
-          setView("proposal")
-        } else if (status === "won" || status === "lost") {
-          // Still show so user can view outcome / undo if needed
-          setProposal(existingProposal)
-          setView("proposal")
-        }
+        setProposal(existingProposal)
+        setView("proposal")
+      } else {
+        setProposal(null)
+        setView("notes")
       }
     } catch (error) {
       console.error("Error fetching data:", error)
@@ -309,6 +343,14 @@ export default function ProposalBuilderPage() {
     return (
       <div className="min-h-screen bg-[#080B0F]">
         <div className="max-w-2xl mx-auto px-4 py-12">
+          <Link
+            href="/proposal"
+            className="text-white/40 hover:text-white/60 text-sm flex items-center gap-1 mb-6 transition-colors w-fit"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            All proposals
+          </Link>
+
           {/* Offer Summary Card */}
           {offer && (
             <div
@@ -438,6 +480,14 @@ export default function ProposalBuilderPage() {
   return (
     <div className="min-h-screen bg-[#080B0F]">
       <div className="max-w-3xl mx-auto px-4 py-12">
+        <Link
+          href="/proposal"
+          className="text-white/40 hover:text-white/60 text-sm flex items-center gap-1 mb-6 transition-colors w-fit"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          All proposals
+        </Link>
+
         {/* Header */}
         <div className="flex items-start justify-between mb-8">
           <h1 className="text-2xl font-bold text-white">Your proposal</h1>
