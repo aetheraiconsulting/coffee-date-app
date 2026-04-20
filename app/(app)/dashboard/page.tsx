@@ -14,12 +14,29 @@ import { redirect } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { getUserState } from "@/lib/getUserState"
 import { MissionControl } from "@/components/dashboard/mission-control"
+import { WelcomeModalWrapper } from "@/components/welcome-modal-wrapper"
+import { createClient } from "@/lib/supabase/server"
 
 export default async function DashboardPage() {
   const state = await getUserState()
 
   if (!state) {
     redirect("/login")
+  }
+
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  let hasCompletedOnboarding = true
+  if (user) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("has_completed_onboarding")
+      .eq("id", user.id)
+      .single()
+    hasCompletedOnboarding = profile?.has_completed_onboarding ?? false
   }
 
   // Destructure state for easier access
@@ -107,9 +124,12 @@ export default async function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-[#080B0F]">
-      <div className="max-w-4xl mx-auto p-6 md:p-10 space-y-8">
-        
-        {/* Trial ending soon — shows when 3 or fewer days remain */}
+    {user && (
+      <WelcomeModalWrapper userId={user.id} hasCompletedOnboarding={hasCompletedOnboarding} />
+    )}
+    <div className="max-w-4xl mx-auto p-6 md:p-10 space-y-8">
+    
+    {/* Trial ending soon — shows when 3 or fewer days remain */}
         {subscriptionStatus === "trial" && trialDaysLeft <= 3 && trialDaysLeft > 0 && (
           <div className="bg-amber-500/[0.08] border border-amber-500/20 rounded-xl p-4 flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
