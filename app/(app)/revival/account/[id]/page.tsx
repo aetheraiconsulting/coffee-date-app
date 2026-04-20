@@ -223,6 +223,31 @@ export default function AccountDetailPage() {
         {/* Android prompt for this niche */}
         {account?.niche_id && userId && <AndroidPromptCard userId={userId} nicheId={account.niche_id} />}
 
+        {/* Snapshot import card */}
+        <div className="border border-[#00AAFF]/20 bg-[#00AAFF]/5 rounded-xl p-5">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <p className="text-[#00AAFF] text-xs font-semibold uppercase tracking-wider mb-2">
+                Dead Lead Revival Snapshot
+              </p>
+              <p className="text-white font-semibold mb-2">
+                Import the complete workflow in one click
+              </p>
+              <p className="text-white/50 text-sm mb-3">
+                Load the Aether Revive dead lead revival system directly into any GHL sub-account. Includes workflow, custom fields, pipeline stages, and everything you need to start running campaigns.
+              </p>
+              <a
+                href="https://affiliates.gohighlevel.com/?fp_ref=adam-stacey73&share=iiIwK7wHZ21HXLPBys1n"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-block bg-[#00AAFF] text-black font-bold text-sm px-5 py-2.5 rounded-lg"
+              >
+                Import snapshot to GHL →
+              </a>
+            </div>
+          </div>
+        </div>
+
         {/* Conversations list */}
         <div className="border border-white/10 rounded-xl overflow-hidden">
           <div className="flex items-center justify-between px-5 py-3 border-b border-white/[0.08]">

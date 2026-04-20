@@ -418,6 +418,31 @@ export default function DeadLeadRevivalPage() {
           </div>
         )}
 
+        {/* Snapshot import card - always visible */}
+        <div className="border border-[#00AAFF]/20 bg-[#00AAFF]/5 rounded-xl p-5 mb-4">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <p className="text-[#00AAFF] text-xs font-semibold uppercase tracking-wider mb-2">
+                Dead Lead Revival Snapshot
+              </p>
+              <p className="text-white font-semibold mb-2">
+                Import the complete workflow in one click
+              </p>
+              <p className="text-white/50 text-sm mb-3">
+                Load the Aether Revive dead lead revival system directly into any GHL sub-account. Includes workflow, custom fields, pipeline stages, and everything you need to start running campaigns.
+              </p>
+              <a
+                href="https://affiliates.gohighlevel.com/?fp_ref=adam-stacey73&share=iiIwK7wHZ21HXLPBys1n"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-block bg-[#00AAFF] text-black font-bold text-sm px-5 py-2.5 rounded-lg"
+              >
+                Import snapshot to GHL →
+              </a>
+            </div>
+          </div>
+        </div>
+
         <div className="flex items-center justify-end">
 
           {/* Update the Add Account modal dialog to include niche selector */}
@@ -456,7 +481,7 @@ export default function DeadLeadRevivalPage() {
                   {[
                     { step: "1", text: "Create a sub-account in your GHL Agency account for this client" },
                     { step: "2", text: "Import client's dormant lead database as contacts" },
-                    { step: "3", text: "Copy the Aether dead lead revival workflow template into the sub-account" },
+                    { step: "3", text: "Import the Aether dead lead revival snapshot into your sub-account" },
                     { step: "4", text: "Generate a client Android prompt in Aether Revive and add it to the workflow" },
                     { step: "5", text: "Connect the sub-account below and start tracking results" },
                   ].map((item) => (
@@ -468,7 +493,7 @@ export default function DeadLeadRevivalPage() {
                     </div>
                   ))}
 
-                  <div className="flex gap-3 mt-4 pt-4 border-t border-white/[0.08]">
+                  <div className="flex flex-wrap gap-3 mt-4 pt-4 border-t border-white/[0.08]">
                     <a
                       href="https://www.gohighlevel.com/?fp_ref=aether"
                       target="_blank"
@@ -476,6 +501,15 @@ export default function DeadLeadRevivalPage() {
                       className="text-xs text-[#00AAFF] hover:underline"
                     >
                       Get GoHighLevel →
+                    </a>
+                    <span className="text-white/20 text-xs">·</span>
+                    <a
+                      href="https://affiliates.gohighlevel.com/?fp_ref=adam-stacey73&share=iiIwK7wHZ21HXLPBys1n"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-[#00AAFF] hover:underline font-semibold"
+                    >
+                      Import dead lead revival snapshot →
                     </a>
                     <span className="text-white/20 text-xs">·</span>
                     <a href="/prompt-generator" className="text-xs text-white/40 hover:text-white/60">
