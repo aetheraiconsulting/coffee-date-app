@@ -16,6 +16,8 @@ export default function SignupPage() {
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const { toast } = useToast()
   const router = useRouter()
   const supabase = createClient()
@@ -23,6 +25,8 @@ export default function SignupPage() {
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
+    setErrorMessage(null)
+    setSuccessMessage(null)
 
     try {
       const { data, error } = await supabase.auth.signUp({
@@ -38,19 +42,34 @@ export default function SignupPage() {
 
       if (error) throw error
 
+      // If session exists immediately, email confirmation is disabled — send straight to dashboard
+      if (data.session) {
+        setSuccessMessage("Account created. Redirecting...")
+        toast({
+          title: "Welcome!",
+          description: "Your account is ready.",
+        })
+        router.push("/dashboard")
+        router.refresh()
+        return
+      }
+
+      // Otherwise email confirmation is required
+      setSuccessMessage("Account created. Please check your email to confirm your account before signing in.")
       toast({
         title: "Success!",
         description: "Please check your email to confirm your account.",
       })
 
-      // Redirect after a short delay
       setTimeout(() => {
         router.push("/login")
-      }, 2000)
+      }, 3000)
     } catch (error: any) {
+      const message = error?.message || "Failed to create account"
+      setErrorMessage(message)
       toast({
         title: "Signup Error",
-        description: error.message || "Failed to create account",
+        description: message,
         variant: "destructive",
       })
     } finally {
@@ -120,6 +139,18 @@ export default function SignupPage() {
               Create your account
             </p>
           </div>
+
+          {/* Inline messages */}
+          {errorMessage && (
+            <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+              {errorMessage}
+            </div>
+          )}
+          {successMessage && (
+            <div className="rounded-lg border border-[#00AAFF]/30 bg-[#00AAFF]/10 px-4 py-3 text-sm text-[#00AAFF]">
+              {successMessage}
+            </div>
+          )}
 
           {/* Form */}
           <form onSubmit={handleSignup} className="space-y-4">

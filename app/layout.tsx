@@ -1,6 +1,7 @@
 import type React from "react"
 import type { Metadata } from "next"
 import { Manrope, DM_Sans } from 'next/font/google'
+import { Toaster } from "@/components/ui/toaster"
 import "./globals.css"
 
 const manrope = Manrope({
@@ -30,7 +31,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning className="dark">
-      <body className={`${manrope.variable} ${dmSans.variable} font-sans antialiased`}>{children}</body>
+      <body className={`${manrope.variable} ${dmSans.variable} font-sans antialiased`}>
+        {children}
+        <Toaster />
+      </body>
     </html>
   )
 }
