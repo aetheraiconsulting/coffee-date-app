@@ -228,6 +228,11 @@ type NicheUserState = {
   android_built?: boolean | null
   ghl_connected?: boolean | null
   audit_available?: boolean | null
+  client_onboarded?: boolean | null
+  client_onboarded_at?: string | null
+  // Optional: best-effort marker when a proposal has been won against this niche
+  // (populated from proposals.deal_status = 'won' in a future iteration)
+  proposal_won?: boolean | null
 }
 
 // Define the structure for a Niche
@@ -584,12 +589,43 @@ export default function OpportunitiesPage() {
     const stateMap = new Map<string, NicheUserState>()
     userStates?.forEach((state) => stateMap.set(state.niche_id, state))
 
-    const enrichedNiches: Niche[] = niches.map((niche) => ({
-      ...niche,
-      // @ts-ignore
-      industry_name: niche.industries?.name || "Unknown",
-      user_state: stateMap.get(niche.id) || null,
-    }))
+    // Map won proposals to their niches via the associated offer.
+    // proposals -> offers.niche (string) -> niches.niche_name (string)
+    const { data: wonProposals } = await supabase
+      .from("proposals")
+      .select("offer_id")
+      .eq("user_id", user.id)
+      .eq("deal_status", "won")
+
+    const wonOfferIds = Array.from(
+      new Set((wonProposals || []).map((p: any) => p.offer_id).filter(Boolean)),
+    )
+
+    const wonNicheNames = new Set<string>()
+    if (wonOfferIds.length > 0) {
+      const { data: wonOffers } = await supabase
+        .from("offers")
+        .select("niche")
+        .in("id", wonOfferIds)
+      wonOffers?.forEach((o: any) => {
+        if (o?.niche) wonNicheNames.add(String(o.niche).toLowerCase().trim())
+      })
+    }
+
+    const enrichedNiches: Niche[] = niches.map((niche) => {
+      const baseState = stateMap.get(niche.id) || null
+      const hasProposalWon = wonNicheNames.has(String(niche.niche_name).toLowerCase().trim())
+      return {
+        ...niche,
+        // @ts-ignore
+        industry_name: niche.industries?.name || "Unknown",
+        user_state: baseState
+          ? { ...baseState, proposal_won: hasProposalWon }
+          : hasProposalWon
+            ? ({ proposal_won: true } as NicheUserState)
+            : null,
+      }
+    })
 
     setAllNiches(enrichedNiches)
     setLoading(false)
@@ -1267,6 +1303,8 @@ export default function OpportunitiesPage() {
                     niche.user_state?.revival_win_completed || niche.user_state?.win_type === "revival"
                   const hasAuditWin = niche.user_state?.audit_win_completed || niche.user_state?.win_type === "audit"
                   const hasAnyWin = niche.user_state?.win_completed || hasRevivalWin || hasAuditWin
+                  const isClientOnboarded = !!niche.user_state?.client_onboarded
+                  const hasProposalWon = !!niche.user_state?.proposal_won
 
                   return (
                     <Card
@@ -1333,13 +1371,24 @@ export default function OpportunitiesPage() {
                               </span>
                             )}
                           </div>
-                          <div className="flex items-center gap-2 mt-1.5">
+                          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                             <span className="text-xs text-[#B0B0B0]">{niche.industry_name}</span>
-                            {hasAnyWin ? (
+                            {hasProposalWon && (
+                              <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400">
+                                Won
+                              </span>
+                            )}
+                            {isClientOnboarded && (
+                              <span className="text-xs px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-400">
+                                Client Onboarded
+                              </span>
+                            )}
+                            {!hasProposalWon && !isClientOnboarded && hasAnyWin && (
                               <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-500/20 text-yellow-400">
                                 Win
                               </span>
-                            ) : (
+                            )}
+                            {!hasProposalWon && !isClientOnboarded && !hasAnyWin && (
                               <span className="text-xs px-2 py-0.5 rounded-full bg-white/5 text-[#B0B0B0]">
                                 {stage?.label || "Research"}
                               </span>

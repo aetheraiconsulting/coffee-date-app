@@ -192,43 +192,26 @@ export default function DeadLeadRevivalPage() {
       if (connectionError) throw connectionError
 
       if (selectedNicheId !== "other") {
-        // Check if niche already has a WIN
-        const { data: existingState } = await supabase
-          .from("niche_user_state")
-          .select("win_completed")
-          .eq("niche_id", selectedNicheId)
-          .eq("user_id", user.id)
-          .single()
+        // Record client_onboarded — NOT a WIN. WINs are reserved for proposal outcomes.
+        const now = new Date().toISOString()
+        const { error: onboardError } = await supabase.from("niche_user_state").upsert(
+          {
+            niche_id: selectedNicheId,
+            user_id: user.id,
+            client_onboarded: true,
+            client_onboarded_at: now,
+            ghl_connected: true,
+            status: "Client Onboarded",
+            updated_at: now,
+          },
+          { onConflict: "niche_id,user_id" },
+        )
 
-        // Only create WIN if not already won
-        if (!existingState?.win_completed) {
-          const now = new Date().toISOString()
-          const { error: winError } = await supabase.from("niche_user_state").upsert(
-            {
-              niche_id: selectedNicheId,
-              user_id: user.id,
-              // Mark all stages complete
-              research_notes_added: true,
-              aov_calculator_completed: true,
-              customer_profile_generated: true,
-              messaging_prepared: true,
-              coffee_date_completed: true,
-              coffee_date_completed_at: now,
-              win_completed: true,
-              win_completed_at: now,
-              win_type: "revival", // Set win type to revival
-              status: "Win",
-              updated_at: now,
-            },
-            { onConflict: "niche_id,user_id" },
-          )
-
-          if (!winError) {
-            toast({
-              title: "Win Recorded!",
-              description: `${selectedNicheName} has been marked as a WIN in Opportunities`,
-            })
-          }
+        if (!onboardError) {
+          toast({
+            title: "Client Onboarded",
+            description: `${selectedNicheName} is now active. Track revival results from the account page.`,
+          })
         }
       }
 
@@ -237,7 +220,7 @@ export default function DeadLeadRevivalPage() {
         title: "Account Connected Successfully",
         description:
           selectedNicheId !== "other"
-            ? `${accountName} connected. This niche has been marked as a WIN in Opportunities.`
+            ? `${accountName} connected and marked as Client Onboarded.`
             : `${accountName} connected successfully.`,
       })
 
@@ -314,10 +297,10 @@ export default function DeadLeadRevivalPage() {
       {
         niche_id: nicheId,
         user_id: user.id,
-        win_completed: true,
-        win_completed_at: now,
-        win_type: "revival", // Set win type to revival
-        status: "Win",
+        client_onboarded: true,
+        client_onboarded_at: now,
+        ghl_connected: true,
+        status: "Client Onboarded",
         updated_at: now,
       },
       { onConflict: "niche_id,user_id" },
@@ -325,8 +308,8 @@ export default function DeadLeadRevivalPage() {
 
     if (!error) {
       toast({
-        title: "Win Recorded",
-        description: `Win recorded for ${nicheName}`,
+        title: "Client Onboarded",
+        description: `${nicheName} is now an active client.`,
       })
     }
 
