@@ -16,6 +16,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const { toast } = useToast()
   const router = useRouter()
   const supabase = createClient()
@@ -23,6 +24,7 @@ export default function LoginPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
+    setErrorMessage(null)
 
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -40,9 +42,11 @@ export default function LoginPage() {
       router.push("/dashboard")
       router.refresh()
     } catch (error: any) {
+      const message = error?.message || "Invalid email or password"
+      setErrorMessage(message)
       toast({
         title: "Authentication Error",
-        description: error.message || "Invalid email or password",
+        description: message,
         variant: "destructive",
       })
     } finally {
@@ -169,6 +173,13 @@ export default function LoginPage() {
                 Sign in to continue building your AI agency
               </p>
             </div>
+
+            {/* Inline error */}
+            {errorMessage && (
+              <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+                {errorMessage}
+              </div>
+            )}
 
             {/* Form */}
             <form onSubmit={handleLogin} className="space-y-5">
