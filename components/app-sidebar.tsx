@@ -42,6 +42,7 @@ const menuSections = [
       { icon: Send, label: "Outreach", href: "/outreach" },
       { icon: Send, label: "My Outreach", href: "/outreach/my-outreach", indent: true },
       { icon: Phone, label: "Call Prep", href: "/call-prep" },
+      { icon: FileText, label: "Proposals", href: "/proposal", exact: true },
       { icon: Coffee, label: "Coffee Date Demo", href: "/demo" },
       { icon: Wand2, label: "Build Android", href: "/prompt-generator", indent: true },
       { icon: FileSearch, label: "AI Audit", href: "/audit" },
