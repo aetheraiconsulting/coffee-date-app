@@ -46,6 +46,10 @@ type Proposal = {
   confidence_score: "strong" | "needs_work" | "weak"
   confidence_reason: string
   sent: boolean
+  sent_at?: string | null
+  prospect_business?: string | null
+  deal_status?: "pending" | "won" | "lost" | null
+  deal_updated_at?: string | null
 }
 
 type ViewState = "notes" | "generating" | "proposal"
@@ -56,6 +60,7 @@ export default function ProposalBuilderPage() {
   const [callScript, setCallScript] = useState<CallScript | null>(null)
   const [proposal, setProposal] = useState<Proposal | null>(null)
   const [loading, setLoading] = useState(true)
+  const [updating, setUpdating] = useState(false)
 
   // Form state
   const [prospectName, setProspectName] = useState("")
@@ -105,19 +110,28 @@ export default function ProposalBuilderPage() {
 
       if (scriptData) setCallScript(scriptData)
 
-      // Check for existing unsent proposal
+      // Fetch the most recent proposal (sent or unsent). If it's sent and already
+      // has a final deal_status (won/lost), we don't want to show it as "active" —
+      // so only surface it if it's pending or unsent.
       const { data: existingProposal } = await supabase
         .from("proposals")
         .select("*")
         .eq("user_id", user.id)
-        .eq("sent", false)
         .order("created_at", { ascending: false })
         .limit(1)
-        .single()
+        .maybeSingle()
 
       if (existingProposal) {
-        setProposal(existingProposal)
-        setView("proposal")
+        const status = existingProposal.deal_status ?? "pending"
+        // Show the proposal view if it's unsent, or if it's sent but outcome still pending
+        if (!existingProposal.sent || status === "pending") {
+          setProposal(existingProposal)
+          setView("proposal")
+        } else if (status === "won" || status === "lost") {
+          // Still show so user can view outcome / undo if needed
+          setProposal(existingProposal)
+          setView("proposal")
+        }
       }
     } catch (error) {
       console.error("Error fetching data:", error)
@@ -188,24 +202,27 @@ export default function ProposalBuilderPage() {
     if (!proposal) return
 
     try {
+      const sentAt = new Date().toISOString()
       const { error } = await supabase
         .from("proposals")
         .update({
           sent: true,
-          sent_at: new Date().toISOString(),
+          sent_at: sentAt,
+          deal_status: proposal.deal_status ?? "pending",
         })
         .eq("id", proposal.id)
 
       if (error) throw error
 
+      // Update local state so the Won/Lost UI appears without a reload
+      setProposal({ ...proposal, sent: true, sent_at: sentAt, deal_status: proposal.deal_status ?? "pending" })
+
       await refreshState()
 
       toast({
         title: "Proposal marked as sent",
-        description: "Great work! Track your deal in the pipeline.",
+        description: "Mark the outcome below once you hear back.",
       })
-
-      router.push("/dashboard")
     } catch (error: any) {
       toast({
         title: "Error",
@@ -213,6 +230,45 @@ export default function ProposalBuilderPage() {
         variant: "destructive",
       })
     }
+  }
+
+  const handleMarkDealStatus = async (status: "won" | "lost" | "pending") => {
+    if (!proposal?.id) return
+    setUpdating(true)
+
+    const updatedAt = new Date().toISOString()
+    const { error } = await supabase
+      .from("proposals")
+      .update({
+        deal_status: status,
+        deal_updated_at: updatedAt,
+      })
+      .eq("id", proposal.id)
+
+    if (!error) {
+      setProposal({ ...proposal, deal_status: status, deal_updated_at: updatedAt })
+      await refreshState()
+
+      if (status === "won") {
+        toast({
+          title: "Congratulations on the win",
+          description: "This deal has been added to your clients.",
+        })
+      } else if (status === "lost") {
+        toast({
+          title: "Noted.",
+          description: "Keep going. The next one is always closer.",
+        })
+      }
+    } else {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      })
+    }
+
+    setUpdating(false)
   }
 
   const getConfidenceDisplay = (score: string) => {
@@ -431,23 +487,178 @@ export default function ProposalBuilderPage() {
         </div>
 
         {/* Actions */}
-        <div className="flex items-center gap-4 mt-8">
-          <Button
-            onClick={markAsSent}
-            className="flex-1 bg-[#00AAFF] hover:bg-[#00AAFF]/90 text-white h-12"
-          >
-            <Send className="mr-2 h-4 w-4" />
-            Mark as sent
-          </Button>
-          <Button
-            onClick={regenerateProposal}
-            variant="ghost"
-            className="text-white/60 hover:text-white hover:bg-white/5"
-          >
-            <RefreshCw className="mr-2 h-4 w-4" />
-            Regenerate
-          </Button>
-        </div>
+        {!proposal.sent && (
+          <div className="flex items-center gap-4 mt-8">
+            <Button
+              onClick={markAsSent}
+              className="flex-1 bg-[#00AAFF] hover:bg-[#00AAFF]/90 text-white h-12"
+            >
+              <Send className="mr-2 h-4 w-4" />
+              Mark as sent
+            </Button>
+            <Button
+              onClick={regenerateProposal}
+              variant="ghost"
+              className="text-white/60 hover:text-white hover:bg-white/5"
+            >
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Regenerate
+            </Button>
+          </div>
+        )}
+
+        {/* Deal Outcome — only shown after proposal is marked as sent */}
+        {proposal.sent && (
+          <div style={{ marginTop: "32px" }}>
+            <div
+              style={{
+                background: "rgba(255,255,255,0.02)",
+                border: "0.5px solid rgba(255,255,255,0.1)",
+                borderRadius: "14px",
+                padding: "24px",
+              }}
+            >
+              <p
+                style={{
+                  color: "#00AAFF",
+                  fontSize: "11px",
+                  fontWeight: 700,
+                  letterSpacing: "1.5px",
+                  textTransform: "uppercase",
+                  marginBottom: "6px",
+                }}
+              >
+                DEAL OUTCOME
+              </p>
+              <p style={{ color: "white", fontSize: "18px", fontWeight: 700, margin: "0 0 6px" }}>
+                How did this proposal land?
+              </p>
+              <p style={{ color: "rgba(255,255,255,0.4)", fontSize: "14px", margin: "0 0 20px" }}>
+                Mark the outcome to keep your pipeline accurate.
+              </p>
+
+              {(proposal.deal_status ?? "pending") === "pending" && (
+                <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+                  <button
+                    onClick={() => handleMarkDealStatus("won")}
+                    disabled={updating}
+                    style={{
+                      background: "#22c55e",
+                      color: "#000",
+                      fontWeight: 800,
+                      fontSize: "14px",
+                      padding: "14px 28px",
+                      borderRadius: "10px",
+                      border: "none",
+                      cursor: updating ? "not-allowed" : "pointer",
+                      opacity: updating ? 0.6 : 1,
+                      flex: 1,
+                      minWidth: "140px",
+                    }}
+                  >
+                    ✓ Mark as Won
+                  </button>
+                  <button
+                    onClick={() => handleMarkDealStatus("lost")}
+                    disabled={updating}
+                    style={{
+                      background: "transparent",
+                      color: "rgba(255,255,255,0.5)",
+                      fontWeight: 600,
+                      fontSize: "14px",
+                      padding: "14px 28px",
+                      borderRadius: "10px",
+                      border: "0.5px solid rgba(255,255,255,0.15)",
+                      cursor: updating ? "not-allowed" : "pointer",
+                      opacity: updating ? 0.6 : 1,
+                      flex: 1,
+                      minWidth: "140px",
+                    }}
+                  >
+                    Mark as Lost
+                  </button>
+                </div>
+              )}
+
+              {proposal.deal_status === "won" && (
+                <div
+                  style={{
+                    background: "rgba(34,197,94,0.08)",
+                    border: "0.5px solid rgba(34,197,94,0.3)",
+                    borderRadius: "10px",
+                    padding: "16px",
+                  }}
+                >
+                  <p style={{ color: "#22c55e", fontWeight: 700, fontSize: "15px", margin: "0 0 4px" }}>
+                    ✓ Deal Won
+                  </p>
+                  <p style={{ color: "rgba(34,197,94,0.6)", fontSize: "13px", margin: 0 }}>
+                    {proposal.prospect_business ? `${proposal.prospect_business} — ` : ""}
+                    marked won on{" "}
+                    {new Date(
+                      proposal.deal_updated_at || proposal.sent_at || new Date().toISOString(),
+                    ).toLocaleDateString("en-GB", {
+                      day: "numeric",
+                      month: "long",
+                      year: "numeric",
+                    })}
+                  </p>
+                  <button
+                    onClick={() => handleMarkDealStatus("pending")}
+                    disabled={updating}
+                    style={{
+                      background: "transparent",
+                      color: "rgba(255,255,255,0.4)",
+                      fontSize: "12px",
+                      padding: "8px 0 0",
+                      border: "none",
+                      cursor: updating ? "not-allowed" : "pointer",
+                      textDecoration: "underline",
+                      marginTop: "8px",
+                    }}
+                  >
+                    Undo
+                  </button>
+                </div>
+              )}
+
+              {proposal.deal_status === "lost" && (
+                <div
+                  style={{
+                    background: "rgba(239,68,68,0.08)",
+                    border: "0.5px solid rgba(239,68,68,0.3)",
+                    borderRadius: "10px",
+                    padding: "16px",
+                  }}
+                >
+                  <p style={{ color: "#ef4444", fontWeight: 700, fontSize: "15px", margin: "0 0 4px" }}>
+                    Deal Lost
+                  </p>
+                  <p style={{ color: "rgba(239,68,68,0.6)", fontSize: "13px", margin: 0 }}>
+                    {proposal.prospect_business ? `${proposal.prospect_business} — ` : ""}
+                    no worries, next one is always closer
+                  </p>
+                  <button
+                    onClick={() => handleMarkDealStatus("pending")}
+                    disabled={updating}
+                    style={{
+                      background: "transparent",
+                      color: "rgba(255,255,255,0.4)",
+                      fontSize: "12px",
+                      padding: "8px 0 0",
+                      border: "none",
+                      cursor: updating ? "not-allowed" : "pointer",
+                      textDecoration: "underline",
+                      marginTop: "8px",
+                    }}
+                  >
+                    Undo
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

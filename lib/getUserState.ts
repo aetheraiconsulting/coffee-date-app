@@ -31,6 +31,7 @@ export interface UserState {
   callsCount: number
   proposalsCount: number
   winsCount: number
+  clientsOnboardedCount: number
   conversationsCount: number
   activeConversationsCount: number
 
@@ -70,6 +71,7 @@ export async function getUserState(): Promise<UserState | null> {
     { data: conversations },
     { count: callScriptCount },
     { count: completedCallCount },
+    { count: clientsOnboardedCountRaw },
   ] = await Promise.all([
     supabase.from("profiles").select("full_name, email, sprint_start_date, offer_id, subscription_status, trial_ends_at").eq("id", user.id).maybeSingle(),
     supabase.from("ghl_connections").select("id").eq("user_id", user.id),
@@ -81,6 +83,7 @@ export async function getUserState(): Promise<UserState | null> {
     supabase.from("revival_conversations").select("id, status").eq("user_id", user.id),
     supabase.from("call_scripts").select("*", { count: "exact", head: true }).eq("user_id", user.id),
     supabase.from("call_scripts").select("*", { count: "exact", head: true }).eq("user_id", user.id).eq("call_completed", true),
+    supabase.from("niche_user_state").select("*", { count: "exact", head: true }).eq("user_id", user.id).eq("client_onboarded", true),
   ])
 
   // Calculate counts
@@ -92,6 +95,7 @@ export async function getUserState(): Promise<UserState | null> {
   const callsCount = completedCallCount ?? 0 // Only count completed calls to match Pipeline page
   const proposalsCount = proposalsData?.length || 0
   const winsCount = proposalsData?.filter((p) => p.deal_status === "won")?.length || 0 // Count won deals from proposals to match Pipeline page
+  const clientsOnboardedCount = clientsOnboardedCountRaw ?? 0
   const conversationsCount = conversations?.length || 0
   const activeConversationsCount = conversations?.filter((c) => c.status === "active")?.length || 0
 
@@ -153,6 +157,7 @@ export async function getUserState(): Promise<UserState | null> {
     callsCount,
     proposalsCount,
     winsCount,
+    clientsOnboardedCount,
     conversationsCount,
     activeConversationsCount,
     missionState: getMissionState(),
