@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label"
 import Link from "next/link"
 import { useState } from "react"
 import { useToast } from "@/hooks/use-toast"
-import { Loader2 } from 'lucide-react'
+import { Loader2, Mail } from 'lucide-react'
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from 'next/navigation'
 
@@ -18,6 +18,7 @@ export default function SignupPage() {
   const [googleLoading, setGoogleLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [signupComplete, setSignupComplete] = useState(false)
   const { toast } = useToast()
   const router = useRouter()
   const supabase = createClient()
@@ -40,7 +41,31 @@ export default function SignupPage() {
         }
       })
 
-      if (error) throw error
+      if (error) {
+        const rawMessage = error.message || ""
+        // Detect duplicate email from common Supabase error messages
+        if (
+          /already registered/i.test(rawMessage) ||
+          /already exists/i.test(rawMessage) ||
+          /already been registered/i.test(rawMessage) ||
+          /user_already_exists/i.test(rawMessage)
+        ) {
+          setErrorMessage(
+            "An account with this email already exists. Please sign in instead or use a different email address."
+          )
+          return
+        }
+        throw error
+      }
+
+      // Supabase returns a success response even for existing confirmed emails to prevent
+      // email enumeration — but the `identities` array will be empty in that case.
+      if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+        setErrorMessage(
+          "An account with this email already exists. Please sign in instead or use a different email address."
+        )
+        return
+      }
 
       // If session exists immediately, email confirmation is disabled — send straight to dashboard
       if (data.session) {
@@ -54,16 +79,12 @@ export default function SignupPage() {
         return
       }
 
-      // Otherwise email confirmation is required
-      setSuccessMessage("Account created. Please check your email to confirm your account before signing in.")
+      // Otherwise email confirmation is required — show the full thank-you state
+      setSignupComplete(true)
       toast({
-        title: "Success!",
-        description: "Please check your email to confirm your account.",
+        title: "Thank you for signing up!",
+        description: "Please check your email to verify your account.",
       })
-
-      setTimeout(() => {
-        router.push("/login")
-      }, 3000)
     } catch (error: any) {
       const message = error?.message || "Failed to create account"
       setErrorMessage(message)
@@ -141,17 +162,70 @@ export default function SignupPage() {
           </div>
 
           {/* Inline messages */}
-          {errorMessage && (
+          {errorMessage && !signupComplete && (
             <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-              {errorMessage}
+              <p>{errorMessage}</p>
+              {/already exists/i.test(errorMessage) && (
+                <Link
+                  href="/login"
+                  className="mt-2 inline-block text-[#00AAFF] hover:text-[#00AAFF]/80 font-medium"
+                >
+                  Go to sign in →
+                </Link>
+              )}
             </div>
           )}
-          {successMessage && (
+          {successMessage && !signupComplete && (
             <div className="rounded-lg border border-[#00AAFF]/30 bg-[#00AAFF]/10 px-4 py-3 text-sm text-[#00AAFF]">
               {successMessage}
             </div>
           )}
 
+          {/* Thank-you panel shown after successful signup */}
+          {signupComplete ? (
+            <div className="space-y-5 text-center">
+              <div
+                className="inline-flex items-center justify-center w-16 h-16 rounded-full mx-auto"
+                style={{
+                  background: 'rgba(0,170,255,0.1)',
+                  border: '0.5px solid rgba(0,170,255,0.3)',
+                }}
+              >
+                <Mail className="h-7 w-7 text-[#00AAFF]" />
+              </div>
+              <div className="space-y-2">
+                <h2
+                  className="text-[20px] text-white"
+                  style={{ fontFamily: 'var(--font-manrope)', fontWeight: 700 }}
+                >
+                  Thank you for signing up!
+                </h2>
+                <p className="text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.55)' }}>
+                  We&apos;ve sent a verification link to
+                </p>
+                <p className="text-sm font-medium text-white break-all">{email}</p>
+                <p className="text-sm leading-relaxed pt-2" style={{ color: 'rgba(255,255,255,0.45)' }}>
+                  Please check your inbox and click the link to verify your email address before signing in.
+                </p>
+              </div>
+              <div
+                className="rounded-lg px-4 py-3 text-xs"
+                style={{
+                  background: 'rgba(255,255,255,0.03)',
+                  border: '0.5px solid rgba(255,255,255,0.08)',
+                  color: 'rgba(255,255,255,0.45)',
+                }}
+              >
+                Didn&apos;t receive an email? Check your spam folder, or wait a few minutes and try again.
+              </div>
+              <Link href="/login" className="block">
+                <Button className="w-full h-11 bg-[#00AAFF] text-black hover:bg-[#00AAFF]/90 font-medium">
+                  Continue to sign in
+                </Button>
+              </Link>
+            </div>
+          ) : (
+          <>
           {/* Form */}
           <form onSubmit={handleSignup} className="space-y-4">
             <div className="space-y-2">
@@ -280,6 +354,8 @@ export default function SignupPage() {
               Sign in
             </Link>
           </div>
+          </>
+          )}
         </div>
       </div>
     </div>
