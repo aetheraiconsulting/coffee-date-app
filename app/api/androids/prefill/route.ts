@@ -50,7 +50,25 @@ export async function POST(request: Request) {
   try {
     const clean = textContent.replace(/```json|```/g, "").trim()
     const result = JSON.parse(clean)
-    return NextResponse.json(result)
+
+    // Claude with web search tooling leaves `<cite index="...">...</cite>`
+    // tags in the string outputs. Strip them from every string field so the
+    // UI (and the downstream Android prompt) never shows these tags.
+    const stripCitations = (text: unknown): unknown => {
+      if (typeof text !== "string") return text
+      return text
+        .replace(/<cite\b[^>]*\/>/gi, "") // self-closing
+        .replace(/<cite\b[^>]*>/gi, "") // opening
+        .replace(/<\/cite>/gi, "") // closing
+        .replace(/\s{2,}/g, " ") // collapse whitespace left behind
+        .trim()
+    }
+
+    const cleaned = Object.fromEntries(
+      Object.entries(result).map(([k, v]) => [k, stripCitations(v)]),
+    )
+
+    return NextResponse.json(cleaned)
   } catch {
     return NextResponse.json({ error: "Failed to parse response" }, { status: 500 })
   }

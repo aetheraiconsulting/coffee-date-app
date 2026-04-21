@@ -6,6 +6,7 @@ import { buildCoffeeDatePrompt } from "@/lib/templates/coffee-date-template"
 interface PromptFormData {
   businessName: string
   androidName: string
+  prospectName?: string
   serviceType: string
   shortService: string
   nicheQuestion: string
@@ -20,12 +21,34 @@ interface PromptFormData {
   aiPrefilled?: boolean
 }
 
+// Final safety pass on the generated Android prompt:
+//  1. Strip any residual <cite ...> / </cite> / </cite> tags that Claude's
+//     web_search tool can leak into text we later include in the system prompt.
+//  2. Replace any lingering [name] / {name} / [prospect_name] placeholders with
+//     the real prospect name, so the Android never addresses the prospect with a
+//     literal token during the demo.
+function cleanPrompt(text: string, prospectName: string): string {
+  let out = text
+    .replace(/<cite\b[^>]*\/>/gi, "")
+    .replace(/<cite\b[^>]*>/gi, "")
+    .replace(/<\/cite>/gi, "")
+    .replace(/<\/?antml:cite\b[^>]*>/gi, "")
+
+  if (prospectName) {
+    const tokens = ["[name]", "[Name]", "{name}", "{Name}", "[prospect_name]", "{prospect_name}"]
+    for (const t of tokens) out = out.split(t).join(prospectName)
+  }
+
+  return out.replace(/\s{2,}/g, " ").trim()
+}
+
 export async function generatePrompt(formData: PromptFormData, userId: string) {
   const supabase = await createClient()
 
   try {
-    // Generate the prompt using the template
-    const prompt = buildCoffeeDatePrompt(formData)
+    // Generate the prompt using the template, then clean the output.
+    const rawPrompt = buildCoffeeDatePrompt(formData)
+    const prompt = cleanPrompt(rawPrompt, (formData.prospectName || "").trim())
 
     // Create the android with the generated prompt.
     // We also populate the top-level `niche` column so other pages (e.g. the
@@ -43,6 +66,7 @@ export async function generatePrompt(formData: PromptFormData, userId: string) {
           businessName: formData.businessName,
           company_name: formData.businessName,
           androidName: formData.androidName,
+          prospect_name: formData.prospectName || null,
           serviceType: formData.serviceType,
           shortService: formData.shortService,
           niche: formData.serviceType,
