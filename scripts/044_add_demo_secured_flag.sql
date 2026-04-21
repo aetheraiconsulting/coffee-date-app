@@ -12,6 +12,6 @@ ALTER TABLE niche_user_state
 UPDATE niche_user_state
 SET
   demo_secured = true,
-  demo_secured_at = COALESCE(demo_secured_at, coffee_date_completed_at, updated_at, now())
+  demo_secured_at = COALESCE(demo_secured_at, updated_at, now())
 WHERE coffee_date_completed = true
   AND (demo_secured IS NULL OR demo_secured = false);
