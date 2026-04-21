@@ -191,8 +191,8 @@ export default function ProposalsListPage() {
                         <span>·</span>
                         <span>
                           {p.sent && p.sent_at
-                            ? `Sent ${new Date(p.sent_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`
-                            : `Created ${new Date(p.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`}
+                            ? `Sent ${new Date(p.sent_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
+                            : `Created ${new Date(p.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`}
                         </span>
                       </div>
                     </div>
