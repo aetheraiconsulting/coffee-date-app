@@ -55,6 +55,7 @@ export default async function DashboardPage() {
     email,
     subscriptionStatus,
     trialEndsAt,
+    accessLevel,
   } = state
 
   // Get first name
@@ -67,9 +68,10 @@ export default async function DashboardPage() {
       ))
     : 14
 
-  const isLimited = subscriptionStatus === "limited" ||
-    subscriptionStatus === "cancelled" ||
-    (subscriptionStatus === "trial" && trialDaysLeft === 0)
+  // `accessLevel` is the single source of truth for feature gating — it already
+  // accounts for trial expiry, 48h grace period, and active-proposal protection.
+  const isLimited = accessLevel === "limited"
+  const isGrace = accessLevel === "grace"
 
   
 
@@ -148,6 +150,29 @@ export default async function DashboardPage() {
               className="flex-shrink-0 text-xs bg-amber-400 text-black font-bold px-4 py-2 rounded-lg whitespace-nowrap"
             >
               Upgrade now →
+            </Link>
+          </div>
+        )}
+
+        {/* Grace period — trial just ended, soft 48h window before gate closes */}
+        {isGrace && (
+          <div className="bg-amber-500/[0.08] border border-amber-500/20 rounded-xl p-4 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse flex-shrink-0" />
+              <div>
+                <p className="text-amber-300 text-sm font-semibold">
+                  Your trial has ended — 48 hour grace period active
+                </p>
+                <p className="text-amber-300/60 text-xs mt-0.5">
+                  Subscribe now to keep generating new content. Existing work stays safe either way.
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/upgrade"
+              className="flex-shrink-0 text-xs bg-amber-400 text-black font-bold px-4 py-2 rounded-lg whitespace-nowrap"
+            >
+              Subscribe now →
             </Link>
           </div>
         )}

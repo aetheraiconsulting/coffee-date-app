@@ -18,6 +18,7 @@ import { Loader2, Sparkles, CheckCircle2, RefreshCw, DollarSign, Shield, Target,
 import { useUserState } from "@/context/StateContext"
 import { createClient } from "@/lib/supabase/client"
 import { cn } from "@/lib/utils"
+import { AccessGate } from "@/components/access-gate"
 
 type PricingModel = "50_profit_share" | "custom_profit_share" | "pay_per_lead" | "pay_per_conversation" | "retainer"
 
@@ -52,7 +53,7 @@ const LOCKED_GUARANTEES: Record<PricingModel, string> = {
 export default function OfferBuilderPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { refreshState } = useUserState()
+  const { state, refreshState } = useUserState()
   const supabase = createClient()
   
   // Form inputs
@@ -217,6 +218,10 @@ export default function OfferBuilderPage() {
       })
 
       if (!response.ok) {
+        if (response.status === 402) {
+          router.push("/upgrade")
+          return
+        }
         const data = await response.json()
         throw new Error(data.error || "Failed to generate offer")
       }
@@ -434,6 +439,21 @@ export default function OfferBuilderPage() {
       default:
         return { color: "text-white/60 bg-white/10 border-white/20", label: score }
     }
+  }
+
+  // Feature gate — users past their trial's 48h grace period can still view
+  // existing offers (via /offer/my-offers) but cannot build new ones here.
+  if (state?.accessLevel === "limited") {
+    return (
+      <div className="min-h-screen bg-black p-6">
+        <div className="max-w-2xl mx-auto">
+          <AccessGate
+            feature="Offer Builder"
+            description="Subscribe to generate new AI offers for your niches. Your saved offers are still accessible in My Offers."
+          />
+        </div>
+      </div>
+    )
   }
 
   // Auto-generating state (all params present)

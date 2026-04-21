@@ -1,5 +1,10 @@
 import { createClient } from "@/lib/supabase/server"
 
+// Access level drives the feature-gating UI. "full" = normal app; "grace" = trial
+// just ended but within the 48h soft window (or protected by an active proposal);
+// "limited" = read-only mode, cannot create new content.
+export type AccessLevel = "full" | "grace" | "limited"
+
 // Progression states (7)
 export type ProgressionState =
   | "no_niche"
@@ -48,6 +53,12 @@ export interface UserState {
   // Subscription
   subscriptionStatus: string | null
   trialEndsAt: string | null
+  subscriptionEndsAt: string | null
+  promoCodeUsed: string | null
+
+  // Feature gating
+  accessLevel: AccessLevel
+  gracePeriodEndsAt: string | null
 }
 
 export async function getUserState(): Promise<UserState | null> {
@@ -73,7 +84,7 @@ export async function getUserState(): Promise<UserState | null> {
     { count: completedCallCount },
     { count: clientsOnboardedCountRaw },
   ] = await Promise.all([
-    supabase.from("profiles").select("full_name, email, sprint_start_date, offer_id, subscription_status, trial_ends_at").eq("id", user.id).maybeSingle(),
+    supabase.from("profiles").select("full_name, email, sprint_start_date, offer_id, subscription_status, trial_ends_at, subscription_ends_at, promo_code_used").eq("id", user.id).maybeSingle(),
     supabase.from("ghl_connections").select("id").eq("user_id", user.id),
     supabase.from("niche_user_state").select("id, is_favourite, status").eq("user_id", user.id),
     supabase.from("outreach_messages").select("id, status").eq("user_id", user.id),
@@ -148,6 +159,49 @@ export async function getUserState(): Promise<UserState | null> {
     dayInSprint = Math.min(Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1, 14)
   }
 
+  // Feature gating — compute accessLevel + grace-period end timestamp. Active
+  // subscribers, students, and promo users always get full access. Trial users
+  // flip through "full" → "grace" (48h after trial ends, or indefinitely while
+  // they have an active unresolved proposal) → "limited". Explicitly cancelled
+  // or flagged statuses go straight to "limited".
+  const status = profile?.subscription_status ?? null
+  const trialEndsAtRaw = profile?.trial_ends_at ?? null
+  const trialEndsAtDate = trialEndsAtRaw ? new Date(trialEndsAtRaw) : null
+  const now = new Date()
+
+  let accessLevel: AccessLevel = "full"
+  let gracePeriodEndsAt: string | null = null
+
+  if (status === "active" || status === "student" || profile?.promo_code_used) {
+    accessLevel = "full"
+  } else if (status === "trial") {
+    if (trialEndsAtDate && now > trialEndsAtDate) {
+      const graceEnd = new Date(trialEndsAtDate.getTime() + 48 * 60 * 60 * 1000)
+      gracePeriodEndsAt = graceEnd.toISOString()
+
+      if (now <= graceEnd) {
+        accessLevel = "grace"
+      } else {
+        // Active-proposal protection — if they've sent a proposal that hasn't
+        // been closed (won/lost) yet we keep them in grace so the deal can
+        // close without the gate killing momentum.
+        const { data: activeProposals } = await supabase
+          .from("proposals")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("sent", true)
+          .eq("deal_status", "pending")
+          .limit(1)
+
+        accessLevel = activeProposals && activeProposals.length > 0 ? "grace" : "limited"
+      }
+    } else {
+      accessLevel = "full"
+    }
+  } else if (status === "limited" || status === "cancelled") {
+    accessLevel = "limited"
+  }
+
   return {
     ghlCount,
     nichesCount,
@@ -166,7 +220,11 @@ export async function getUserState(): Promise<UserState | null> {
     userId: user.id,
     email: user.email || "",
     fullName: profile?.full_name || null,
-    subscriptionStatus: profile?.subscription_status || null,
-    trialEndsAt: profile?.trial_ends_at || null,
+    subscriptionStatus: status,
+    trialEndsAt: trialEndsAtRaw,
+    subscriptionEndsAt: profile?.subscription_ends_at ?? null,
+    promoCodeUsed: profile?.promo_code_used ?? null,
+    accessLevel,
+    gracePeriodEndsAt,
   }
 }

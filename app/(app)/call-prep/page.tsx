@@ -24,6 +24,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { AccessGate } from "@/components/access-gate"
 
 type CallScript = {
   id: string
@@ -58,7 +59,7 @@ export default function CallPrepPage() {
 
   const { toast } = useToast()
   const supabase = createClient()
-  const { refreshState } = useUserState()
+  const { state, refreshState } = useUserState()
   const router = useRouter()
 
   useEffect(() => {
@@ -84,6 +85,17 @@ export default function CallPrepPage() {
     setGenerating(true)
     try {
       const res = await fetch("/api/call/script", { method: "POST" })
+
+      if (res.status === 402) {
+        toast({
+          title: "Subscription required",
+          description: "Your trial has ended. Subscribe to continue generating new content.",
+          variant: "destructive",
+        })
+        router.push("/upgrade")
+        return
+      }
+
       const data = await res.json()
 
       if (data.error) {
@@ -164,6 +176,22 @@ export default function CallPrepPage() {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  // Feature gate — limited users can still view a previously generated script
+  // (it's loaded by fetchScript above), but not generate a new one. If they
+  // don't have one yet, we show AccessGate in place of the generate CTA.
+  if (state?.accessLevel === "limited" && !script) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="max-w-2xl mx-auto px-4 py-16">
+          <AccessGate
+            feature="Call Prep"
+            description="Subscribe to generate new call scripts. Your existing scripts are still viewable."
+          />
+        </div>
       </div>
     )
   }

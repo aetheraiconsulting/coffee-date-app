@@ -24,6 +24,7 @@ import {
 import { cn } from "@/lib/utils"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { AccessGate } from "@/components/access-gate"
 
 type Channel = "linkedin" | "instagram" | "email"
 
@@ -92,7 +93,7 @@ export default function OutreachPage() {
 
   const { toast } = useToast()
   const supabase = createClient()
-  const { refreshState } = useUserState()
+  const { state, refreshState } = useUserState()
   const router = useRouter()
 
   useEffect(() => {
@@ -215,6 +216,16 @@ export default function OutreachPage() {
         }),
       })
 
+      if (response.status === 402) {
+        toast({
+          title: "Subscription required",
+          description: "Your trial has ended. Subscribe to continue generating new content.",
+          variant: "destructive",
+        })
+        router.push("/upgrade")
+        return
+      }
+
       const data = await response.json()
 
       if (!response.ok) {
@@ -269,6 +280,16 @@ export default function OutreachPage() {
         }),
       })
 
+      if (response.status === 402) {
+        toast({
+          title: "Subscription required",
+          description: "Your trial has ended. Subscribe to continue generating new content.",
+          variant: "destructive",
+        })
+        router.push("/upgrade")
+        return
+      }
+
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || "Failed to generate messages")
 
@@ -300,6 +321,16 @@ export default function OutreachPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ channel: activeChannel }),
       })
+      if (response.status === 402) {
+        toast({
+          title: "Subscription required",
+          description: "Your trial has ended. Subscribe to continue generating new content.",
+          variant: "destructive",
+        })
+        router.push("/upgrade")
+        return
+      }
+
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || "Failed to generate next batch")
 
@@ -345,6 +376,16 @@ export default function OutreachPage() {
           prospect_reply: replyText,
         }),
       })
+      if (response.status === 402) {
+        toast({
+          title: "Subscription required",
+          description: "Your trial has ended. Subscribe to continue generating new content.",
+          variant: "destructive",
+        })
+        router.push("/upgrade")
+        return
+      }
+
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || "Failed to generate response")
       setSuggestedResponse(data.suggested_response || "")
@@ -556,6 +597,21 @@ export default function OutreachPage() {
               </Button>
             </CardContent>
           </Card>
+        </div>
+      </div>
+    )
+  }
+
+  // Feature gate — limited users view existing outreach via /outreach/my-outreach
+  // but can't generate new drafts, regenerate, or request next batches here.
+  if (state?.accessLevel === "limited") {
+    return (
+      <div className="bg-black min-h-screen p-8">
+        <div className="max-w-3xl mx-auto">
+          <AccessGate
+            feature="Outreach Generator"
+            description="Subscribe to generate new outreach messages. Your existing messages are still accessible in My Outreach."
+          />
         </div>
       </div>
     )
