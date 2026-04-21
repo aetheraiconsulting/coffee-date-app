@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -25,6 +25,13 @@ interface Niche {
 
 export default function PromptGeneratorForm({ userId }: PromptGeneratorFormProps) {
   const router = useRouter()
+  // When the user lands here from the Opportunities page we deep-link with
+  // `?niche=<niche_name>` so the niche is pre-selected and the dropdown is
+  // collapsed behind a tidy "Building for niche" pill.
+  const searchParams = useSearchParams()
+  const prefilledNiche = searchParams.get("niche")
+  const [nicheLocked, setNicheLocked] = useState<boolean>(!!prefilledNiche)
+
   const [isGenerating, setIsGenerating] = useState(false)
   const [generatedPrompt, setGeneratedPrompt] = useState<string | null>(null)
   const [generatedAndroidId, setGeneratedAndroidId] = useState<string | null>(null)
@@ -62,6 +69,24 @@ export default function PromptGeneratorForm({ userId }: PromptGeneratorFormProps
   useEffect(() => {
     fetchNiches()
   }, [])
+
+  // Once niches have loaded, try to match the ?niche= param against the list.
+  // If there's no match, fall back to the custom "Other" flow with the raw value.
+  useEffect(() => {
+    if (!prefilledNiche || niches.length === 0 || nicheId) return
+    const match = niches.find(
+      (n) => n.niche_name.toLowerCase().trim() === prefilledNiche.toLowerCase().trim(),
+    )
+    if (match) {
+      setNicheId(match.id)
+      setNicheName(match.niche_name)
+    } else {
+      setNicheId(null)
+      setNicheName("Other")
+      setCustomNiche(prefilledNiche)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [niches, prefilledNiche])
 
   const fetchNiches = async () => {
     try {
@@ -368,7 +393,28 @@ export default function PromptGeneratorForm({ userId }: PromptGeneratorFormProps
                 />
               </div>
 
-              {/* Niche selection */}
+              {/* Niche selection. When the user arrived from the Opportunities
+                  page via ?niche=..., we skip the dropdown and show a compact
+                  "Building for niche" pill with a Change button. */}
+              {nicheLocked && (nicheName || customNiche) ? (
+                <div className="md:col-span-2 border border-[#00A8FF]/25 bg-[#00A8FF]/5 rounded-lg px-4 py-3 flex items-center justify-between">
+                  <div>
+                    <p className="text-white/40 text-[11px] uppercase tracking-wider mb-0.5">
+                      Building for niche
+                    </p>
+                    <p className="text-white font-semibold">
+                      {nicheName === "Other" ? customNiche : nicheName}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setNicheLocked(false)}
+                    className="text-xs text-white/50 hover:text-white underline underline-offset-2"
+                  >
+                    Change
+                  </button>
+                </div>
+              ) : (
               <div className="space-y-2 md:col-span-2">
                 <Label className="text-white">
                   Business Niche <span className="text-red-400">*</span>
@@ -433,11 +479,14 @@ export default function PromptGeneratorForm({ userId }: PromptGeneratorFormProps
                   </PopoverContent>
                 </Popover>
                 <p className="text-xs text-white/40">
-                  Choose the niche closest to your client's service
+                  Choose the niche closest to your client&apos;s service
                 </p>
               </div>
+              )}
 
-              {nicheName === "Other" && (
+              {/* Custom niche input only shows when the user picked "Other"
+                  and hasn't opted into the locked pill view. */}
+              {!nicheLocked && nicheName === "Other" && (
                 <div className="space-y-2 md:col-span-2">
                   <Label htmlFor="customNiche" className="text-white">
                     Custom Niche <span className="text-red-400">*</span>
