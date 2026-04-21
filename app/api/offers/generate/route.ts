@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 import { checkAccess, subscriptionGateResponse } from "@/lib/checkAccess"
+import { trackActivity } from "@/lib/trackActivity"
 
 export async function POST(request: Request) {
   try {
@@ -91,6 +92,9 @@ export async function POST(request: Request) {
       console.error("Profile update error:", profileError)
       // Don't fail - offer was created, just profile link failed
     }
+
+    // Re-engagement tracking: user is actively building their offer.
+    await trackActivity(user.id, "offer_created")
 
     return NextResponse.json({ offer: offerData })
   } catch (error) {

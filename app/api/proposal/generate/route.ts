@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 import { checkAccess, subscriptionGateResponse } from "@/lib/checkAccess"
+import { trackActivity } from "@/lib/trackActivity"
 
 export async function POST(request: Request) {
   const supabase = await createClient()
@@ -138,6 +139,9 @@ Return this exact JSON:
       .single()
 
     if (error) throw error
+
+    // Re-engagement tracking: user is shipping proposals.
+    await trackActivity(user.id, "proposal_sent")
 
     return NextResponse.json({ proposal })
   } catch (error: any) {
