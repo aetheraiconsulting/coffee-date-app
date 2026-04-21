@@ -3,75 +3,101 @@ import { NextResponse } from "next/server"
 
 type Channel = "linkedin" | "instagram" | "email"
 
-const channelInstructions: Record<Channel, {
-  format: string
-  length: string
-  tone: string
-  extra: string
-}> = {
-  linkedin: {
-    format: "LinkedIn DM",
-    length: "100-150 words maximum",
-    tone: "Professional but human. Peer to peer. No corporate speak.",
-    extra: "No subject line needed. Start with tactical empathy about their business type."
-  },
-  instagram: {
-    format: "Instagram DM",
-    length: "60-80 words maximum — short and punchy",
-    tone: "Casual, direct, conversational. Like a real person messaging.",
-    extra: "No formal language. No subject line. Get to the point fast."
-  },
-  email: {
-    format: "Cold email with subject line",
-    length: "150-200 words for body. Subject line: 6-8 words maximum.",
-    tone: "Professional but not corporate. Clear and direct.",
-    extra: "Include a subject line as a separate field. Subject line must use a no-oriented or curiosity-gap approach — never a salesy subject line."
+// Combined system prompt: operator-grade voice, 3C Storytelling (Stacey),
+// Chris Voss tactical empathy, and SPIN (Situation + Problem focused).
+// The model MUST return clean JSON with no markdown fences or commentary.
+const systemPrompt = `You are a sales copywriter for AI service consultants.
+You write cold outreach messages using:
+- 3C Storytelling (Clarity, Connection, Conviction) — Adam Stacey's framework
+- Chris Voss tactical empathy — open with "It sounds like..." style labels, use no-oriented questions
+- SPIN Selling — focus on Situation and Problem questions, not Implication or Need-Payoff
+- Casual, conversational tone — like a real human wrote it
+- Short, direct, operator-grade voice
+
+NEVER use:
+- Em dashes
+- AI-pattern openers ("I hope this finds you well", "I wanted to reach out")
+- Corporate language ("leverage", "synergies", "streamline")
+- Exclamation marks
+- Hype words ("amazing", "incredible", "game-changing")
+
+Return valid JSON only, no markdown, no explanation.`
+
+function buildUserPrompt(
+  channel: Channel,
+  offer: any,
+  user_context: string | undefined,
+) {
+  const channelLines: Record<Channel, string> = {
+    linkedin:
+      "LinkedIn: 100-150 words. Professional but casual. Reference something observable about their business.",
+    instagram:
+      "Instagram DM: 60-80 words. Very casual, direct. Feels like a message between two humans.",
+    email:
+      "Email: 150-200 words plus subject line. Subject line under 50 characters, no clickbait, states the specific opportunity.",
   }
+
+  return `Generate 20 ${channel} outreach messages for this offer.
+
+Offer:
+Service: ${offer.service_name}
+Niche: ${offer.niche}
+Outcome: ${offer.outcome_statement}
+Pricing: ${offer.pricing_model} - ${offer.price_point}
+
+${user_context ? `Additional context from the user:\n${user_context}\n` : ""}
+
+Channel-specific requirements:
+${channelLines[channel]}
+
+Every message MUST:
+- Open with a Voss label ("It sounds like..." or "Most ${offer.niche} I speak to...")
+- Name a specific pain point relevant to ${offer.niche}
+- Invite to a 10-minute demo call (NOT a pitch, NOT a discovery call - a demo)
+- End with a no-oriented question ("Would it be crazy to...", "Would it be worth...")
+- Vary opening labels, pain points, and closing questions across the 20 messages
+- Each message should feel distinct - different angles, different hooks
+
+Return this exact JSON:
+{
+  "messages": [
+    {
+      "message_text": "the message body",
+      ${channel === "email" ? '"subject_line": "the subject line",' : ""}
+      "angle": "one-line description of the angle this message takes (e.g. 'dormant database size', 'competitor speed')"
+    }
+  ]
 }
 
-const systemPrompt = `You are the AI engine inside Aether Revive. You write cold outreach messages using two frameworks combined:
-
-FRAMEWORK 1 — 3C Storytelling (Adam Stacey):
-- Clarity: The message immediately communicates the prospect's problem and the outcome available to them. No ambiguity.
-- Connection: The message speaks directly to their world. References something specific about their niche that makes them feel understood, not targeted.
-- Conviction: The message ends with confidence, not desperation. The sender is a guide, not a salesperson. The prospect is always the hero.
-- Rule: Never make the message about the sender's service. Make it about the prospect's problem and the result they could get.
-
-FRAMEWORK 2 — Chris Voss Tactical Empathy:
-- Open with tactical empathy: demonstrate you understand their world before asking for anything
-- Use accusation audit: pre-empt their objection e.g. "You're probably getting pitched AI services every week right now..."
-- Use labelling: name what they are likely feeling e.g. "It sounds like follow-up is the part that always slips..."
-- Use no-oriented questions: instead of "would you be open to a chat?" use "would it be crazy to spend 10 minutes seeing this?" A no-oriented question is psychologically easier to say yes to.
-- Use late night FM DJ tone: calm, unhurried, confident. Never excitable or salesy.
-- Never use high-pressure language. Never mention urgency or scarcity.
-
-COMBINED RULE: Every message must feel like it was written by a trusted peer who genuinely understands the prospect's business — not by a salesperson who wants their money.
-
-The goal of every message is ONE THING ONLY: get the prospect to agree to a 10-minute screen share demo. Do NOT pitch the service. Do NOT mention price. Do NOT list features.
-
-Return valid JSON only. No markdown. No explanation.`
+Return exactly 20 items in the messages array.`
+}
 
 export async function POST(request: Request) {
   try {
     const supabase = await createClient()
 
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const { channel, prospect_context } = await request.json()
-    const selectedChannel: Channel = channel || "linkedin"
-    const selected = channelInstructions[selectedChannel]
+    // Accept user_context (new, preferred) and fall back to prospect_context for
+    // any older callers. Channel is always required.
+    const body = await request.json()
+    const selectedChannel: Channel = (body?.channel as Channel) || "linkedin"
+    const user_context: string | undefined =
+      body?.user_context ?? body?.prospect_context ?? undefined
 
-    // Step 1: Try via profiles.offer_id
+    // Two-step offer lookup: profiles.offer_id first, then most-recent active offer.
     const { data: profile } = await supabase
       .from("profiles")
       .select("offer_id")
       .eq("id", user.id)
       .maybeSingle()
 
-    let offer = null
+    let offer: any = null
 
     if (profile?.offer_id) {
       const { data } = await supabase
@@ -82,7 +108,6 @@ export async function POST(request: Request) {
       offer = data
     }
 
-    // Step 2: Fallback to most recent active offer
     if (!offer) {
       const { data } = await supabase
         .from("offers")
@@ -103,49 +128,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Missing API key" }, { status: 500 })
     }
 
-    const userMessage = `Write exactly 20 cold outreach messages using the 3C Storytelling Framework and Chris Voss tactical empathy techniques.
+    const userPrompt = buildUserPrompt(selectedChannel, offer, user_context)
 
-Service context (for your reference only — do NOT pitch this directly):
-Service: ${offer.service_name}
-Target niche: ${offer.niche}
-Outcome we deliver: ${offer.outcome_statement}
-Guarantee: ${offer.guarantee}
-${prospect_context ? `\nProspect context: ${prospect_context}` : ""}
-
-Channel: ${selected.format}
-Length: ${selected.length}
-Tone: ${selected.tone}
-
-STRUCTURE FOR EACH MESSAGE:
-1. Open with tactical empathy — show you understand their specific world as a ${offer.niche} business
-2. Label their likely problem — name what they are probably experiencing
-3. Accusation audit — pre-empt their resistance to being contacted
-4. Reference you have built something specific for their type of business (do not describe it)
-5. No-oriented CTA — soft ask for a 10-minute demo using a no-oriented question
-
-CRITICAL RULES:
-- The prospect is the hero. The sender is the guide.
-- Never mention price, features, or the service name directly
-- Every message must feel like it came from someone who genuinely understands their business
-- No two messages should have the same opening
-- No exclamation marks
-- No "I hope this message finds you well" or any filler opener
-- No "transform", "unlock", "game-changer", "revolutionary" or hype words
-- ${selected.extra}
-
-${selectedChannel === "email" ? 'Return JSON with subject_line and message_text for each message. Subject line must also use a no-oriented or curiosity-gap approach — never a salesy subject line.' : 'Return JSON with message_text only for each message.'}
-
-Return this exact JSON:
-{
-  "messages": [
-    {
-      ${selectedChannel === "email" ? '"subject_line": "subject line here",' : ''}
-      "message_text": "full message here"
-    }
-  ]
-}`
-
-    // Call Claude to generate messages
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
@@ -157,11 +141,8 @@ Return this exact JSON:
         model: "claude-sonnet-4-20250514",
         max_tokens: 4000,
         system: systemPrompt,
-        messages: [{
-          role: "user",
-          content: userMessage
-        }]
-      })
+        messages: [{ role: "user", content: userPrompt }],
+      }),
     })
 
     if (!response.ok) {
@@ -172,8 +153,8 @@ Return this exact JSON:
 
     const data = await response.json()
     const text = data.content[0].text.replace(/```json|```/g, "").trim()
-    
-    let result
+
+    let result: { messages: Array<{ message_text: string; subject_line?: string; angle?: string }> }
     try {
       result = JSON.parse(text)
     } catch (parseError) {
@@ -181,14 +162,17 @@ Return this exact JSON:
       return NextResponse.json({ error: "Failed to parse generated messages" }, { status: 500 })
     }
 
-    // Save messages to outreach_messages with channel field
-    const messagesToInsert = result.messages.map((m: { message_text: string; subject_line?: string }) => ({
+    // Persist each message as a draft. The `angle` returned by Claude is stored
+    // on the `note` column so the user can see at a glance what approach each
+    // message takes (and so next-batch learning has something to reference).
+    const messagesToInsert = result.messages.map((m) => ({
       user_id: user.id,
       offer_id: offer.id,
       message_text: m.message_text,
       subject_line: m.subject_line || null,
       status: "draft",
-      channel: selectedChannel
+      channel: selectedChannel,
+      note: m.angle || null,
     }))
 
     const { data: insertedMessages, error: insertError } = await supabase
@@ -201,8 +185,8 @@ Return this exact JSON:
       return NextResponse.json({ error: "Failed to save messages" }, { status: 500 })
     }
 
-    // Update niche_user_state to mark outreach as generated
-    // First find niche_id from niche name
+    // Mark outreach as generated for this niche so the pipeline + opportunities
+    // pages can progress the user's stage without manual confirmation.
     const { data: nicheRecord } = await supabase
       .from("niches")
       .select("id")
@@ -210,15 +194,16 @@ Return this exact JSON:
       .maybeSingle()
 
     if (nicheRecord) {
-      await supabase
-        .from("niche_user_state")
-        .upsert({
+      await supabase.from("niche_user_state").upsert(
+        {
           user_id: user.id,
           niche_id: nicheRecord.id,
           outreach_generated: true,
           outreach_generated_at: new Date().toISOString(),
-          stage: "demo"
-        }, { onConflict: "user_id,niche_id" })
+          stage: "demo",
+        },
+        { onConflict: "user_id,niche_id" },
+      )
     }
 
     return NextResponse.json({

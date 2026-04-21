@@ -67,8 +67,9 @@ export default function OutreachPage() {
   const [view, setView] = useState<"loading" | "no_offer" | "ready">("loading")
   const [activeOffer, setActiveOffer] = useState<ActiveOffer | null>(null)
   const [activeChannel, setActiveChannel] = useState<Channel>("linkedin")
-  const [prospectContext, setProspectContext] = useState("")
+  const [userContext, setUserContext] = useState("")
   const [generating, setGenerating] = useState(false)
+  const [generatingNextBatch, setGeneratingNextBatch] = useState(false)
   const [userId, setUserId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
@@ -170,6 +171,23 @@ export default function OutreachPage() {
   const currentMessages = getChannelMessages(activeChannel)
   const sentCount = currentMessages.filter(m => m.status === "sent").length
   const totalCount = currentMessages.length
+  const repliedCount = currentMessages.filter(m => m.status === "replied").length
+
+  // Reload all messages for a single channel straight from the DB. This is the
+  // source of truth after any generate / regenerate / next-batch call, because
+  // those operations preserve sent/replied/no_reply rows we don't want to lose
+  // from the UI state.
+  const reloadMessagesForChannel = async (channel: Channel) => {
+    if (!activeOffer || !userId) return
+    const { data } = await supabase
+      .from("outreach_messages")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("offer_id", activeOffer.id)
+      .eq("channel", channel)
+      .order("created_at", { ascending: true })
+    setChannelMessages(channel, data || [])
+  }
 
   const handleGenerate = async () => {
     if (!activeOffer) return
@@ -181,7 +199,7 @@ export default function OutreachPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           channel: activeChannel,
-          prospect_context: prospectContext || undefined,
+          user_context: userContext || undefined,
         }),
       })
 
@@ -191,11 +209,12 @@ export default function OutreachPage() {
         throw new Error(data.error || "Failed to generate messages")
       }
 
-      setChannelMessages(activeChannel, data.messages)
+      // Reload from DB so sent/replied messages (if any) stay alongside the new drafts.
+      await reloadMessagesForChannel(activeChannel)
 
       toast({
         title: "Messages Generated",
-        description: `20 ${activeChannel} messages ready to send`,
+        description: `${data.count ?? 20} ${activeChannel} messages ready to send`,
       })
     } catch (error: any) {
       toast({
@@ -208,18 +227,87 @@ export default function OutreachPage() {
     }
   }
 
+  // Safe regenerate: only DRAFT messages are deleted. Sent, replied, and no_reply
+  // rows are preserved so the user never loses outreach they've already done.
   const handleRegenerate = async () => {
     if (!activeOffer || !userId) return
 
-    // Delete existing messages for this channel only
-    await supabase
-      .from("outreach_messages")
-      .delete()
-      .eq("user_id", userId)
-      .eq("offer_id", activeOffer.id)
-      .eq("channel", activeChannel)
+    const ok = window.confirm(
+      "Regenerate will replace unsent draft messages with 20 new ones. Sent messages will be preserved. Continue?",
+    )
+    if (!ok) return
 
-    setChannelMessages(activeChannel, [])
+    setGenerating(true)
+
+    try {
+      await supabase
+        .from("outreach_messages")
+        .delete()
+        .eq("user_id", userId)
+        .eq("offer_id", activeOffer.id)
+        .eq("channel", activeChannel)
+        .eq("status", "draft")
+
+      const response = await fetch("/api/outreach/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          channel: activeChannel,
+          user_context: userContext || undefined,
+        }),
+      })
+
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || "Failed to generate messages")
+
+      await reloadMessagesForChannel(activeChannel)
+
+      toast({
+        title: "Drafts regenerated",
+        description: `${data.count ?? 20} fresh drafts ready. Sent messages preserved.`,
+      })
+    } catch (error: any) {
+      toast({
+        title: "Regeneration failed",
+        description: error.message,
+        variant: "destructive",
+      })
+    } finally {
+      setGenerating(false)
+    }
+  }
+
+  // Next batch: asks Claude to write 20 more messages using replied messages
+  // as positive examples and no_reply messages as negative examples.
+  const handleNextBatch = async () => {
+    if (!activeOffer) return
+    setGeneratingNextBatch(true)
+    try {
+      const response = await fetch("/api/outreach/next-batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ channel: activeChannel }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || "Failed to generate next batch")
+
+      await reloadMessagesForChannel(activeChannel)
+
+      toast({
+        title: `${data.count ?? 20} new messages generated`,
+        description: data.learning_applied
+          ? "Based on what's been working in your replies"
+          : "Using fresh angles and hooks",
+      })
+    } catch (error: any) {
+      toast({
+        title: "Next batch failed",
+        description: error.message,
+        variant: "destructive",
+      })
+    } finally {
+      setGeneratingNextBatch(false)
+    }
   }
 
   const handleMarkSent = async (messageId: string) => {
@@ -474,31 +562,49 @@ export default function OutreachPage() {
 
         {/* Tab Content */}
         {currentMessages.length === 0 ? (
-          // Generate view for this channel
-          <div className="space-y-6">
-            <p className="text-white/50 text-sm">{channelDescriptions[activeChannel]}</p>
+          // Generate view for this channel — no user prompt required. Claude
+          // writes 20 messages from the active offer alone; optional context
+          // is only a steering hint.
+          <div className="border border-white/10 rounded-xl p-6 space-y-5">
+            <div>
+              <p className="text-white font-semibold text-lg">
+                Generate 20 {activeChannel} messages for {activeOffer?.niche}
+              </p>
+              <p className="text-white/50 text-sm mt-1">
+                Claude will write 20 unique messages using 3C Storytelling,
+                Chris Voss tactical empathy, and SPIN methodology. Each message
+                invites the prospect to a 10-minute demo call.
+              </p>
+              <p className="text-white/40 text-xs mt-2">{channelDescriptions[activeChannel]}</p>
+            </div>
 
-            {/* Prospect Context */}
+            {/* Optional context */}
             <div className="space-y-2">
-              <Label className="text-white/70">Any specific context about your prospects? (optional)</Label>
+              <Label className="text-white/50 text-xs uppercase tracking-wider">
+                Optional — Add context
+              </Label>
               <Textarea
-                placeholder="e.g. focus on owner-operated businesses, avoid franchises, mention local presence"
-                value={prospectContext}
-                onChange={(e) => setProspectContext(e.target.value)}
-                className="bg-white/5 border-white/10 text-white placeholder:text-white/30 min-h-[80px]"
+                placeholder="e.g. Focus on dental practices that advertise on Google Maps..."
+                value={userContext}
+                onChange={(e) => setUserContext(e.target.value)}
+                rows={2}
+                className="bg-white/5 border-white/10 text-white placeholder:text-white/30"
               />
+              <p className="text-white/30 text-xs">
+                Leave blank for default generation based on your offer
+              </p>
             </div>
 
             {/* Generate Button */}
             <Button
               onClick={handleGenerate}
               disabled={generating}
-              className="w-full bg-[#00AAFF] hover:bg-[#0099EE] text-white py-6 text-lg"
+              className="w-full bg-[#00AAFF] hover:bg-[#0099EE] text-white py-6 text-base font-bold"
             >
               {generating ? (
                 <>
                   <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                  Claude is writing your messages...
+                  Writing 20 messages...
                 </>
               ) : (
                 <>
@@ -528,10 +634,16 @@ export default function OutreachPage() {
                   variant="ghost"
                   size="sm"
                   onClick={handleRegenerate}
+                  disabled={generating}
+                  title="Sent messages are preserved. Only unsent drafts will be replaced."
                   className="text-white/50 hover:text-white hover:bg-white/10"
                 >
-                  <RefreshCw className="h-4 w-4 mr-1" />
-                  Regenerate
+                  {generating ? (
+                    <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4 mr-1" />
+                  )}
+                  Regenerate drafts
                 </Button>
                 {sentCount >= 5 && (
                   <Button
@@ -654,7 +766,43 @@ export default function OutreachPage() {
               ))}
             </div>
 
-            
+            {/* Next batch — appears once any messages exist for this channel.
+                If any drafts have been marked replied, the API uses those as
+                positive examples to steer the next 20. */}
+            <div className="border border-[#00AAFF]/20 bg-[#00AAFF]/5 rounded-xl p-5 mt-6 space-y-3">
+              <div>
+                <p className="text-[#00AAFF] text-xs font-semibold uppercase tracking-wider">
+                  Next batch
+                </p>
+                <p className="text-white font-semibold mt-1">Ready to scale your outreach?</p>
+                <p className="text-white/50 text-sm mt-1">
+                  Generate 20 more messages. If any of your current batch got replies,
+                  Claude will learn from those winners and create the next batch in the same style.
+                </p>
+              </div>
+              <Button
+                onClick={handleNextBatch}
+                disabled={generatingNextBatch || generating}
+                className="bg-[#00AAFF] hover:bg-[#0099EE] text-white font-bold px-5 py-2.5 text-sm"
+              >
+                {generatingNextBatch ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Generating next 20...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    Generate next 20
+                  </>
+                )}
+              </Button>
+              {repliedCount > 0 && (
+                <p className="text-white/40 text-xs">
+                  Claude will learn from {repliedCount} message{repliedCount !== 1 ? "s" : ""} that got replies
+                </p>
+              )}
+            </div>
           </div>
         )}
       </div>
