@@ -296,6 +296,27 @@ export default function ProposalBuilderPage() {
       await refreshState()
 
       if (status === "won") {
+        // Emit a celebratory notification for the win. Client-side insert is
+        // safe here because the `notifications` RLS policy only allows rows
+        // where auth.uid() = user_id, which matches the owning user (the only
+        // one who can see this proposal via its own RLS).
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
+        if (user) {
+          const prospectLabel =
+            (proposal as any).prospect_business || (proposal as any).prospect_name || "a new client"
+          await supabase.from("notifications").insert({
+            user_id: user.id,
+            type: "proposal_won",
+            title: "Deal won",
+            body: `Congratulations — ${prospectLabel} accepted your proposal.`,
+            action_href: `/proposal/builder?id=${proposal.id}`,
+            related_id: proposal.id,
+            read: false,
+          })
+        }
+
         toast({
           title: "Congratulations on the win",
           description: "This deal has been added to your clients.",

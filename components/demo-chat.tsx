@@ -6,9 +6,10 @@ import { useChat } from "@ai-sdk/react"
 import { DefaultChatTransport } from "ai"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Send, RefreshCw, ArrowLeft } from "lucide-react"
+import { Send, RefreshCw, ArrowLeft, Link2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import type { Android } from "@/lib/types"
+import { DemoLinkProspectModal } from "@/components/demo-link-prospect-modal"
 
 interface DemoChatProps {
   android: Android
@@ -93,6 +94,10 @@ export default function DemoChat({ android, userId, autoPresent = false }: DemoC
   const [showTypingForFirst, setShowTypingForFirst] = useState(false)
   const [isDarkMode, setIsDarkMode] = useState(false)
   const [presentationMode, setPresentationMode] = useState(autoPresent)
+  // Demo owner can attribute this session to a specific prospect. Controlled
+  // from the header's "Link prospect" button.
+  const [linkModalOpen, setLinkModalOpen] = useState(false)
+  const [linkedProspectId, setLinkedProspectId] = useState<string | null>(null)
 
   const companyName = android.business_context?.company_name || android.business_context?.businessName || "My Business"
   const niche = android.business_context?.niche || android.business_context?.industry || "services"
@@ -540,6 +545,20 @@ export default function DemoChat({ android, userId, autoPresent = false }: DemoC
                 </div>
                 <div className="flex items-center gap-2">
                   <button
+                    onClick={() => setLinkModalOpen(true)}
+                    className="flex items-center gap-2 px-3 py-1.5 text-sm border border-white/10 hover:border-white/20 rounded-lg transition-colors"
+                    style={{
+                      color: linkedProspectId
+                        ? "#00AAFF"
+                        : isDarkMode
+                          ? "rgba(255,255,255,0.5)"
+                          : "rgba(0,0,0,0.5)",
+                    }}
+                  >
+                    <Link2 className="h-3.5 w-3.5" />
+                    {linkedProspectId ? "Prospect linked" : "Link prospect"}
+                  </button>
+                  <button
                     onClick={() => setPresentationMode(true)}
                     className="flex items-center gap-2 px-3 py-1.5 text-sm text-white/50 hover:text-white border border-white/10 hover:border-white/20 rounded-lg transition-colors"
                     style={{ color: isDarkMode ? "rgba(255,255,255,0.5)" : "rgba(0,0,0,0.5)" }}
@@ -684,6 +703,17 @@ export default function DemoChat({ android, userId, autoPresent = false }: DemoC
           </div>
         </div>
       )}
+
+      {/* Prospect-linking modal. Rendered at the root so it overlays both
+          the regular and presentation-mode views without being unmounted
+          when toggling between them. */}
+      <DemoLinkProspectModal
+        open={linkModalOpen}
+        onOpenChange={setLinkModalOpen}
+        userId={userId}
+        androidId={android.id}
+        onLinked={(id) => setLinkedProspectId(id)}
+      />
     </div>
   )
 }

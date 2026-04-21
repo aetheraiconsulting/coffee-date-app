@@ -1,8 +1,7 @@
 "use client"
 
-import { Bell, User, LogOut, Settings2 } from 'lucide-react'
+import { User, LogOut, Settings2 } from 'lucide-react'
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,6 +14,7 @@ import { useRouter } from 'next/navigation'
 import { useToast } from '@/hooks/use-toast'
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
+import { NotificationBell } from '@/components/notification-bell'
 
 export function AppHeader() {
   const router = useRouter()
@@ -69,9 +69,7 @@ export function AppHeader() {
     <header className="sticky top-0 z-10 border-b border-white/10 bg-black">
       <div className="flex items-center justify-end px-6 py-4 h-[73px]">
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" className="text-white hover:bg-white/10">
-            <Bell className="h-5 w-5" />
-          </Button>
+          <NotificationBell />
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
