@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 import { checkAccess, subscriptionGateResponse } from "@/lib/checkAccess"
+import { trackActivity } from "@/lib/trackActivity"
 
 export async function POST(request: Request) {
   const supabase = await createClient()
@@ -128,6 +129,9 @@ CRITICAL RULES:
       completed_at: new Date().toISOString(),
     })
     .eq("id", audit_id)
+
+  // Re-engagement tracking: audit generated for a client.
+  await trackActivity(user.id, "audit_sent")
 
   return NextResponse.json(result)
 }

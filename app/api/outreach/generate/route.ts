@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 import { checkAccess, subscriptionGateResponse } from "@/lib/checkAccess"
+import { trackActivity } from "@/lib/trackActivity"
 
 type Channel = "linkedin" | "instagram" | "email"
 
@@ -210,6 +211,9 @@ export async function POST(request: Request) {
         { onConflict: "user_id,niche_id" },
       )
     }
+
+    // Re-engagement tracking: user is actively generating outreach.
+    await trackActivity(user.id, "outreach_sent")
 
     return NextResponse.json({
       success: true,

@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 import { checkAccess, subscriptionGateResponse } from "@/lib/checkAccess"
 import { createNotification } from "@/lib/createNotification"
+import { trackActivity } from "@/lib/trackActivity"
 
 const systemPrompt = `You are the AI engine inside Aether Revive. Write the perfect response to a prospect reply using Chris Voss tactical empathy and the 3C Storytelling Framework. The prospect is the hero. You are the guide. The only goal is to book a 10-minute screen share demo call — NOT a discovery call, NOT a sales call. A demo call is low pressure: "I'll show you the system working on your type of business, takes 10 minutes, no commitment." Use labelling, tactical empathy, and no-oriented questions. Keep responses under 100 words. Calm, confident, never pushy. Return valid JSON only. No markdown. No explanation.`
 
@@ -102,6 +103,9 @@ Return this exact JSON:
     action_href: `/outreach/reply/${outreach_message_id}`,
     related_id: outreach_message_id,
   })
+
+  // Re-engagement tracking: prospect replied = hot activity.
+  await trackActivity(user.id, "reply_received")
 
   return NextResponse.json({
     suggested_response: result.suggested_response,

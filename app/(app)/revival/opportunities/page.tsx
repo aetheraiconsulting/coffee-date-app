@@ -1041,6 +1041,17 @@ export default function OpportunitiesPage() {
           prev ? { ...prev, user_state: { ...prev.user_state!, is_favourite: newFavState } } : null,
         )
       }
+
+      // Re-engagement tracking: favouriting a niche counts as active work.
+      // Only track when the user is adding a favourite (not removing), and
+      // fire-and-forget — a failed track must never block the UI.
+      if (newFavState) {
+        void fetch("/api/activity/track", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ type: "niche_favourited" }),
+        }).catch(() => {})
+      }
     }
   }
 

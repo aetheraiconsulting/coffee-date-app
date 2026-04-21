@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
+import { trackActivity } from "@/lib/trackActivity"
 
 export async function GET(request: Request) {
   try {
@@ -120,6 +121,9 @@ export async function POST(request: Request) {
         })
       }
     }
+
+    // Re-engagement tracking: user ran a demo, definitely active.
+    await trackActivity(user.id, "demo_completed")
 
     return NextResponse.json({ success: true, demoLog })
   } catch (error) {

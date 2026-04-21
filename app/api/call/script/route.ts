@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 import { checkAccess, subscriptionGateResponse } from "@/lib/checkAccess"
+import { trackActivity } from "@/lib/trackActivity"
 
 export async function POST() {
   try {
@@ -153,6 +154,9 @@ Return this exact JSON:
     if (insertError) {
       throw insertError
     }
+
+    // Re-engagement tracking: user has a call lined up.
+    await trackActivity(user.id, "call_booked")
 
     return NextResponse.json({ script: newScript })
 
