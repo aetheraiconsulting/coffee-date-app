@@ -8,6 +8,7 @@ import {
   MessageSquare,
   Compass,
   FileText,
+  AlertCircle,
 } from "lucide-react"
 import Link from "next/link"
 import { redirect } from "next/navigation"
@@ -56,6 +57,7 @@ export default async function DashboardPage() {
     subscriptionStatus,
     trialEndsAt,
     accessLevel,
+    stalls,
   } = state
 
   // Get first name
@@ -203,6 +205,58 @@ export default async function DashboardPage() {
         <section>
           <MissionControl />
         </section>
+
+        {/* ============================================
+            STALL ALERTS — things that need user attention.
+            Shows up to 3 items sorted by severity (urgent first) so the
+            dashboard stays focused. detectStalls already sorts the array.
+        ============================================ */}
+        {stalls && stalls.length > 0 && (
+          <section>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-white font-semibold text-sm flex items-center gap-2">
+                <AlertCircle size={14} className="text-amber-400" />
+                Needs your attention
+              </p>
+              <span className="text-white/30 text-xs">
+                {stalls.length} item{stalls.length !== 1 ? "s" : ""}
+              </span>
+            </div>
+            <div className="space-y-2">
+              {stalls.slice(0, 3).map((stall, i) => (
+                <div
+                  key={`${stall.type}-${i}`}
+                  className={cn(
+                    "border rounded-xl p-4 flex items-center justify-between gap-4",
+                    stall.severity === "urgent"
+                      ? "border-red-500/20 bg-red-500/[0.05]"
+                      : "border-amber-500/20 bg-amber-500/[0.05]",
+                  )}
+                >
+                  <p
+                    className={cn(
+                      "text-sm",
+                      stall.severity === "urgent" ? "text-red-300" : "text-amber-300",
+                    )}
+                  >
+                    {stall.message}
+                  </p>
+                  <Link
+                    href={stall.action_href}
+                    className={cn(
+                      "text-xs font-bold px-3 py-1.5 rounded-lg whitespace-nowrap flex-shrink-0",
+                      stall.severity === "urgent"
+                        ? "bg-red-400 text-black hover:bg-red-300"
+                        : "bg-amber-400 text-black hover:bg-amber-300",
+                    )}
+                  >
+                    {stall.action_label} →
+                  </Link>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* ============================================
             2. PROGRESS TRACKER (step-based + day count)

@@ -20,6 +20,7 @@ import {
   Palette,
   Phone,
   MessageCircle,
+  Briefcase,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import Image from "next/image"
@@ -55,6 +56,12 @@ const menuSections = [
     label: "Lead Revival",
     items: [
       { icon: RefreshCcw, label: "GHL Connection", href: "/revival", exact: true },
+    ],
+  },
+  {
+    label: "Delivery",
+    items: [
+      { icon: Briefcase, label: "Clients", href: "/clients" },
     ],
   },
   {

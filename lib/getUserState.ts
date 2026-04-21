@@ -1,4 +1,22 @@
 import { createClient } from "@/lib/supabase/server"
+import { detectStalls, type Stall } from "@/lib/detectStalls"
+
+export type { Stall } from "@/lib/detectStalls"
+
+// "sprint" = first 14 days — countdown framing + single focus on landing the
+// first client. "growth" = day 15+ — directives adapt to client count rather
+// than day count.
+export type SprintMode = "sprint" | "growth"
+
+// Lightweight shape of a recent client surfaced to Mission Control for the
+// higher-client-count prompt variants.
+export interface RecentClient {
+  id: string
+  name: string
+  niche: string | null
+  onboarded_at: string | null
+  types: ("won" | "onboarded")[]
+}
 
 // Access level drives the feature-gating UI. "full" = normal app; "grace" = trial
 // just ended but within the 48h soft window (or protected by an active proposal);
@@ -59,6 +77,13 @@ export interface UserState {
   // Feature gating
   accessLevel: AccessLevel
   gracePeriodEndsAt: string | null
+
+  // Phase 4B — lifecycle expansion
+  mode: SprintMode
+  daysSinceStart: number
+  clientCount: number
+  stalls: Stall[]
+  recentClients: RecentClient[]
 }
 
 export async function getUserState(): Promise<UserState | null> {
@@ -149,14 +174,55 @@ export async function getUserState(): Promise<UserState | null> {
     return "proposal_sent"
   }
 
-  // Calculate day in sprint
+  // Calculate day in sprint. `daysSinceStart` is the uncapped elapsed-days
+  // counter we use to decide sprint vs growth mode; `dayInSprint` stays capped
+  // at 14 for the legacy countdown UI.
   const sprintStartDate = profile?.sprint_start_date || null
+  let daysSinceStart = 0
   let dayInSprint = 1
   if (sprintStartDate) {
     const startDate = new Date(sprintStartDate)
     const today = new Date()
     const diffTime = Math.abs(today.getTime() - startDate.getTime())
-    dayInSprint = Math.min(Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1, 14)
+    daysSinceStart = Math.floor(diffTime / (1000 * 60 * 60 * 24))
+    dayInSprint = Math.min(daysSinceStart + 1, 14)
+  }
+
+  // Phase 4B — sprint vs growth mode + unified client count. A single niche
+  // can be both "won" and "onboarded", so we take the larger of the two
+  // counts as a conservative upper bound of distinct clients.
+  const mode: SprintMode = daysSinceStart >= 14 ? "growth" : "sprint"
+  const wonProposalsCount = proposalsData?.filter((p) => p.deal_status === "won")?.length || 0
+  const clientCount = Math.max(wonProposalsCount, clientsOnboardedCount)
+
+  // Only fetch the recent-clients list when it'll actually be used by Mission
+  // Control (growth mode with >=1 client). Keeps the common sprint-mode path
+  // fast and avoids an extra join for new users.
+  let recentClients: RecentClient[] = []
+  if (clientCount > 0) {
+    const { data: onboardedRows } = await supabase
+      .from("niche_user_state")
+      .select("id, niche_id, client_onboarded_at, niches(niche_name)")
+      .eq("user_id", user.id)
+      .eq("client_onboarded", true)
+      .order("updated_at", { ascending: false })
+      .limit(5)
+
+    recentClients = (onboardedRows || []).map((row) => ({
+      id: row.id,
+      name: ((row.niches as any)?.niche_name as string) || "Client",
+      niche: ((row.niches as any)?.niche_name as string) || null,
+      onboarded_at: row.client_onboarded_at ?? null,
+      types: ["onboarded"],
+    }))
+  }
+
+  // Run stall detection last so the rest of state resolves even if this fails.
+  let stalls: Stall[] = []
+  try {
+    stalls = await detectStalls(user.id)
+  } catch (err) {
+    console.log("[v0] detectStalls failed:", (err as Error).message)
   }
 
   // Feature gating — compute accessLevel + grace-period end timestamp. Active
@@ -226,5 +292,10 @@ export async function getUserState(): Promise<UserState | null> {
     promoCodeUsed: profile?.promo_code_used ?? null,
     accessLevel,
     gracePeriodEndsAt,
+    mode,
+    daysSinceStart,
+    clientCount,
+    stalls,
+    recentClients,
   }
 }
