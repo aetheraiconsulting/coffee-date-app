@@ -1845,16 +1845,21 @@ export default function OpportunitiesPage() {
                             </div>
                           </div>
 
-                          {/* CTA Button */}
-                          <Button
-                            onClick={() => progressToStage("shortlisted")}
-                            disabled={!stageGating.canMoveToShortlisted || currentStageId !== "research"}
-                            className="w-full bg-primary hover:bg-primary/90 disabled:opacity-50"
-                          >
-                            {currentStageId === "research"
-                              ? "Complete Research & Move to Shortlisted"
-                              : "Research Completed"}
-                          </Button>
+                          {/* Success message once profile is marked complete */}
+                          {selectedNiche.user_state?.customer_profile_generated && (
+                            <div
+                              className="rounded-lg px-4 py-3 flex items-center gap-2"
+                              style={{
+                                background: "rgba(0,170,255,0.08)",
+                                border: "0.5px solid rgba(0,170,255,0.3)",
+                              }}
+                            >
+                              <CheckCircle className="h-4 w-4 text-[#00AAFF] shrink-0" />
+                              <p className="text-sm font-medium text-[#00AAFF]">
+                                Now Build Your Offer Below
+                              </p>
+                            </div>
+                          )}
                         </div>
                       )}
                   </div>
