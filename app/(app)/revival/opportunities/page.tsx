@@ -441,10 +441,14 @@ export default function OpportunitiesPage() {
   // Fetched niche state - undefined means not yet fetched, null means no record exists
   const [nicheState, setNicheState] = useState<NicheUserState | null | undefined>(undefined)
 
-  // Count of Androids the user has built that target the currently selected niche.
-  // We derive this by matching the free-text `niche` column on `androids` to `niche_name`,
-  // since `niche_user_state.android_built` is a stale seed-only flag.
+  // Count of Androids the user has built that target the currently selected niche,
+  // plus the id of the most-recently-created matching Android so we can deep-link
+  // "Go to Coffee Date Demo" straight into that Android instead of the generic list.
+  // We can't rely on `niche_user_state.android_built` (stale seed-only flag) and we
+  // can't rely on the top-level `androids.niche` column alone because older inserts
+  // only stored the niche inside the `business_context` JSONB — so we match on both.
   const [nicheAndroidCount, setNicheAndroidCount] = useState<number>(0)
+  const [firstNicheAndroidId, setFirstNicheAndroidId] = useState<string | null>(null)
 
   // Auto-counts from outreach_messages table (LinkedIn, Instagram, Email) for the selected niche.
   // We track two numbers per channel: messages CREATED (all drafts + sent) and messages SENT.
@@ -793,73 +797,98 @@ export default function OpportunitiesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedNiche?.id, selectedNiche?.niche_name])
 
-  // Fetch the number of Androids this user has built that target the selected niche.
-  // We match on the free-text `niche` column (case-insensitive) so the count reflects
-  // what the user actually sees in the Coffee Date Demo / Library.
-  useEffect(() => {
-    const fetchNicheAndroids = async () => {
-      if (!selectedNiche) {
-        setNicheAndroidCount(0)
-        return
-      }
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        setNicheAndroidCount(0)
-        return
-      }
-      const { data: androids } = await supabase
-        .from("androids")
-        .select("id, niche")
-        .eq("user_id", user.id)
-
-      const target = String(selectedNiche.niche_name).toLowerCase().trim()
-      const count = (androids || []).filter(
-        (a: any) => a?.niche && String(a.niche).toLowerCase().trim() === target,
-      ).length
-      setNicheAndroidCount(count)
+  // Fetch the Androids this user has built that target the selected niche.
+  // Androids store their niche in any of: top-level `niche` column, or inside
+  // `business_context.niche` / `business_context.serviceType` / `business_context.industry`.
+  // We load all of the user's Androids and match on any of those fields (case-insensitive).
+  // We also record the most-recent matching Android's id so the "Go to Coffee Date Demo"
+  // button can deep-link directly into that Android.
+  const fetchNicheAndroids = async () => {
+    if (!selectedNiche) {
+      setNicheAndroidCount(0)
+      setFirstNicheAndroidId(null)
+      return
     }
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      setNicheAndroidCount(0)
+      setFirstNicheAndroidId(null)
+      return
+    }
+    const { data: androids } = await supabase
+      .from("androids")
+      .select("id, niche, business_context, created_at")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+
+    const target = String(selectedNiche.niche_name).toLowerCase().trim()
+    const normalize = (v: any) =>
+      typeof v === "string" ? v.toLowerCase().trim() : ""
+    const matches = (androids || []).filter((a: any) => {
+      const ctx = a?.business_context || {}
+      return (
+        normalize(a?.niche) === target ||
+        normalize(ctx.niche) === target ||
+        normalize(ctx.serviceType) === target ||
+        normalize(ctx.industry) === target
+      )
+    })
+    setNicheAndroidCount(matches.length)
+    setFirstNicheAndroidId(matches[0]?.id ?? null)
+  }
+
+  useEffect(() => {
     fetchNicheAndroids()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedNiche?.id, selectedNiche?.niche_name])
 
-  // Refetch when window regains focus
+  // Refetch when window regains focus. This is the critical hook that picks up
+  // `coffee_date_completed = true` and any newly-built Androids after the user
+  // runs a demo or creates an Android in another tab.
   useEffect(() => {
-    const handleFocus = () => fetchActiveOffer()
+    const handleFocus = () => {
+      fetchActiveOffer()
+      fetchNicheState()
+      fetchNicheAndroids()
+    }
     window.addEventListener("focus", handleFocus)
     return () => window.removeEventListener("focus", handleFocus)
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedNiche?.id, selectedNiche?.niche_name])
 
   // Refetch when pathname changes (immediate refresh on navigation back)
   useEffect(() => {
     fetchActiveOffer()
   }, [pathname])
 
-  // Fetch niche_user_state when selectedNiche changes
-  useEffect(() => {
+  // Fetch niche_user_state — declared at component scope so we can call it from the
+  // focus handler too (e.g. after a user runs a client demo in another tab).
+  const fetchNicheState = async () => {
     if (!selectedNiche) {
       setNicheState(undefined)
       return
     }
-
-    const fetchNicheState = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        setNicheState(null)
-        return
-      }
-
-      const { data } = await supabase
-        .from("niche_user_state")
-        .select("*")
-        .eq("user_id", user.id)
-        .eq("niche_id", selectedNiche.id)
-        .maybeSingle()
-
-      // If no record exists, set to null (not undefined) - this means "research" stage
-      setNicheState(data || null)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      setNicheState(null)
+      return
     }
 
+    const { data } = await supabase
+      .from("niche_user_state")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("niche_id", selectedNiche.id)
+      .maybeSingle()
+
+    // If no record exists, set to null (not undefined) - this means "research" stage
+    setNicheState(data || null)
+  }
+
+  // Fetch niche_user_state when selectedNiche changes
+  useEffect(() => {
     fetchNicheState()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedNiche?.id, supabase])
 
   useEffect(() => {
@@ -2480,11 +2509,28 @@ export default function OpportunitiesPage() {
                                     asChild
                                     className="flex-1 bg-[#00AAFF] hover:bg-[#0099EE] text-white font-medium"
                                   >
-                                    <Link href="/demo">
-                                      Go to Coffee Date Demo
+                                    <Link
+                                      href={
+                                        firstNicheAndroidId
+                                          ? `/demo/${firstNicheAndroidId}?type=client&niche=${encodeURIComponent(selectedNiche.niche_name)}`
+                                          : "/demo"
+                                      }
+                                    >
+                                      {nicheAndroidCount > 1 ? "Open latest Coffee Date Demo" : "Open Coffee Date Demo"}
                                       <ChevronRight className="h-4 w-4 ml-1" />
                                     </Link>
                                   </Button>
+                                  {nicheAndroidCount > 1 && (
+                                    <Button
+                                      asChild
+                                      variant="ghost"
+                                      className="flex-1 bg-white/5 hover:bg-white/10 text-white/80 border border-white/10"
+                                    >
+                                      <Link href="/demo">
+                                        See all {nicheAndroidCount} Androids
+                                      </Link>
+                                    </Button>
+                                  )}
                                   <Button
                                     asChild
                                     variant="ghost"

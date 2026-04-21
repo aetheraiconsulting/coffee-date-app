@@ -27,12 +27,16 @@ export async function generatePrompt(formData: PromptFormData, userId: string) {
     // Generate the prompt using the template
     const prompt = buildCoffeeDatePrompt(formData)
 
-    // Create the android with the generated prompt
+    // Create the android with the generated prompt.
+    // We also populate the top-level `niche` column so other pages (e.g. the
+    // Opportunities demo section) can match Androids to a niche without having
+    // to unpack the `business_context` JSONB.
     const { data: android, error } = await supabase
       .from("androids")
       .insert({
         user_id: userId,
         name: formData.androidName,
+        niche: formData.serviceType,
         prompt,
         ai_prefilled: formData.aiPrefilled || false,
         business_context: {
