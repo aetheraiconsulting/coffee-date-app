@@ -21,6 +21,7 @@ import {
   Phone,
   MessageCircle,
   Briefcase,
+  Bot,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import Image from "next/image"
@@ -48,6 +49,7 @@ const menuSections = [
       { icon: FileText, label: "Proposals", href: "/proposal", exact: true },
       { icon: Coffee, label: "Coffee Date Demo", href: "/demo" },
       { icon: Wand2, label: "Build Android", href: "/prompt-generator", indent: true },
+      { icon: Bot, label: "Agent Library", href: "/agents" },
       { icon: FileSearch, label: "AI Audit", href: "/audit" },
       { icon: ClipboardList, label: "Quiz", href: "/quiz" },
     ],

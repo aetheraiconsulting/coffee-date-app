@@ -130,6 +130,13 @@ function AuditBuilderContent() {
   const [teaserContent, setTeaserContent] = useState("")
   const [generatingShareLink, setGeneratingShareLink] = useState(false)
 
+  // Agent Library matching — maps the index of each service recommendation
+  // to the best-matching deployable Agent Library entry. We cache the full
+  // public agent list once per audit so keyword matching is instant while
+  // the operator edits recommendation text in the review view.
+  const [availableAgents, setAvailableAgents] = useState<any[]>([])
+  const [matchingAgents, setMatchingAgents] = useState<Record<number, any>>({})
+
   const { toast } = useToast()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -165,6 +172,39 @@ function AuditBuilderContent() {
       .order("niche_name")
     if (data) setNiches(data as Niche[])
   }
+
+  // Pull the full public Agent Library once, then run keyword matching
+  // against service recommendations whenever the edited insights change.
+  // Matching is O(recs × agents × keywords) which is fine at these sizes.
+  useEffect(() => {
+    const loadAgents = async () => {
+      const { data } = await supabase
+        .from("agents")
+        .select("id, slug, name, category, problem_solved, typical_roi, service_recommendation_keywords")
+        .eq("is_public", true)
+      if (data) setAvailableAgents(data)
+    }
+    loadAgents()
+  }, [supabase])
+
+  useEffect(() => {
+    if (!editedInsights || availableAgents.length === 0) {
+      setMatchingAgents({})
+      return
+    }
+    const matches: Record<number, any> = {}
+    editedInsights.service_recommendations.forEach((rec, i) => {
+      const haystack = `${rec.service || ""} ${rec.problem_solved || ""} ${rec.expected_outcome || ""}`.toLowerCase()
+      const matched = availableAgents.find((agent: any) => {
+        const keywords: string[] = Array.isArray(agent.service_recommendation_keywords)
+          ? agent.service_recommendation_keywords
+          : []
+        return keywords.some((kw) => kw && haystack.includes(String(kw).toLowerCase()))
+      })
+      if (matched) matches[i] = matched
+    })
+    setMatchingAgents(matches)
+  }, [editedInsights, availableAgents])
 
   async function loadAudit(id: string) {
     try {
@@ -903,6 +943,47 @@ function AuditBuilderContent() {
                             />
                           </div>
                         </div>
+
+                        {/* Agent match — only shown when keyword matching in
+                            the useEffect above found a deployable agent. This
+                            turns the audit from a read-only report into an
+                            actionable pipeline event: one click spawns an
+                            Android seeded with the agent template and the
+                            audit insights baked in. */}
+                        {matchingAgents[i] && (
+                          <div className="border-t border-white/5 pt-3 mt-3 flex items-center justify-between gap-3 flex-wrap">
+                            <div className="min-w-0">
+                              <p className="text-white/40 text-[10px] uppercase tracking-wider mb-0.5">
+                                Deployable agent match
+                              </p>
+                              <p className="text-white/80 text-sm font-semibold truncate">
+                                {matchingAgents[i].name}
+                              </p>
+                              {matchingAgents[i].typical_roi && (
+                                <p className="text-white/40 text-xs">
+                                  {matchingAgents[i].typical_roi} typical ROI
+                                </p>
+                              )}
+                            </div>
+                            <Button
+                              onClick={() => {
+                                const niche = niches.find((n) => n.id === selectedNiche)
+                                const params = new URLSearchParams({
+                                  agent_slug: matchingAgents[i].slug,
+                                  agent_name: matchingAgents[i].name,
+                                  business: auditName || "",
+                                  client_name: auditName || "",
+                                  ...(niche?.niche_name ? { niche: niche.niche_name } : {}),
+                                  ...(auditId ? { audit_id: auditId } : {}),
+                                })
+                                router.push(`/prompt-generator?${params.toString()}`)
+                              }}
+                              className="bg-[#00AAFF] hover:bg-[#0099EE] text-white font-bold text-sm whitespace-nowrap"
+                            >
+                              Build for client →
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </CardContent>

@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server"
-import { redirect } from 'next/navigation'
+import { redirect } from "next/navigation"
+import { Suspense } from "react"
 import PromptGeneratorForm from "@/components/prompt-generator-form"
 
 export default async function PromptGeneratorPage() {
@@ -22,7 +23,11 @@ export default async function PromptGeneratorPage() {
             Create custom Coffee Date prompts for your androids
           </p>
         </div>
-        <PromptGeneratorForm userId={user.id} />
+        {/* Suspense boundary required because PromptGeneratorForm uses
+            useSearchParams (for ?niche, ?agent_slug, ?audit_id, etc.). */}
+        <Suspense fallback={<div className="text-white/40">Loading...</div>}>
+          <PromptGeneratorForm userId={user.id} />
+        </Suspense>
       </div>
     </div>
   )
