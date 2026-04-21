@@ -1045,12 +1045,22 @@ export default function OpportunitiesPage() {
   }
 
   // Ask Claude for realistic industry benchmarks for the selected niche and
-  // pre-fill the AOV + database size inputs. We intentionally use the existing
-  // `updateField` helper so the values go through the same upsert/state-sync
-  // pipeline as a manual edit — this also keeps `aov_calculator_completed`
-  // unchanged so the user must still confirm the numbers.
+  // pre-fill the AOV + database size inputs.
+  //
+  // IMPORTANT: We deliberately bypass `updateField` here and do ONE atomic
+  // upsert for both columns. Calling `updateField` twice back-to-back caused a
+  // stale-closure bug where the second call's `setSelectedNiche` rebuilt state
+  // from the pre-update `selectedNiche` and wiped the first field (the AOV
+  // appeared to vanish, even though it had been written to the DB). A single
+  // upsert + a single functional state update keeps client and server in sync.
   const handleGetEstimates = async () => {
     if (!selectedNiche?.niche_name || !selectedNiche?.id) return
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) return
+
     setFetchingEstimates(true)
     try {
       const response = await fetch("/api/niches/aov-estimate", {
@@ -1068,11 +1078,51 @@ export default function OpportunitiesPage() {
         (Number(data.database_size_low || 0) + Number(data.database_size_high || 0)) / 2,
       )
       const aov = Number(data.average_order_value || 0)
+      const nowIso = new Date().toISOString()
 
-      // Write both values via updateField (no toast per call; we show one
-      // consolidated toast below).
-      await updateField("aov_input", aov, false)
-      await updateField("database_size_input", avgDbSize, false)
+      // Single upsert — both columns in one round trip.
+      const { error } = await supabase.from("niche_user_state").upsert(
+        {
+          niche_id: selectedNiche.id,
+          user_id: user.id,
+          aov_input: aov,
+          database_size_input: avgDbSize,
+          updated_at: nowIso,
+        },
+        { onConflict: "niche_id,user_id" },
+      )
+      if (error) throw new Error(error.message)
+
+      // Functional state updates so we don't clobber anything else the user
+      // may have been editing.
+      setSelectedNiche((prev) =>
+        prev
+          ? {
+              ...prev,
+              user_state: {
+                ...(prev.user_state as any),
+                aov_input: aov,
+                database_size_input: avgDbSize,
+                updated_at: nowIso,
+              },
+            }
+          : prev,
+      )
+      setAllNiches((prev) =>
+        prev.map((n) =>
+          n.id === selectedNiche.id
+            ? {
+                ...n,
+                user_state: {
+                  ...(n.user_state as any),
+                  aov_input: aov,
+                  database_size_input: avgDbSize,
+                  updated_at: nowIso,
+                },
+              }
+            : n,
+        ),
+      )
 
       setEstimateNotesByNiche((prev) => ({
         ...prev,
@@ -1990,7 +2040,7 @@ export default function OpportunitiesPage() {
                                 </div>
                               )}
 
-                            <div className="grid grid-cols-3 gap-3">
+                            <div className="grid grid-cols-2 gap-3">
                               <div className="space-y-1">
                                 <Label className="text-xs text-white/60">Database Size</Label>
                                 <Input
@@ -2042,33 +2092,6 @@ export default function OpportunitiesPage() {
                                     {estimateNotesByNiche[selectedNiche.id].aov_notes}
                                   </p>
                                 )}
-                              </div>
-                              <div className="space-y-1">
-                                <Label className="text-xs text-white/60">Target MRR ($)</Label>
-                                <Input
-                                  type="number"
-                                  placeholder="e.g. 3000"
-                                  value={selectedNiche.user_state?.target_monthly_recurring || ""}
-                                  onChange={(e) => {
-                                    const val = Number.parseFloat(e.target.value) || null
-                                    setSelectedNiche((prev) =>
-                                      prev
-                                        ? {
-                                            ...prev,
-                                            user_state: { ...prev.user_state!, target_monthly_recurring: val },
-                                          }
-                                        : null,
-                                    )
-                                  }}
-                                  onBlur={(e) =>
-                                    updateField(
-                                      "target_monthly_recurring",
-                                      Number.parseFloat(e.target.value) || null,
-                                      false,
-                                    )
-                                  }
-                                  className="bg-zinc-900 border-zinc-700 text-white"
-                                />
                               </div>
                             </div>
                             {/* Opportunity estimate — only shown once both inputs
@@ -2284,7 +2307,7 @@ export default function OpportunitiesPage() {
                                 asChild
                                 className="w-full bg-[#00AAFF] hover:bg-[#0099EE] text-white"
                               >
-                                <Link href={`/offer/builder?niche=${encodeURIComponent(selectedNiche.niche_name)}&problem=${encodeURIComponent(selectedNiche.user_state?.customer_profile?.pain_points || `${selectedNiche.industry_name || "These"} businesses have dormant customer lists`)}&outcome=${encodeURIComponent(`Target MRR: $${selectedNiche.user_state?.target_monthly_recurring || "3000"}`)}`}>
+                                <Link href={`/offer/builder?niche=${encodeURIComponent(selectedNiche.niche_name)}&problem=${encodeURIComponent(selectedNiche.user_state?.customer_profile?.pain_points || `${selectedNiche.industry_name || "These"} businesses have dormant customer lists`)}&outcome=${encodeURIComponent("Reactivated dormant customers into recurring revenue")}`}>
                                   Build offer for this niche
                                   <ChevronRight className="h-4 w-4 ml-1" />
                                 </Link>
