@@ -19,8 +19,15 @@ import { useUserState } from "@/context/StateContext"
 import { createClient } from "@/lib/supabase/client"
 import { cn } from "@/lib/utils"
 import { AccessGate } from "@/components/access-gate"
-
-type PricingModel = "50_profit_share" | "custom_profit_share" | "pay_per_lead" | "pay_per_conversation" | "retainer"
+// Single source of truth for pricing labels, guarantees, and formatting.
+// All inline definitions that used to live here were consolidated into
+// /lib/pricing as part of Phase 4F.
+import {
+  type PricingModel,
+  PRICING_MODELS,
+  LOCKED_GUARANTEES,
+  formatPricePoint as formatPricePointShared,
+} from "@/lib/pricing"
 
 interface GeneratedOffer {
   id?: string
@@ -32,22 +39,6 @@ interface GeneratedOffer {
   guarantee: string
   confidence_score: "strong" | "needs_work" | "weak"
   confidence_reason: string
-}
-
-const PRICING_MODELS: { value: PricingModel; label: string }[] = [
-  { value: "50_profit_share", label: "50% Profit Share" },
-  { value: "custom_profit_share", label: "Custom Profit Share" },
-  { value: "pay_per_lead", label: "Pay Per Lead" },
-  { value: "pay_per_conversation", label: "Pay Per Conversation" },
-  { value: "retainer", label: "Retainer" },
-]
-
-const LOCKED_GUARANTEES: Record<PricingModel, string> = {
-  "50_profit_share": "You only pay when we deliver results — zero risk to you.",
-  "custom_profit_share": "You only pay when we deliver results — zero risk to you.",
-  "pay_per_lead": "You only pay for leads we deliver — zero upfront cost.",
-  "pay_per_conversation": "You only pay for conversations we generate — zero upfront cost.",
-  "retainer": "",
 }
 
 export default function OfferBuilderPage() {
@@ -411,22 +402,9 @@ export default function OfferBuilderPage() {
     handleGenerate()
   }
 
-  const formatPricePoint = () => {
-    switch (pricingModel) {
-      case "50_profit_share":
-        return `${priceValue}% of net profit recovered`
-      case "custom_profit_share":
-        return `${priceValue}% of net profit recovered`
-      case "pay_per_lead":
-        return `$${priceValue} per qualified lead booked`
-      case "pay_per_conversation":
-        return `$${priceValue} per conversation generated`
-      case "retainer":
-        return `$${priceValue}/month`
-      default:
-        return priceValue
-    }
-  }
+  // Thin wrapper that forwards to the shared helper so the builder stays
+  // compatible with the existing call sites (no arguments — reads state).
+  const formatPricePoint = () => formatPricePointShared(pricingModel, priceValue)
 
   const getConfidenceDisplay = (score: "strong" | "needs_work" | "weak") => {
     switch (score) {
@@ -652,11 +630,16 @@ export default function OfferBuilderPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-zinc-900 border-white/10">
-                      {PRICING_MODELS.map((model) => (
-                        <SelectItem key={model.value} value={model.value} className="text-white hover:bg-white/10">
-                          {model.label}
-                        </SelectItem>
-                      ))}
+                      {/* PRICING_MODELS is now a Record<PricingModel, string>
+                          from the shared module — iterate entries instead of
+                          the previous array shape. */}
+                      {(Object.entries(PRICING_MODELS) as [PricingModel, string][]).map(
+                        ([value, label]) => (
+                          <SelectItem key={value} value={value} className="text-white hover:bg-white/10">
+                            {label}
+                          </SelectItem>
+                        ),
+                      )}
                     </SelectContent>
                   </Select>
                 </div>

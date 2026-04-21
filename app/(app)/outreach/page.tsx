@@ -25,6 +25,9 @@ import { cn } from "@/lib/utils"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { AccessGate } from "@/components/access-gate"
+// Canonical pricing model labels — replaces the inline labels map that
+// previously lived in formatPricingModel() in this file.
+import { PRICING_MODELS, type PricingModel } from "@/lib/pricing"
 
 type Channel = "linkedin" | "instagram" | "email"
 
@@ -56,14 +59,10 @@ const channelDescriptions: Record<Channel, string> = {
 }
 
 function formatPricingModel(model: string): string {
-  const labels: Record<string, string> = {
-    "50_profit_share": "50% Profit Share",
-    "custom_profit_share": "Custom Profit Share",
-    "pay_per_lead": "Pay Per Lead",
-    "pay_per_conversation": "Pay Per Conversation",
-    "retainer": "Retainer",
-  }
-  return labels[model] || model
+  // Delegates to the shared PRICING_MODELS map so labels stay in sync with
+  // the offer builder and my-offers badges. Unknown slugs fall through to
+  // the raw value for safety.
+  return PRICING_MODELS[model as PricingModel] || model
 }
 
 export default function OutreachPage() {

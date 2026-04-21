@@ -92,12 +92,18 @@ Guarantee: ${offer.guarantee}
 Call notes: ${callScript?.call_notes || "No notes provided"}
 ${prospect_name ? `\nProspect: ${prospect_name}` : ""}${prospect_business ? `\nBusiness: ${prospect_business}` : ""}${additional_context ? `\nAdditional context: ${additional_context}` : ""}
 
+PRICING LANGUAGE RULES (strict):
+- Use EXACTLY the pricing language from the Price field above when describing the investment.
+- If the price is a profit share, ALWAYS say "net profit" — NEVER "net revenue" or "revenue share".
+- "Net profit" means: recovered revenue minus the client's direct cost of fulfilling that recovered business.
+- Do not invent retainers, setup fees, or minimum terms that are not in the Price field.
+
 Return this exact JSON:
 {
   "problem_summary": "2-3 sentences describing their specific problem based on the call notes",
   "solution_summary": "2-3 sentences describing exactly what you will do for them",
   "deliverables": "bullet-point list of exactly what is included",
-  "investment": "price, payment terms, and what they get for it",
+  "investment": "price, payment terms, and what they get for it — use 'net profit' not 'net revenue' for profit-share models",
   "guarantee": "the guarantee statement rewritten for this specific prospect",
   "next_step": "exact next action — e.g. sign and return this proposal to begin on Monday",
   "confidence_score": "strong or needs_work or weak",

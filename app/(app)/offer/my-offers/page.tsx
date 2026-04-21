@@ -18,6 +18,9 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { createClient } from "@/lib/supabase/client"
 import { useUserState } from "@/context/StateContext"
 import { cn } from "@/lib/utils"
+// Shared pricing helpers — replaces the inline getPricingModelBadge that
+// previously lived in this file (Phase 4F consolidation).
+import { getPricingModelBadge } from "@/lib/pricing"
 
 interface Offer {
   id: string
@@ -199,15 +202,9 @@ export default function MyOffersPage() {
     setOfferToDelete(null)
   }
 
-  const getPricingModelBadge = (model: string) => {
-    const isPerformance = ["50_profit_share", "custom_profit_share", "pay_per_lead", "pay_per_conversation"].includes(model)
-    return {
-      color: isPerformance 
-        ? "bg-emerald-400/10 text-emerald-400 border-emerald-400/30"
-        : "bg-amber-400/10 text-amber-400 border-amber-400/30",
-      label: model?.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase()) || "Unknown"
-    }
-  }
+  // `getPricingModelBadge` is now imported from @/lib/pricing. The shared
+  // helper returns the same { color, label } shape so existing call sites
+  // below don't need any changes.
 
   const getConfidenceBadge = (score: "strong" | "needs_work" | "weak") => {
     switch (score) {
