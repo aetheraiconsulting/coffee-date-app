@@ -310,6 +310,27 @@ function getStageGating(userState: NicheUserState | null): {
   }
 }
 
+// Single source of truth for deriving the current pipeline stage from a niche's state.
+// Uses completion booleans (set by the various "Mark complete" actions throughout the app)
+// rather than the legacy `status` text field, which is rarely kept in sync.
+function deriveStage(userState: NicheUserState | null | undefined): string {
+  if (!userState) return "research"
+  // An explicit stage (set by progressToStage) wins when present
+  if (userState.stage) return userState.stage
+  if (userState.ghl_connected || userState.client_onboarded || userState.win_completed) return "revival"
+  if (userState.coffee_date_completed || userState.demo_secured) return "demo"
+  if (userState.outreach_complete || userState.outreach_generated) return "outreach"
+  if (userState.offer_id) return "offer"
+  if (
+    userState.research_notes_added &&
+    userState.customer_profile_generated &&
+    userState.aov_calculator_completed
+  ) {
+    return "offer"
+  }
+  return "research"
+}
+
 function calculatePipelineScore(userState: NicheUserState | null): {
   stageScore: number
   activityScore: number
@@ -319,17 +340,22 @@ function calculatePipelineScore(userState: NicheUserState | null): {
     return { stageScore: 10, activityScore: 0, pipelineScore: 10 }
   }
 
-  const status = userState.status || "Research"
-  const stageId = DB_STATUS_TO_STAGE[status] || "research"
+  // Derive stage from completion flags so the score updates as the user progresses
+  const stageId = deriveStage(userState)
   const stageScore = STAGE_SCORES[stageId] ?? 10
 
   const channels = userState.outreach_channels || {}
-  const totalActivity =
+  const manualActivity =
     (channels.linkedin_messages || 0) +
+    (channels.instagram_messages || 0) +
     (channels.facebook_dms || 0) +
     (channels.cold_calls || 0) +
     (channels.emails || 0) +
     (channels.meetings_booked || 0)
+
+  // Use the auto-tracked count from the Outreach tool if available, otherwise manual
+  const autoActivity = userState.outreach_messages_sent || 0
+  const totalActivity = Math.max(manualActivity, autoActivity)
 
   const activityScore = Math.min(totalActivity * 5, 50)
   const pipelineScore = stageScore + activityScore
@@ -417,6 +443,11 @@ export default function OpportunitiesPage() {
   // Fetched niche state - undefined means not yet fetched, null means no record exists
   const [nicheState, setNicheState] = useState<NicheUserState | null | undefined>(undefined)
 
+  // Count of Androids the user has built that target the currently selected niche.
+  // We derive this by matching the free-text `niche` column on `androids` to `niche_name`,
+  // since `niche_user_state.android_built` is a stale seed-only flag.
+  const [nicheAndroidCount, setNicheAndroidCount] = useState<number>(0)
+
   // Auto-counts from outreach_messages table (LinkedIn, Instagram, Email) for the selected niche.
   // We track two numbers per channel: messages CREATED (all drafts + sent) and messages SENT.
   // Cold calls stay fully manual since they aren't tracked by the Outreach tool.
@@ -452,7 +483,9 @@ export default function OpportunitiesPage() {
   // Helper to get section status for dot color
   const getSectionStatus = (sectionStage: string): "completed" | "current" | "locked" => {
     const stages = ["research", "offer", "outreach", "demo", "revival"]
-    const currentIndex = stages.indexOf(nicheState?.stage || "research")
+    // Use the derived stage so section dots progress as the user marks steps complete,
+    // not just when the legacy `status` text field is manually changed.
+    const currentIndex = stages.indexOf(deriveStage(nicheState))
     const sectionIndex = stages.indexOf(sectionStage)
     if (sectionIndex < currentIndex) return "completed"
     if (sectionIndex === currentIndex) return "current"
@@ -762,6 +795,35 @@ export default function OpportunitiesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedNiche?.id, selectedNiche?.niche_name])
 
+  // Fetch the number of Androids this user has built that target the selected niche.
+  // We match on the free-text `niche` column (case-insensitive) so the count reflects
+  // what the user actually sees in the Coffee Date Demo / Library.
+  useEffect(() => {
+    const fetchNicheAndroids = async () => {
+      if (!selectedNiche) {
+        setNicheAndroidCount(0)
+        return
+      }
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        setNicheAndroidCount(0)
+        return
+      }
+      const { data: androids } = await supabase
+        .from("androids")
+        .select("id, niche")
+        .eq("user_id", user.id)
+
+      const target = String(selectedNiche.niche_name).toLowerCase().trim()
+      const count = (androids || []).filter(
+        (a: any) => a?.niche && String(a.niche).toLowerCase().trim() === target,
+      ).length
+      setNicheAndroidCount(count)
+    }
+    fetchNicheAndroids()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedNiche?.id, selectedNiche?.niche_name])
+
   // Refetch when window regains focus
   useEffect(() => {
     const handleFocus = () => fetchActiveOffer()
@@ -828,17 +890,12 @@ export default function OpportunitiesPage() {
     // nicheState === null means fetched but no record exists (new niche = research stage)
     if (nicheState === undefined) return
     
-    // Determine current stage from fetched nicheState
-    let currentStage = nicheState?.stage || "research"
-    
-    // Infer stage if not explicitly set
-    if (!nicheState?.stage) {
-      if (nicheState?.ghl_connected) currentStage = "revival"
-      else if (nicheState?.coffee_date_completed) currentStage = "demo"
-      else if (nicheState?.outreach_generated) currentStage = "outreach"
-      else if (nicheState?.offer_id || activeOffer) currentStage = "offer"
-      else if (nicheState?.research_notes_added && nicheState?.customer_profile_generated && nicheState?.aov_calculator_completed) currentStage = "offer"
-      else currentStage = "research"
+    // Determine current stage using the shared deriveStage helper
+    let currentStage = deriveStage(nicheState)
+    // If the derivation says "research" but an active offer exists elsewhere,
+    // expand the offer section instead so the user sees the right place.
+    if (currentStage === "research" && activeOffer) {
+      currentStage = "offer"
     }
     
     setExpandedSections({
@@ -1480,7 +1537,7 @@ export default function OpportunitiesPage() {
                 {filteredNiches.map((niche) => {
                   const score = calculatePipelineScore(niche.user_state)
                   const tier = getPriorityTier(score.pipelineScore)
-                  const stageId = DB_STATUS_TO_STAGE[niche.user_state?.status || "Research"] || "research"
+                  const stageId = deriveStage(niche.user_state)
                   const stage = PIPELINE_STAGES.find((s) => s.key === stageId)
                   const hasRevivalWin =
                     niche.user_state?.revival_win_completed || niche.user_state?.win_type === "revival"
@@ -1696,25 +1753,18 @@ export default function OpportunitiesPage() {
 
                   {/* Calculate current stage for use in stage tracker and section headers */}
                   {(() => {
-                    // Use fetched nicheState, not selectedNiche.user_state
-                    // Default to "research" when nicheState is undefined (not fetched) or null (no record)
-                    let currentStage = "research"
-                    
-                    // Only calculate stage if nicheState has been fetched (not undefined)
+                    // Use the shared derivation so this tracker stays in sync with the
+                    // list card tag, the section dots, and the pipeline score.
+                    // Fall back to `offer` when the user has an active offer but no niche state yet.
+                    let currentStage: string
                     if (nicheState !== undefined && nicheState !== null) {
-                      currentStage = nicheState.stage || "research"
-                      
-                      // Infer stage if not explicitly set
-                      if (!nicheState.stage) {
-                        if (nicheState.ghl_connected) currentStage = "revival"
-                        else if (nicheState.coffee_date_completed) currentStage = "demo"
-                        else if (nicheState.outreach_generated) currentStage = "outreach"
-                        else if (nicheState.offer_id || activeOffer) currentStage = "offer"
-                        else if (nicheState.research_notes_added && nicheState.customer_profile_generated && nicheState.aov_calculator_completed) currentStage = "offer"
-                        else currentStage = "research"
-                      }
+                      currentStage = deriveStage(nicheState)
+                    } else if (activeOffer) {
+                      currentStage = "offer"
+                    } else {
+                      currentStage = "research"
                     }
-                    
+
                     const stageIndex = PIPELINE_STAGES.findIndex(s => s.key === currentStage)
                     
                     return (
@@ -2442,7 +2492,7 @@ export default function OpportunitiesPage() {
                     </button>
                     {expandedSections.demo && (
                       <div className="px-4 pb-4">
-                        <div className="bg-white/[0.03] border border-white/10 rounded-xl p-5 space-y-4">
+                        <div className="bg-white/[0.03] border border-white/10 rounded-xl p-5 space-y-5">
                           {/* Mark Demo Secured */}
                           {(() => {
                             const demoSecured = !!selectedNiche.user_state?.demo_secured
@@ -2478,9 +2528,10 @@ export default function OpportunitiesPage() {
                                 </p>
                                 <Button
                                   onClick={handleToggleDemoSecured}
-                                  className="w-full bg-[#00AAFF] hover:bg-[#0099EE] text-white"
+                                  size="lg"
+                                  className="w-full h-12 bg-[#00AAFF] hover:bg-[#0099EE] text-white font-semibold shadow-lg shadow-[#00AAFF]/20 ring-1 ring-[#00AAFF]/40 hover:ring-[#00AAFF]/60 transition-all"
                                 >
-                                  <CheckCircle className="h-4 w-4 mr-2" />
+                                  <CheckCircle className="h-5 w-5 mr-2" />
                                   Mark Coffee Date Demo Secured
                                 </Button>
                               </>
@@ -2488,19 +2539,40 @@ export default function OpportunitiesPage() {
                           })()}
 
                           {/* Android build / run demo */}
-                          <div className="pt-3 border-t border-white/5">
-                            {selectedNiche.user_state?.android_built ? (
+                          <div className="pt-4 border-t border-white/5">
+                            {nicheAndroidCount > 0 ? (
                               <>
-                                <p className="text-green-400 text-sm mb-2">Android built — ready to run the demo</p>
-                                <Button
-                                  asChild
-                                  className="w-full bg-white/10 hover:bg-white/15 text-white border border-white/15"
-                                >
-                                  <Link href="/demo">
-                                    Go to demo
-                                    <ChevronRight className="h-4 w-4 ml-1" />
-                                  </Link>
-                                </Button>
+                                <div className="flex items-center gap-2 mb-1">
+                                  <CheckCircle className="h-4 w-4 text-green-400" />
+                                  <p className="text-green-400 text-sm font-medium">
+                                    {nicheAndroidCount === 1
+                                      ? "1 Android built for this niche"
+                                      : `${nicheAndroidCount} Androids built for this niche`}
+                                  </p>
+                                </div>
+                                <p className="text-xs text-white/50 mb-3 leading-relaxed">
+                                  Open the Coffee Date Demo to run your Android with a prospect, or build another variation.
+                                </p>
+                                <div className="flex flex-col sm:flex-row gap-2">
+                                  <Button
+                                    asChild
+                                    className="flex-1 bg-[#00AAFF] hover:bg-[#0099EE] text-white font-medium"
+                                  >
+                                    <Link href="/demo">
+                                      Go to Coffee Date Demo
+                                      <ChevronRight className="h-4 w-4 ml-1" />
+                                    </Link>
+                                  </Button>
+                                  <Button
+                                    asChild
+                                    variant="ghost"
+                                    className="flex-1 bg-white/5 hover:bg-white/10 text-white/80 border border-white/10"
+                                  >
+                                    <Link href={`/prompt-generator?niche=${encodeURIComponent(selectedNiche.niche_name)}`}>
+                                      Build another Android
+                                    </Link>
+                                  </Button>
+                                </div>
                               </>
                             ) : (
                               <>
