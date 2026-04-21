@@ -165,10 +165,11 @@ type Industry = {
   name: string
 }
 
-// Define the structure for outreach_channels
+// Define the structure for outreach_channels (manual extras logged by user)
 type OutreachChannels = {
   linkedin_messages?: number
-  facebook_dms?: number
+  instagram_messages?: number
+  facebook_dms?: number // legacy - no longer shown in UI
   cold_calls?: number
   emails?: number
   meetings_booked?: number
@@ -230,10 +231,14 @@ type NicheUserState = {
   audit_available?: boolean | null
   client_onboarded?: boolean | null
   client_onboarded_at?: string | null
+  outreach_complete?: boolean | null
+  outreach_complete_at?: string | null
+  demo_secured?: boolean | null
+  demo_secured_at?: string | null
   // Optional: best-effort marker when a proposal has been won against this niche
   // (populated from proposals.deal_status = 'won' in a future iteration)
   proposal_won?: boolean | null
-}
+  }
 
 // Define the structure for a Niche
 type Niche = {
@@ -411,6 +416,14 @@ export default function OpportunitiesPage() {
   
   // Fetched niche state - undefined means not yet fetched, null means no record exists
   const [nicheState, setNicheState] = useState<NicheUserState | null | undefined>(undefined)
+
+  // Auto-counts from outreach_messages table (LinkedIn, Instagram, Email) for the selected niche.
+  // Cold calls stay fully manual since they aren't tracked by the Outreach tool.
+  const [autoOutreachCounts, setAutoOutreachCounts] = useState<{
+    linkedin: number
+    instagram: number
+    email: number
+  }>({ linkedin: 0, instagram: 0, email: 0 })
 
   // Collapsible sections state - all start false, auto-expand useEffect sets correct ones after nicheState loads
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
@@ -673,6 +686,55 @@ export default function OpportunitiesPage() {
     document.addEventListener("visibilitychange", handleVisibilityChange)
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange)
   }, [])
+
+  // Fetch auto-counts of outreach messages for the selected niche.
+  // Messages are matched to a niche by: outreach_messages.offer_id -> offers.niche (text) == niche.niche_name.
+  useEffect(() => {
+    const fetchAutoCounts = async () => {
+      if (!selectedNiche) {
+        setAutoOutreachCounts({ linkedin: 0, instagram: 0, email: 0 })
+        return
+      }
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      // 1. Find offers for this user that target this niche (case-insensitive match on niche name)
+      const { data: offers } = await supabase
+        .from("offers")
+        .select("id, niche")
+        .eq("user_id", user.id)
+
+      const matchingOfferIds = (offers || [])
+        .filter((o: any) =>
+          o?.niche && String(o.niche).toLowerCase().trim() === String(selectedNiche.niche_name).toLowerCase().trim(),
+        )
+        .map((o: any) => o.id)
+
+      if (matchingOfferIds.length === 0) {
+        setAutoOutreachCounts({ linkedin: 0, instagram: 0, email: 0 })
+        return
+      }
+
+      // 2. Count messages per channel for those offers
+      const { data: msgs } = await supabase
+        .from("outreach_messages")
+        .select("channel")
+        .eq("user_id", user.id)
+        .in("offer_id", matchingOfferIds)
+
+      const counts = { linkedin: 0, instagram: 0, email: 0 }
+      ;(msgs || []).forEach((m: any) => {
+        const ch = String(m.channel || "").toLowerCase().trim()
+        if (ch === "linkedin") counts.linkedin++
+        else if (ch === "instagram") counts.instagram++
+        else if (ch === "email") counts.email++
+      })
+      setAutoOutreachCounts(counts)
+    }
+
+    fetchAutoCounts()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedNiche?.id, selectedNiche?.niche_name])
 
   // Refetch when window regains focus
   useEffect(() => {
@@ -1020,9 +1082,10 @@ export default function OpportunitiesPage() {
     const currentChannels = selectedNiche.user_state?.outreach_channels || {}
     const newChannels = { ...currentChannels, [channel]: newValue }
 
-    // Calculate total messages sent
+    // Calculate total messages sent (manual extras across all channels)
     const totalSent =
       (newChannels.linkedin_messages || 0) +
+      (newChannels.instagram_messages || 0) +
       (newChannels.facebook_dms || 0) +
       (newChannels.cold_calls || 0) +
       (newChannels.emails || 0)
@@ -1063,6 +1126,100 @@ export default function OpportunitiesPage() {
     }
 
     setUpdatingChannel(null)
+  }
+
+  const handleToggleOutreachComplete = async () => {
+    if (!selectedNiche) return
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    const currentlyComplete = !!selectedNiche.user_state?.outreach_complete
+    const nextValue = !currentlyComplete
+    const now = new Date().toISOString()
+
+    const { error } = await supabase.from("niche_user_state").upsert(
+      {
+        niche_id: selectedNiche.id,
+        user_id: user.id,
+        outreach_complete: nextValue,
+        outreach_complete_at: nextValue ? now : null,
+        updated_at: now,
+      },
+      { onConflict: "niche_id,user_id" },
+    )
+
+    if (!error) {
+      const updatedNiche = {
+        ...selectedNiche,
+        user_state: {
+          ...selectedNiche.user_state!,
+          outreach_complete: nextValue,
+          outreach_complete_at: nextValue ? now : null,
+          updated_at: now,
+        },
+      }
+      setSelectedNiche(updatedNiche)
+      setAllNiches((prev) => prev.map((n) => (n.id === selectedNiche.id ? updatedNiche : n)))
+      toast({
+        title: nextValue ? "Outreach marked complete" : "Outreach reopened",
+        description: nextValue
+          ? "Great work. Now secure a Coffee Date Demo."
+          : "You can continue logging outreach activity.",
+      })
+    } else {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleToggleDemoSecured = async () => {
+    if (!selectedNiche) return
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    const currentlySecured = !!selectedNiche.user_state?.demo_secured
+    const nextValue = !currentlySecured
+    const now = new Date().toISOString()
+
+    const { error } = await supabase.from("niche_user_state").upsert(
+      {
+        niche_id: selectedNiche.id,
+        user_id: user.id,
+        demo_secured: nextValue,
+        demo_secured_at: nextValue ? now : null,
+        updated_at: now,
+      },
+      { onConflict: "niche_id,user_id" },
+    )
+
+    if (!error) {
+      const updatedNiche = {
+        ...selectedNiche,
+        user_state: {
+          ...selectedNiche.user_state!,
+          demo_secured: nextValue,
+          demo_secured_at: nextValue ? now : null,
+          updated_at: now,
+        },
+      }
+      setSelectedNiche(updatedNiche)
+      setAllNiches((prev) => prev.map((n) => (n.id === selectedNiche.id ? updatedNiche : n)))
+      toast({
+        title: nextValue ? "Coffee Date Demo secured" : "Demo reopened",
+        description: nextValue
+          ? "Next step: build your Android and run the demo."
+          : "You can re-mark it secured once booked.",
+      })
+    } else {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      })
+    }
   }
 
   const handleCoffeeDateComplete = async (nicheId: string | null, nicheName: string) => {
@@ -2031,56 +2188,97 @@ export default function OpportunitiesPage() {
                             />
                           </div>
 
-                          {/* Channel Counters */}
-                          <div className="grid grid-cols-2 gap-3">
+                          <p className="text-xs text-white/50 leading-relaxed">
+                            LinkedIn, Instagram, and Email counts update automatically from the Outreach tool.
+                            Use the <span className="text-white/80">Extras</span> +/- controls to log activity sent outside the app.
+                            Cold Calls are fully manual.
+                          </p>
+
+                          {/* Channel Counters — auto-tracked channels show auto + extras */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                             {[
                               {
                                 key: "linkedin_messages" as const,
+                                autoKey: "linkedin" as const,
                                 label: "LinkedIn",
                                 icon: MessageSquare,
                                 color: "text-blue-400",
+                                autoTracked: true,
                               },
                               {
-                                key: "facebook_dms" as const,
-                                label: "Facebook",
-                                icon: Users,
-                                color: "text-indigo-400",
+                                key: "instagram_messages" as const,
+                                autoKey: "instagram" as const,
+                                label: "Instagram",
+                                icon: MessageSquare,
+                                color: "text-pink-400",
+                                autoTracked: true,
                               },
-                              { key: "cold_calls" as const, label: "Cold Calls", icon: Phone, color: "text-green-400" },
-                              { key: "emails" as const, label: "Emails", icon: Mail, color: "text-purple-400" },
+                              {
+                                key: "emails" as const,
+                                autoKey: "email" as const,
+                                label: "Emails",
+                                icon: Mail,
+                                color: "text-purple-400",
+                                autoTracked: true,
+                              },
+                              {
+                                key: "cold_calls" as const,
+                                autoKey: null,
+                                label: "Cold Calls",
+                                icon: Phone,
+                                color: "text-green-400",
+                                autoTracked: false,
+                              },
                             ].map((channel) => {
                               const Icon = channel.icon
-                              const count = selectedNiche.user_state?.outreach_channels?.[channel.key] || 0
+                              const extras = selectedNiche.user_state?.outreach_channels?.[channel.key] || 0
+                              const autoCount = channel.autoKey ? autoOutreachCounts[channel.autoKey] : 0
+                              const total = autoCount + extras
                               return (
                                 <div
                                   key={channel.key}
-                                  className="flex items-center justify-between p-3 bg-zinc-900 rounded-lg"
+                                  className="p-3 bg-zinc-900 rounded-lg space-y-2"
                                 >
-                                  <div className="flex items-center gap-2">
-                                    <Icon className={cn("h-4 w-4", channel.color)} />
-                                    <span className="text-sm text-white/80">{channel.label}</span>
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                      <Icon className={cn("h-4 w-4", channel.color)} />
+                                      <span className="text-sm text-white/80">{channel.label}</span>
+                                    </div>
+                                    <span className="text-lg font-semibold text-white tabular-nums">{total}</span>
                                   </div>
-                                  <div className="flex items-center gap-1">
-                                    <button
-                                      onClick={() => setOutreachChannelValue(channel.key, Math.max(0, count - 1))}
-                                      disabled={updatingChannel === channel.key}
-                                      className="p-1 rounded hover:bg-white/10 text-white/60 hover:text-white disabled:opacity-50"
-                                    >
-                                      <Minus className="h-4 w-4" />
-                                    </button>
-                                    <EditableCounter
-                                      value={count}
-                                      onChange={setOutreachChannelValue}
-                                      channelKey={channel.key}
-                                      isUpdating={updatingChannel === channel.key}
-                                    />
-                                    <button
-                                      onClick={() => setOutreachChannelValue(channel.key, count + 1)}
-                                      disabled={updatingChannel === channel.key}
-                                      className="p-1 rounded hover:bg-white/10 text-white/60 hover:text-white disabled:opacity-50"
-                                    >
-                                      <Plus className="h-4 w-4" />
-                                    </button>
+                                  {channel.autoTracked && (
+                                    <div className="flex items-center justify-between text-[11px] text-white/40">
+                                      <span>
+                                        <span className="text-white/60">{autoCount}</span> from Outreach
+                                      </span>
+                                    </div>
+                                  )}
+                                  <div className="flex items-center justify-between pt-1 border-t border-white/5">
+                                    <span className="text-[11px] text-white/50">
+                                      {channel.autoTracked ? "Extras" : "Manual"}
+                                    </span>
+                                    <div className="flex items-center gap-1">
+                                      <button
+                                        onClick={() => setOutreachChannelValue(channel.key, Math.max(0, extras - 1))}
+                                        disabled={updatingChannel === channel.key}
+                                        className="p-1 rounded hover:bg-white/10 text-white/60 hover:text-white disabled:opacity-50"
+                                      >
+                                        <Minus className="h-4 w-4" />
+                                      </button>
+                                      <EditableCounter
+                                        value={extras}
+                                        onChange={setOutreachChannelValue}
+                                        channelKey={channel.key}
+                                        isUpdating={updatingChannel === channel.key}
+                                      />
+                                      <button
+                                        onClick={() => setOutreachChannelValue(channel.key, extras + 1)}
+                                        disabled={updatingChannel === channel.key}
+                                        className="p-1 rounded hover:bg-white/10 text-white/60 hover:text-white disabled:opacity-50"
+                                      >
+                                        <Plus className="h-4 w-4" />
+                                      </button>
+                                    </div>
                                   </div>
                                 </div>
                               )
@@ -2120,9 +2318,40 @@ export default function OpportunitiesPage() {
                             />
                           </div>
 
-                          <p className="text-xs text-white/40">
-                            Outreach complete when you&apos;ve logged at least one activity.
-                          </p>
+                          {/* Mark Outreach Complete */}
+                          {(() => {
+                            const outreachComplete = !!selectedNiche.user_state?.outreach_complete
+                            return outreachComplete ? (
+                              <div
+                                className="rounded-lg p-3 flex items-center justify-between"
+                                style={{
+                                  background: "rgba(34,197,94,0.08)",
+                                  border: "0.5px solid rgba(34,197,94,0.3)",
+                                }}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <CheckCircle className="h-4 w-4 text-green-400" />
+                                  <p className="text-sm font-medium text-green-400">
+                                    Outreach marked complete
+                                  </p>
+                                </div>
+                                <button
+                                  onClick={handleToggleOutreachComplete}
+                                  className="text-xs text-white/40 hover:text-white/60 underline"
+                                >
+                                  Undo
+                                </button>
+                              </div>
+                            ) : (
+                              <Button
+                                onClick={handleToggleOutreachComplete}
+                                className="w-full bg-[#00AAFF] hover:bg-[#0099EE] text-white"
+                              >
+                                <CheckCircle className="h-4 w-4 mr-2" />
+                                Mark Outreach Complete
+                              </Button>
+                            )
+                          })()}
 
                           <p className="text-xs text-white/50 pt-2 border-t border-white/5">
                             Coffee Date demos and Wins are updated automatically from the Coffee Date Demo and GHL
@@ -2156,36 +2385,87 @@ export default function OpportunitiesPage() {
                     </button>
                     {expandedSections.demo && (
                       <div className="px-4 pb-4">
-                        <div className="bg-white/[0.03] border border-white/10 rounded-xl p-5 space-y-3">
-                          {selectedNiche.user_state?.android_built ? (
-                            <>
-                              <p className="text-green-400 text-sm mb-2">Android built</p>
-                              <Button
-                                asChild
-                                className="w-full bg-[#00AAFF] hover:bg-[#0099EE] text-white"
+                        <div className="bg-white/[0.03] border border-white/10 rounded-xl p-5 space-y-4">
+                          {/* Mark Demo Secured */}
+                          {(() => {
+                            const demoSecured = !!selectedNiche.user_state?.demo_secured
+                            const demoCompleted = !!selectedNiche.user_state?.coffee_date_completed
+                            return demoSecured || demoCompleted ? (
+                              <div
+                                className="rounded-lg p-3 flex items-center justify-between"
+                                style={{
+                                  background: "rgba(34,197,94,0.08)",
+                                  border: "0.5px solid rgba(34,197,94,0.3)",
+                                }}
                               >
-                                <Link href="/demo">
-                                  Go to demo
-                                  <ChevronRight className="h-4 w-4 ml-1" />
-                                </Link>
-                              </Button>
-                            </>
-                          ) : (
-                            <>
-                              <p className="text-sm text-white/50 mb-3">
-                                Build your Android for this niche to run the Coffee Date Demo
-                              </p>
-                              <Button
-                                asChild
-                                className="w-full bg-[#00AAFF] hover:bg-[#0099EE] text-white"
-                              >
-                                <Link href={`/prompt-generator?niche=${encodeURIComponent(selectedNiche.niche_name)}`}>
-                                  Build Android for this niche
-                                  <ChevronRight className="h-4 w-4 ml-1" />
-                                </Link>
-                              </Button>
-                            </>
-                          )}
+                                <div className="flex items-center gap-2">
+                                  <CheckCircle className="h-4 w-4 text-green-400" />
+                                  <p className="text-sm font-medium text-green-400">
+                                    {demoCompleted ? "Coffee Date Demo completed" : "Coffee Date Demo secured"}
+                                  </p>
+                                </div>
+                                {!demoCompleted && (
+                                  <button
+                                    onClick={handleToggleDemoSecured}
+                                    className="text-xs text-white/40 hover:text-white/60 underline"
+                                  >
+                                    Undo
+                                  </button>
+                                )}
+                              </div>
+                            ) : (
+                              <>
+                                <p className="text-sm text-white/70 leading-relaxed">
+                                  Booked a Coffee Date Demo with a prospect from this niche?
+                                  Mark it below so the pipeline stays accurate.
+                                </p>
+                                <Button
+                                  onClick={handleToggleDemoSecured}
+                                  className="w-full bg-[#00AAFF] hover:bg-[#0099EE] text-white"
+                                >
+                                  <CheckCircle className="h-4 w-4 mr-2" />
+                                  Mark Coffee Date Demo Secured
+                                </Button>
+                              </>
+                            )
+                          })()}
+
+                          {/* Android build / run demo */}
+                          <div className="pt-3 border-t border-white/5">
+                            {selectedNiche.user_state?.android_built ? (
+                              <>
+                                <p className="text-green-400 text-sm mb-2">Android built — ready to run the demo</p>
+                                <Button
+                                  asChild
+                                  className="w-full bg-white/10 hover:bg-white/15 text-white border border-white/15"
+                                >
+                                  <Link href="/demo">
+                                    Go to demo
+                                    <ChevronRight className="h-4 w-4 ml-1" />
+                                  </Link>
+                                </Button>
+                              </>
+                            ) : (
+                              <>
+                                <p className="text-sm text-white/70 font-medium mb-1">
+                                  Next step: build your Android
+                                </p>
+                                <p className="text-xs text-white/50 mb-3 leading-relaxed">
+                                  Your Android is what powers the Coffee Date Demo. Build one tailored to this niche so
+                                  prospects experience the value instantly on the call.
+                                </p>
+                                <Button
+                                  asChild
+                                  className="w-full bg-white/10 hover:bg-white/15 text-white border border-white/15"
+                                >
+                                  <Link href={`/prompt-generator?niche=${encodeURIComponent(selectedNiche.niche_name)}`}>
+                                    Build Android for this niche
+                                    <ChevronRight className="h-4 w-4 ml-1" />
+                                  </Link>
+                                </Button>
+                              </>
+                            )}
+                          </div>
                         </div>
                       </div>
                     )}
