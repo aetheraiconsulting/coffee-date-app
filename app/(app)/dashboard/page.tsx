@@ -31,13 +31,57 @@ export default async function DashboardPage() {
   } = await supabase.auth.getUser()
 
   let hasCompletedOnboarding = true
+  let lastActivityAt: string | null = null
   if (user) {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("has_completed_onboarding")
+      .select("has_completed_onboarding, last_activity_at")
       .eq("id", user.id)
       .single()
     hasCompletedOnboarding = profile?.has_completed_onboarding ?? false
+    lastActivityAt = profile?.last_activity_at ?? null
+  }
+
+  // Welcome back banner — only shows when the user has been away 7+ days.
+  // We skip pipeline counts entirely for active users so the dashboard stays fast.
+  const daysSinceActivity = lastActivityAt
+    ? Math.floor((Date.now() - new Date(lastActivityAt).getTime()) / (1000 * 60 * 60 * 24))
+    : 0
+
+  let welcomeBackContext: {
+    daysAway: number
+    unreadReplies: number
+    pendingProposals: number
+    pendingAudits: number
+  } | null = null
+
+  if (user && daysSinceActivity >= 7) {
+    const [repliesRes, proposalsRes, auditsRes] = await Promise.all([
+      supabase
+        .from("reply_threads")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("response_sent", false),
+      supabase
+        .from("proposals")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("sent", true)
+        .eq("deal_status", "pending"),
+      supabase
+        .from("audits")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .not("prospect_submitted_at", "is", null)
+        .neq("status", "completed"),
+    ])
+
+    welcomeBackContext = {
+      daysAway: daysSinceActivity,
+      unreadReplies: repliesRes.count ?? 0,
+      pendingProposals: proposalsRes.count ?? 0,
+      pendingAudits: auditsRes.count ?? 0,
+    }
   }
 
   // Destructure state for easier access
@@ -198,6 +242,89 @@ export default async function DashboardPage() {
             </Link>
           </div>
         )}
+
+        {/* ============================================
+            WELCOME BACK — 7+ days dormant users
+            Shows pipeline context so they know exactly what's waiting and
+            can jump straight back into the highest-value item.
+        ============================================ */}
+        {welcomeBackContext && (() => {
+          const { daysAway, unreadReplies, pendingProposals, pendingAudits } = welcomeBackContext
+          const hasPipeline = unreadReplies + pendingProposals + pendingAudits > 0
+          const headline =
+            daysAway > 30
+              ? "It has been over a month."
+              : daysAway > 14
+              ? "It has been over two weeks."
+              : daysAway > 7
+              ? `It has been ${daysAway} days.`
+              : "It has been a week."
+
+          return (
+            <section className="border border-[#00AAFF]/30 bg-gradient-to-r from-[#00AAFF]/[0.08] to-transparent rounded-xl p-5">
+              <p className="text-[#00AAFF] text-xs font-semibold uppercase tracking-wider mb-2">
+                Welcome back
+              </p>
+              <p className="text-white text-xl font-bold mb-2 text-pretty">
+                {headline}
+              </p>
+
+              {hasPipeline ? (
+                <>
+                  <p className="text-white/60 text-sm mb-4">
+                    Here is what was waiting for you:
+                  </p>
+                  <div className="space-y-2 mb-4">
+                    {unreadReplies > 0 && (
+                      <Link
+                        href="/replies"
+                        className="flex items-center justify-between border border-white/10 rounded-lg px-4 py-3 hover:border-[#00AAFF]/30 transition-colors"
+                      >
+                        <span className="text-white/80 text-sm">
+                          <strong className="text-white">{unreadReplies}</strong> unread{" "}
+                          {unreadReplies === 1 ? "reply" : "replies"}
+                        </span>
+                        <span className="text-[#00AAFF] text-xs">Respond →</span>
+                      </Link>
+                    )}
+                    {pendingAudits > 0 && (
+                      <Link
+                        href="/audit"
+                        className="flex items-center justify-between border border-white/10 rounded-lg px-4 py-3 hover:border-[#00AAFF]/30 transition-colors"
+                      >
+                        <span className="text-white/80 text-sm">
+                          <strong className="text-white">{pendingAudits}</strong>{" "}
+                          {pendingAudits === 1 ? "prospect" : "prospects"} completed your audit
+                        </span>
+                        <span className="text-[#00AAFF] text-xs">Review →</span>
+                      </Link>
+                    )}
+                    {pendingProposals > 0 && (
+                      <Link
+                        href="/proposal"
+                        className="flex items-center justify-between border border-white/10 rounded-lg px-4 py-3 hover:border-[#00AAFF]/30 transition-colors"
+                      >
+                        <span className="text-white/80 text-sm">
+                          <strong className="text-white">{pendingProposals}</strong>{" "}
+                          {pendingProposals === 1 ? "proposal" : "proposals"} awaiting outcome
+                        </span>
+                        <span className="text-[#00AAFF] text-xs">Mark outcome →</span>
+                      </Link>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <p className="text-white/60 text-sm mb-4">
+                  Your pipeline is clean. Pick up where you left off or start fresh.
+                </p>
+              )}
+
+              <p className="text-white/40 text-xs">
+                Start with the highest priority item above, then use Mission Control to guide the rest of your day.
+              </p>
+            </section>
+          )
+        })()}
 
         {/* ============================================
             1. TODAY'S MISSION (PRIMARY FOCUS)

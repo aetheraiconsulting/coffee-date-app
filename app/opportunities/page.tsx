@@ -97,6 +97,17 @@ export default function OpportunitiesPage() {
     if (error) {
       console.error("Error toggling favourite:", error)
       setNiches((prev) => prev.map((n) => (n.id === nicheId ? { ...n, is_favourite: !newFavStatus } : n)))
+      return
+    }
+
+    // Re-engagement tracking: favouriting counts as active work. Fire-and-forget
+    // — failures must never block the UI. We only track adds, not removes.
+    if (newFavStatus) {
+      void fetch("/api/activity/track", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "niche_favourited" }),
+      }).catch(() => {})
     }
   }
 

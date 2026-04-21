@@ -35,6 +35,8 @@ type GroupedOutreach = {
 export default function MyOutreachPage() {
   const [loading, setLoading] = useState(true)
   const [groupedOutreach, setGroupedOutreach] = useState<GroupedOutreach>({})
+  const [showArchived, setShowArchived] = useState(false)
+  const [archivedCount, setArchivedCount] = useState(0)
   const supabase = createClient()
 
   useEffect(() => {
@@ -45,13 +47,24 @@ export default function MyOutreachPage() {
         return
       }
 
+      // Always pull the archived total so we can show the "X archived available"
+      // hint even when the user is viewing active messages.
+      const { count: totalArchived } = await supabase
+        .from("outreach_messages")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("archived", true)
+      setArchivedCount(totalArchived ?? 0)
+
       const { data: messages } = await supabase
         .from("outreach_messages")
         .select("*, offers(niche, service_name)")
         .eq("user_id", user.id)
+        .eq("archived", showArchived)
         .order("created_at", { ascending: false })
 
       if (!messages) {
+        setGroupedOutreach({})
         setLoading(false)
         return
       }
@@ -92,8 +105,10 @@ export default function MyOutreachPage() {
       setLoading(false)
     }
 
+    setLoading(true)
     fetchOutreach()
-  }, [supabase])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showArchived])
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString("en-US", {
@@ -115,6 +130,11 @@ export default function MyOutreachPage() {
             <p className="text-white/50 text-sm mt-1">
               All your outreach batches grouped by niche
             </p>
+            {archivedCount > 0 && !showArchived && (
+              <p className="text-white/30 text-xs mt-1">
+                {archivedCount} archived {archivedCount === 1 ? "message" : "messages"} available
+              </p>
+            )}
           </div>
           <Button asChild className="bg-[#00AAFF] hover:bg-[#0099EE] text-white">
             <Link href="/outreach">
@@ -122,6 +142,24 @@ export default function MyOutreachPage() {
               Generate new messages
             </Link>
           </Button>
+        </div>
+
+        {/* Archived toggle — archived drafts are older than 30 days and moved
+            by the weekly cron. They stay on disk so the user can still review. */}
+        <div className="flex items-center justify-between">
+          <p className="text-white/40 text-sm">
+            {showArchived
+              ? "Showing archived messages (drafts older than 30 days)"
+              : "Showing active messages"}
+          </p>
+          {(archivedCount > 0 || showArchived) && (
+            <button
+              onClick={() => setShowArchived((v) => !v)}
+              className="text-[#00AAFF] text-xs hover:underline"
+            >
+              {showArchived ? "Hide archived" : "Show archived"}
+            </button>
+          )}
         </div>
 
         {/* Loading */}
