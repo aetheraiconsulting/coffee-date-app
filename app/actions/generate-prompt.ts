@@ -19,6 +19,11 @@ interface PromptFormData {
   promiseLine: string
   additionalContext?: string
   aiPrefilled?: boolean
+  // Agent Library / Audit attribution
+  agentId?: string | null
+  agentSlug?: string | null
+  agentName?: string | null
+  auditId?: string | null
 }
 
 // Final safety pass on the generated Android prompt:
@@ -62,6 +67,12 @@ export async function generatePrompt(formData: PromptFormData, userId: string) {
         niche: formData.serviceType,
         prompt,
         ai_prefilled: formData.aiPrefilled || false,
+        // Attribution columns added in migration 048. When the Android was
+        // built from an Agent Library template or an audit recommendation
+        // we persist the foreign keys here so the Clients / Pipeline views
+        // can trace the provenance.
+        agent_id: formData.agentId || null,
+        audit_id: formData.auditId || null,
         business_context: {
           businessName: formData.businessName,
           company_name: formData.businessName,
@@ -79,6 +90,10 @@ export async function generatePrompt(formData: PromptFormData, userId: string) {
           openingHours: formData.openingHours,
           promiseLine: formData.promiseLine,
           additionalContext: formData.additionalContext,
+          // Denormalised agent/audit pointers for cheaper UI reads.
+          built_from_agent: formData.agentSlug || null,
+          built_from_audit: formData.auditId || null,
+          agent_name: formData.agentName || null,
         },
       })
       .select()

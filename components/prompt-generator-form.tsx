@@ -6,10 +6,11 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Loader2, Sparkles, Copy, Check, Search, ChevronDown, ArrowLeft } from "lucide-react"
+import { Loader2, Sparkles, Copy, Check, Search, ChevronDown, ArrowLeft, Bot } from "lucide-react"
 import { generatePrompt } from "@/app/actions/generate-prompt"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { createClient } from "@/lib/supabase/client"
 
 interface PromptGeneratorFormProps {
   userId: string
@@ -25,12 +26,23 @@ interface Niche {
 
 export default function PromptGeneratorForm({ userId }: PromptGeneratorFormProps) {
   const router = useRouter()
+  const supabase = createClient()
   // When the user lands here from the Opportunities page we deep-link with
   // `?niche=<niche_name>` so the niche is pre-selected and the dropdown is
   // collapsed behind a tidy "Building for niche" pill.
   const searchParams = useSearchParams()
   const prefilledNiche = searchParams.get("niche")
   const [nicheLocked, setNicheLocked] = useState<boolean>(!!prefilledNiche)
+
+  // Agent Library context — when the user clicks "Build this agent" in
+  // /agents, or "Build for client" on a matched audit recommendation, we
+  // receive these params and feed the agent template into the prefill API.
+  const agentSlug = searchParams.get("agent_slug")
+  const agentNameParam = searchParams.get("agent_name")
+  const prefilledClientName = searchParams.get("client_name")
+  const prefilledBusiness = searchParams.get("business")
+  const auditId = searchParams.get("audit_id")
+  const [agentTemplate, setAgentTemplate] = useState<any>(null)
 
   const [isGenerating, setIsGenerating] = useState(false)
   const [generatedPrompt, setGeneratedPrompt] = useState<string | null>(null)
@@ -72,6 +84,31 @@ export default function PromptGeneratorForm({ userId }: PromptGeneratorFormProps
   useEffect(() => {
     fetchNiches()
   }, [])
+
+  // Load the agent template so we can 1) show a context banner and 2) pass
+  // the android_prompt_template through to the prefill API as a Claude seed.
+  useEffect(() => {
+    if (!agentSlug) return
+    const load = async () => {
+      const { data } = await supabase
+        .from("agents")
+        .select("id, slug, name, one_liner, android_prompt_template")
+        .eq("slug", agentSlug)
+        .maybeSingle()
+      if (data) setAgentTemplate(data)
+    }
+    load()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [agentSlug])
+
+  // Pre-fill the Phase 1 fields when audit/agent params are supplied.
+  // We only set fields that are currently empty so we never stomp on the
+  // user's typed-in values during the same session.
+  useEffect(() => {
+    if (prefilledBusiness && !businessName) setBusinessName(prefilledBusiness)
+    if (prefilledClientName && !prospectName) setProspectName(prefilledClientName)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefilledBusiness, prefilledClientName])
 
   // Once niches have loaded, try to match the ?niche= param against the list.
   // If there's no match, fall back to the custom "Other" flow with the raw value.
@@ -123,6 +160,13 @@ export default function PromptGeneratorForm({ userId }: PromptGeneratorFormProps
         body: JSON.stringify({
           business_name: businessName,
           website_url: websiteUrl,
+          // Agent Library context — when building from a template, Claude
+          // customises the agent template for this specific business rather
+          // than generating a generic Coffee Date Demo prompt.
+          agent_slug: agentSlug || undefined,
+          agent_name: agentNameParam || undefined,
+          android_prompt_template: agentTemplate?.android_prompt_template || undefined,
+          audit_id: auditId || undefined,
         })
       })
 
@@ -170,6 +214,13 @@ export default function PromptGeneratorForm({ userId }: PromptGeneratorFormProps
         promiseLine,
         additionalContext,
         aiPrefilled: true,
+        // Agent Library / Audit attribution — these are saved on the Android
+        // row so we can trace which agent template and audit this was built
+        // from when reviewing the pipeline later.
+        agentId: agentTemplate?.id || null,
+        agentSlug: agentSlug || null,
+        agentName: agentNameParam || agentTemplate?.name || null,
+        auditId: auditId || null,
       }
       const result = await generatePrompt(dataToSend, userId)
       if (result.success && result.androidId && result.prompt) {
@@ -259,6 +310,38 @@ export default function PromptGeneratorForm({ userId }: PromptGeneratorFormProps
 
   return (
     <>
+      {/* Agent Library context — shown when the user clicked "Build this
+          agent" in /agents or "Build for client" on an audit recommendation.
+          Visible across both phases so the operator never loses track of the
+          agent they're building and the client it's for. */}
+      {(agentTemplate || agentNameParam) && (
+        <div className="border border-[#00AAFF]/25 bg-[#00AAFF]/[0.05] rounded-xl px-5 py-4 mb-5">
+          <div className="flex items-start gap-3">
+            <div className="bg-[#00AAFF]/15 border border-[#00AAFF]/25 rounded-lg p-2 flex-shrink-0">
+              <Bot className="h-4 w-4 text-[#00AAFF]" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[#00AAFF] text-xs font-semibold uppercase tracking-wider mb-1">
+                Building agent
+              </p>
+              <p className="text-white font-bold mb-1">
+                {agentTemplate?.name || agentNameParam}
+              </p>
+              {agentTemplate?.one_liner && (
+                <p className="text-white/50 text-sm leading-relaxed">
+                  {agentTemplate.one_liner}
+                </p>
+              )}
+              {prefilledBusiness && (
+                <p className="text-white/70 text-sm mt-2">
+                  For client: <span className="font-semibold">{prefilledBusiness}</span>
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Contextual banner — shown when the user deep-linked in from the
           Opportunities page with `?niche=<niche>`. Keeps the niche visible
           at the top of the page throughout both phases of the form. */}
