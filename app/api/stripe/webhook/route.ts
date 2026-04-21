@@ -187,7 +187,7 @@ async function sendLapsedUserAlert(userId: string) {
             <tr><td style="padding: 8px 0; color: #666;">Name</td><td style="padding: 8px 0; font-weight: 600;">${profile.full_name || "Unknown"}</td></tr>
             <tr><td style="padding: 8px 0; color: #666;">Email</td><td style="padding: 8px 0; font-weight: 600;">${profile.email}</td></tr>
             <tr><td style="padding: 8px 0; color: #666;">Status</td><td style="padding: 8px 0; font-weight: 600; color: #e24b4a;">${profile.subscription_status}</td></tr>
-            <tr><td style="padding: 8px 0; color: #666;">Member since</td><td style="padding: 8px 0;">${new Date(profile.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}</td></tr>
+            <tr><td style="padding: 8px 0; color: #666;">Member since</td><td style="padding: 8px 0;">${new Date(profile.created_at).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</td></tr>
             <tr><td style="padding: 8px 0; color: #666;">Promo code</td><td style="padding: 8px 0;">${profile.promo_code_used || "None"}</td></tr>
           </table>
           <p style="color: #666; margin-top: 24px;">This user has been moved to limited access. Follow up to re-engage.</p>

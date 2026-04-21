@@ -49,7 +49,7 @@ export function SubscriptionCard({ profile }: { profile: Profile | null }) {
         </div>
         {profile?.subscription_ends_at && profile?.subscription_status === "active" && (
           <p className="text-white/30 text-xs mb-4">
-            Next billing date: {new Date(profile.subscription_ends_at).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}
+            Next billing date: {new Date(profile.subscription_ends_at).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
           </p>
         )}
         <div className="flex gap-3 mt-4">

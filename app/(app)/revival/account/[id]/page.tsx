@@ -293,9 +293,9 @@ export default function AccountDetailPage() {
                   </span>
                   <p className="text-white/20 text-xs">
                     {conv.last_message_at
-                      ? new Date(conv.last_message_at).toLocaleDateString("en-GB", {
-                          day: "numeric",
+                      ? new Date(conv.last_message_at).toLocaleDateString("en-US", {
                           month: "short",
+                          day: "numeric",
                         })
                       : "—"}
                   </p>

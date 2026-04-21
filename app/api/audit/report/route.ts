@@ -57,7 +57,7 @@ export async function POST(request: Request) {
   <h1>${audit.name}</h1>
   <div class="meta">
     <p>Industry: ${audit.industry || "Not specified"} &nbsp;|&nbsp; Business size: ${audit.business_size || "Not specified"}</p>
-    <p>Date: ${new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}</p>
+    <p>Date: ${new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</p>
     <p>Prepared by: Aether AI Lab</p>
   </div>
 </div>

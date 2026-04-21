@@ -735,7 +735,7 @@ export default function DeadLeadRevivalPage() {
                   <div className="flex items-center gap-4 mt-2 mb-3">
                     <p className="text-white/25 text-xs">
                       {account.last_synced_at
-                        ? `Last synced ${new Date(account.last_synced_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`
+                        ? `Last synced ${new Date(account.last_synced_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
                         : "Not yet synced"
                       }
                     </p>

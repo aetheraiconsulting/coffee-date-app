@@ -418,12 +418,18 @@ export default function OpportunitiesPage() {
   const [nicheState, setNicheState] = useState<NicheUserState | null | undefined>(undefined)
 
   // Auto-counts from outreach_messages table (LinkedIn, Instagram, Email) for the selected niche.
+  // We track two numbers per channel: messages CREATED (all drafts + sent) and messages SENT.
   // Cold calls stay fully manual since they aren't tracked by the Outreach tool.
+  type ChannelCounts = { created: number; sent: number }
   const [autoOutreachCounts, setAutoOutreachCounts] = useState<{
-    linkedin: number
-    instagram: number
-    email: number
-  }>({ linkedin: 0, instagram: 0, email: 0 })
+    linkedin: ChannelCounts
+    instagram: ChannelCounts
+    email: ChannelCounts
+  }>({
+    linkedin: { created: 0, sent: 0 },
+    instagram: { created: 0, sent: 0 },
+    email: { created: 0, sent: 0 },
+  })
 
   // Collapsible sections state - all start false, auto-expand useEffect sets correct ones after nicheState loads
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
@@ -690,9 +696,15 @@ export default function OpportunitiesPage() {
   // Fetch auto-counts of outreach messages for the selected niche.
   // Messages are matched to a niche by: outreach_messages.offer_id -> offers.niche (text) == niche.niche_name.
   useEffect(() => {
+    const emptyCounts = {
+      linkedin: { created: 0, sent: 0 },
+      instagram: { created: 0, sent: 0 },
+      email: { created: 0, sent: 0 },
+    }
+
     const fetchAutoCounts = async () => {
       if (!selectedNiche) {
-        setAutoOutreachCounts({ linkedin: 0, instagram: 0, email: 0 })
+        setAutoOutreachCounts(emptyCounts)
         return
       }
       const { data: { user } } = await supabase.auth.getUser()
@@ -711,23 +723,37 @@ export default function OpportunitiesPage() {
         .map((o: any) => o.id)
 
       if (matchingOfferIds.length === 0) {
-        setAutoOutreachCounts({ linkedin: 0, instagram: 0, email: 0 })
+        setAutoOutreachCounts(emptyCounts)
         return
       }
 
-      // 2. Count messages per channel for those offers
+      // 2. Pull messages for those offers — we count CREATED (any row) and SENT
+      // (status in 'sent' | 'replied' | 'no_reply'; i.e., anything that isn't still a 'draft').
       const { data: msgs } = await supabase
         .from("outreach_messages")
-        .select("channel")
+        .select("channel, status")
         .eq("user_id", user.id)
         .in("offer_id", matchingOfferIds)
 
-      const counts = { linkedin: 0, instagram: 0, email: 0 }
+      const counts = {
+        linkedin: { created: 0, sent: 0 },
+        instagram: { created: 0, sent: 0 },
+        email: { created: 0, sent: 0 },
+      }
       ;(msgs || []).forEach((m: any) => {
         const ch = String(m.channel || "").toLowerCase().trim()
-        if (ch === "linkedin") counts.linkedin++
-        else if (ch === "instagram") counts.instagram++
-        else if (ch === "email") counts.email++
+        const status = String(m.status || "").toLowerCase().trim()
+        const isSent = status === "sent" || status === "replied" || status === "no_reply"
+        if (ch === "linkedin") {
+          counts.linkedin.created++
+          if (isSent) counts.linkedin.sent++
+        } else if (ch === "instagram") {
+          counts.instagram.created++
+          if (isSent) counts.instagram.sent++
+        } else if (ch === "email") {
+          counts.email.created++
+          if (isSent) counts.email.sent++
+        }
       })
       setAutoOutreachCounts(counts)
     }
@@ -2155,7 +2181,31 @@ export default function OpportunitiesPage() {
                       className="w-full flex items-center justify-between px-4 py-3 text-left"
                     >
                       <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-[#00AAFF] animate-pulse" />
+                        <div
+                          className={cn(
+                            "w-2 h-2 rounded-full",
+                            (() => {
+                              const ch = selectedNiche.user_state?.outreach_channels || {}
+                              const hasManualExtras =
+                                (ch.linkedin_messages || 0) > 0 ||
+                                (ch.instagram_messages || 0) > 0 ||
+                                (ch.emails || 0) > 0 ||
+                                (ch.cold_calls || 0) > 0 ||
+                                (ch.meetings_booked || 0) > 0 ||
+                                !!ch.objections
+                              const hasAutoCounts =
+                                autoOutreachCounts.linkedin.created > 0 ||
+                                autoOutreachCounts.instagram.created > 0 ||
+                                autoOutreachCounts.email.created > 0
+                              const hasAny =
+                                !!selectedNiche.user_state?.outreach_complete ||
+                                !!selectedNiche.user_state?.outreach_start_date ||
+                                hasManualExtras ||
+                                hasAutoCounts
+                              return hasAny ? "bg-green-500" : "bg-[#00AAFF] animate-pulse"
+                            })(),
+                          )}
+                        />
                         <span className="text-sm font-medium text-white/70">Outreach Tracker</span>
                       </div>
                       <svg 
@@ -2189,8 +2239,10 @@ export default function OpportunitiesPage() {
                           </div>
 
                           <p className="text-xs text-white/50 leading-relaxed">
-                            LinkedIn, Instagram, and Email counts update automatically from the Outreach tool.
-                            Use the <span className="text-white/80">Extras</span> +/- controls to log activity sent outside the app.
+                            Each LinkedIn, Instagram, and Email card shows how many messages were
+                            <span className="text-white/80"> created</span> and how many were
+                            <span className="text-white/80"> sent</span> from the Outreach tool for this niche.
+                            The big number on each card is total sent (including any Extras you log here).
                             Cold Calls are fully manual.
                           </p>
 
@@ -2232,8 +2284,10 @@ export default function OpportunitiesPage() {
                             ].map((channel) => {
                               const Icon = channel.icon
                               const extras = selectedNiche.user_state?.outreach_channels?.[channel.key] || 0
-                              const autoCount = channel.autoKey ? autoOutreachCounts[channel.autoKey] : 0
-                              const total = autoCount + extras
+                              const auto = channel.autoKey
+                                ? autoOutreachCounts[channel.autoKey]
+                                : { created: 0, sent: 0 }
+                              const totalSent = auto.sent + extras
                               return (
                                 <div
                                   key={channel.key}
@@ -2244,12 +2298,15 @@ export default function OpportunitiesPage() {
                                       <Icon className={cn("h-4 w-4", channel.color)} />
                                       <span className="text-sm text-white/80">{channel.label}</span>
                                     </div>
-                                    <span className="text-lg font-semibold text-white tabular-nums">{total}</span>
+                                    <span className="text-lg font-semibold text-white tabular-nums">{totalSent}</span>
                                   </div>
                                   {channel.autoTracked && (
-                                    <div className="flex items-center justify-between text-[11px] text-white/40">
+                                    <div className="flex items-center justify-between text-[11px] text-white/40 gap-3">
                                       <span>
-                                        <span className="text-white/60">{autoCount}</span> from Outreach
+                                        <span className="text-white/60 tabular-nums">{auto.created}</span> created
+                                      </span>
+                                      <span>
+                                        <span className="text-white/60 tabular-nums">{auto.sent}</span> sent from Outreach
                                       </span>
                                     </div>
                                   )}

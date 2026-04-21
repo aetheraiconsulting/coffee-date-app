@@ -647,9 +647,9 @@ export default function ProposalBuilderPage() {
                     marked won on{" "}
                     {new Date(
                       proposal.deal_updated_at || proposal.sent_at || new Date().toISOString(),
-                    ).toLocaleDateString("en-GB", {
-                      day: "numeric",
+                    ).toLocaleDateString("en-US", {
                       month: "long",
+                      day: "numeric",
                       year: "numeric",
                     })}
                   </p>
