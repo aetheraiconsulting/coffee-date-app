@@ -19,6 +19,7 @@ import {
   FileText,
   Palette,
   Phone,
+  MessageCircle,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import Image from "next/image"
@@ -41,6 +42,7 @@ const menuSections = [
     items: [
       { icon: Send, label: "Outreach", href: "/outreach" },
       { icon: Send, label: "My Outreach", href: "/outreach/my-outreach", indent: true },
+      { icon: MessageCircle, label: "Replies", href: "/replies" },
       { icon: Phone, label: "Call Prep", href: "/call-prep" },
       { icon: FileText, label: "Proposals", href: "/proposal", exact: true },
       { icon: Coffee, label: "Coffee Date Demo", href: "/demo" },

@@ -18,6 +18,8 @@ import {
   ChevronRight,
   Pencil,
   Download,
+  MessageCircle,
+  X,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
@@ -77,6 +79,16 @@ export default function OutreachPage() {
   const [linkedinMessages, setLinkedinMessages] = useState<OutreachMessage[]>([])
   const [instagramMessages, setInstagramMessages] = useState<OutreachMessage[]>([])
   const [emailMessages, setEmailMessages] = useState<OutreachMessage[]>([])
+
+  // Reply capture modal. Opened when the user clicks "Log reply" on a sent message.
+  // The flow is: paste prospect reply → Claude writes a Voss-style response via
+  // /api/outreach/reply (which also saves the reply_thread and marks the message
+  // as replied) → user edits and copies the response → closes the modal.
+  const [replyModalFor, setReplyModalFor] = useState<string | null>(null)
+  const [replyText, setReplyText] = useState("")
+  const [suggestedResponse, setSuggestedResponse] = useState("")
+  const [generatingResponse, setGeneratingResponse] = useState(false)
+  const [copiedResponse, setCopiedResponse] = useState(false)
 
   const { toast } = useToast()
   const supabase = createClient()
@@ -310,6 +322,55 @@ export default function OutreachPage() {
     }
   }
 
+  // Reply modal: close + reset state so the next "Log reply" click starts fresh.
+  const closeReplyModal = () => {
+    setReplyModalFor(null)
+    setReplyText("")
+    setSuggestedResponse("")
+    setCopiedResponse(false)
+  }
+
+  // Call /api/outreach/reply. The API saves the reply_thread, generates a
+  // Voss-style response, and flips the outreach_message status to "replied".
+  // We then reload the channel so the "Log reply" button becomes "Reply logged".
+  const handleGenerateResponse = async () => {
+    if (!replyText.trim() || !replyModalFor) return
+    setGeneratingResponse(true)
+    try {
+      const response = await fetch("/api/outreach/reply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          outreach_message_id: replyModalFor,
+          prospect_reply: replyText,
+        }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || "Failed to generate response")
+      setSuggestedResponse(data.suggested_response || "")
+      // Reload so the sent message flips to "replied" in the list behind the modal.
+      await reloadMessagesForChannel(activeChannel)
+    } catch (error: any) {
+      toast({
+        title: "Couldn't generate response",
+        description: error.message,
+        variant: "destructive",
+      })
+    } finally {
+      setGeneratingResponse(false)
+    }
+  }
+
+  // Finalise the logged reply. By this point the API has already saved the
+  // thread and updated the message status — this handler just confirms + closes.
+  const handleSaveReply = async () => {
+    closeReplyModal()
+    toast({
+      title: "Reply logged",
+      description: "You can find it in the Replies section.",
+    })
+  }
+
   const handleMarkSent = async (messageId: string) => {
     const { error } = await supabase
       .from("outreach_messages")
@@ -537,6 +598,19 @@ export default function OutreachPage() {
           </Card>
         )}
 
+        {/* Claude Cowork Autopilot teaser — narrow strip above the channel tabs.
+            Signals to the user that automated sending is on the roadmap so they
+            don't feel the copy-paste workflow is forever. */}
+        <div className="border border-[#00AAFF]/15 bg-[#00AAFF]/5 rounded-lg px-4 py-2.5 flex items-center justify-between gap-4">
+          <div className="min-w-0">
+            <span className="text-[#00AAFF] text-xs font-bold tracking-wider">AUTOPILOT COMING SOON</span>
+            <span className="text-white/50 text-sm ml-3">
+              Q2 2026 — Claude Cowork integration will send your outreach automatically across LinkedIn, Instagram, and email.
+            </span>
+          </div>
+          <span className="flex-shrink-0 text-xs text-white/30">Manual copy-paste for now</span>
+        </div>
+
         {/* Channel Tabs */}
         <div className="flex border-b border-white/10">
           {(["linkedin", "instagram", "email"] as Channel[]).map(channel => (
@@ -697,12 +771,16 @@ export default function OutreachPage() {
                       <span
                         className={cn(
                           "text-xs px-2 py-0.5 rounded-full",
-                          message.status === "draft"
-                            ? "bg-white/10 text-white/50"
-                            : "bg-[#00AAFF]/10 text-[#00AAFF]"
+                          message.status === "draft" && "bg-white/10 text-white/50",
+                          message.status === "sent" && "bg-[#00AAFF]/10 text-[#00AAFF]",
+                          message.status === "replied" && "bg-green-500/15 text-green-400",
+                          message.status === "no_reply" && "bg-white/10 text-white/50",
                         )}
                       >
-                        {message.status === "draft" ? "Draft" : "Sent"}
+                        {message.status === "draft" && "Draft"}
+                        {message.status === "sent" && "Sent"}
+                        {message.status === "replied" && "Replied"}
+                        {message.status === "no_reply" && "No reply"}
                       </span>
                       <div className="flex items-center gap-2">
                         <Button
@@ -724,6 +802,21 @@ export default function OutreachPage() {
                             <Check className="h-3 w-3 mr-1" />
                             Mark as sent
                           </Button>
+                        )}
+                        {message.status === "sent" && (
+                          <button
+                            onClick={() => setReplyModalFor(message.id)}
+                            className="bg-[#00AAFF]/15 text-[#00AAFF] hover:bg-[#00AAFF]/25 text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors"
+                          >
+                            <MessageCircle className="h-3 w-3" />
+                            Log reply
+                          </button>
+                        )}
+                        {message.status === "replied" && (
+                          <span className="text-xs text-green-400 font-semibold flex items-center gap-1">
+                            <Check className="h-3 w-3" />
+                            Reply logged
+                          </span>
                         )}
                       </div>
                     </div>
@@ -806,6 +899,120 @@ export default function OutreachPage() {
           </div>
         )}
       </div>
+
+      {/* Log Reply modal. Two-step flow: paste reply → Claude generates response,
+          then edit / copy the response and mark the reply logged. */}
+      {replyModalFor && (
+        <div
+          className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-6 overflow-y-auto"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="log-reply-title"
+        >
+          <div className="bg-[#0F1318] border border-white/10 rounded-xl max-w-2xl w-full p-6 my-8">
+            <div className="flex items-start justify-between mb-5">
+              <div>
+                <p className="text-[#00AAFF] text-xs font-semibold uppercase tracking-wider mb-1">
+                  Log prospect reply
+                </p>
+                <p id="log-reply-title" className="text-white font-bold">What did they write back?</p>
+              </div>
+              <button
+                onClick={closeReplyModal}
+                className="text-white/30 hover:text-white/60"
+                aria-label="Close"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Step 1 — paste the reply */}
+            <div className="mb-5">
+              <Label className="text-white/40 text-xs uppercase tracking-wider block mb-2">
+                Their reply
+              </Label>
+              <Textarea
+                value={replyText}
+                onChange={(e) => setReplyText(e.target.value)}
+                placeholder="Paste what the prospect wrote back to your outreach..."
+                rows={5}
+                className="w-full bg-white/5 border-white/10 text-white text-sm resize-none placeholder:text-white/30"
+                disabled={!!suggestedResponse || generatingResponse}
+              />
+            </div>
+
+            {!suggestedResponse ? (
+              <Button
+                onClick={handleGenerateResponse}
+                disabled={!replyText.trim() || generatingResponse}
+                className="w-full bg-[#00AAFF] hover:bg-[#0099EE] text-white font-bold py-6 disabled:opacity-40"
+              >
+                {generatingResponse ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Generating response...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    Generate suggested response
+                  </>
+                )}
+              </Button>
+            ) : (
+              <>
+                {/* Step 2 — edit / copy Claude's suggested response */}
+                <div className="mb-5">
+                  <Label className="text-white/40 text-xs uppercase tracking-wider block mb-2">
+                    Claude&apos;s suggested response &mdash; edit if needed
+                  </Label>
+                  <Textarea
+                    value={suggestedResponse}
+                    onChange={(e) => setSuggestedResponse(e.target.value)}
+                    rows={6}
+                    className="w-full bg-white/5 border-white/10 text-white text-sm resize-none"
+                  />
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      navigator.clipboard.writeText(suggestedResponse)
+                      setCopiedResponse(true)
+                      setTimeout(() => setCopiedResponse(false), 2000)
+                    }}
+                    className="flex-1 bg-white/5 border border-white/10 text-white hover:bg-white/10 font-semibold py-6"
+                  >
+                    {copiedResponse ? (
+                      <>
+                        <Check className="h-4 w-4 mr-2" />
+                        Copied to clipboard
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-4 w-4 mr-2" />
+                        Copy response
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    onClick={handleSaveReply}
+                    className="flex-1 bg-[#00AAFF] hover:bg-[#0099EE] text-white font-bold py-6"
+                  >
+                    Mark reply logged
+                    <ChevronRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </div>
+
+                <p className="text-white/30 text-xs text-center mt-3">
+                  Paste the response into {activeChannel === "email" ? "email" : `${activeChannel.charAt(0).toUpperCase() + activeChannel.slice(1)}`} to send it to the prospect
+                </p>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
