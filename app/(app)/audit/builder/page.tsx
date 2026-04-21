@@ -38,6 +38,8 @@ import {
 import { Switch } from "@/components/ui/switch"
 import { useState, useEffect, Suspense, useCallback, useRef } from "react"
 import { useToast } from "@/hooks/use-toast"
+import { useUserState } from "@/context/StateContext"
+import { AccessGate } from "@/components/access-gate"
 import { useRouter, useSearchParams } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import Link from "next/link"
@@ -132,6 +134,7 @@ function AuditBuilderContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const supabase = createClient()
+  const { state: userStateForGate } = useUserState()
   const autoSaveTimeout = useRef<NodeJS.Timeout>()
 
   const categorizedQuestions = getQuestionsByCategory()
@@ -382,6 +385,17 @@ function AuditBuilderContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ audit_id: auditId })
       })
+
+      if (response.status === 402) {
+        toast({
+          title: "Subscription required",
+          description: "Your trial has ended. Subscribe to continue generating new content.",
+          variant: "destructive",
+        })
+        router.push("/upgrade")
+        setView("questions")
+        return
+      }
 
       if (!response.ok) {
         const error = await response.json()
@@ -649,17 +663,28 @@ function AuditBuilderContent() {
                 )
               })}
 
-              {/* AI Insights Button */}
+              {/* AI Insights Button — replaced with AccessGate when the user
+                  is limited. They can still fill out / save audit questions;
+                  generation is the only locked action. */}
               {completion >= 60 && view === "questions" && (
-                <button
-                  onClick={generateAIInsights}
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all bg-[#00AAFF]/20 border border-[#00AAFF]/50 text-[#00AAFF] hover:bg-[#00AAFF]/30 mt-4"
-                >
-                  <div className="p-2 rounded-lg bg-[#00AAFF]">
-                    <Sparkles className="h-4 w-4 text-white" />
+                userStateForGate?.accessLevel === "limited" ? (
+                  <div className="mt-4">
+                    <AccessGate
+                      feature="AI Audit Report"
+                      description="Subscribe to generate AI-powered audit insights from your responses."
+                    />
                   </div>
-                  <span className="text-sm font-medium">Generate AI Audit Report</span>
-                </button>
+                ) : (
+                  <button
+                    onClick={generateAIInsights}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all bg-[#00AAFF]/20 border border-[#00AAFF]/50 text-[#00AAFF] hover:bg-[#00AAFF]/30 mt-4"
+                  >
+                    <div className="p-2 rounded-lg bg-[#00AAFF]">
+                      <Sparkles className="h-4 w-4 text-white" />
+                    </div>
+                    <span className="text-sm font-medium">Generate AI Audit Report</span>
+                  </button>
+                )
               )}
 
               {/* Back to Questions when in review */}

@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
+import { checkAccess, subscriptionGateResponse } from "@/lib/checkAccess"
 
 export async function POST(request: Request) {
   const supabase = await createClient()
@@ -11,6 +12,10 @@ export async function POST(request: Request) {
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
+
+  const access = await checkAccess()
+  const gate = subscriptionGateResponse(access)
+  if (gate) return gate
 
   try {
     const body = await request.json().catch(() => ({}))

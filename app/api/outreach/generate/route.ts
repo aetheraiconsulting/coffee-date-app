@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
+import { checkAccess, subscriptionGateResponse } from "@/lib/checkAccess"
 
 type Channel = "linkedin" | "instagram" | "email"
 
@@ -82,6 +83,10 @@ export async function POST(request: Request) {
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
+
+    const access = await checkAccess()
+    const gate = subscriptionGateResponse(access)
+    if (gate) return gate
 
     // Accept user_context (new, preferred) and fall back to prospect_context for
     // any older callers. Channel is always required.

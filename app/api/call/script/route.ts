@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
+import { checkAccess, subscriptionGateResponse } from "@/lib/checkAccess"
 
 export async function POST() {
   try {
@@ -9,6 +10,10 @@ export async function POST() {
     if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
+
+    const access = await checkAccess()
+    const gate = subscriptionGateResponse(access)
+    if (gate) return gate
 
     // Step 1: Try via profiles.offer_id
     const { data: profile } = await supabase

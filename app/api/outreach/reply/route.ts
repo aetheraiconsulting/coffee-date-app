@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
+import { checkAccess, subscriptionGateResponse } from "@/lib/checkAccess"
 
 const systemPrompt = `You are the AI engine inside Aether Revive. Write the perfect response to a prospect reply using Chris Voss tactical empathy and the 3C Storytelling Framework. The prospect is the hero. You are the guide. The only goal is to book a 10-minute screen share demo call — NOT a discovery call, NOT a sales call. A demo call is low pressure: "I'll show you the system working on your type of business, takes 10 minutes, no commitment." Use labelling, tactical empathy, and no-oriented questions. Keep responses under 100 words. Calm, confident, never pushy. Return valid JSON only. No markdown. No explanation.`
 
@@ -7,6 +8,10 @@ export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  const access = await checkAccess()
+  const gate = subscriptionGateResponse(access)
+  if (gate) return gate
 
   const { outreach_message_id, prospect_reply } = await request.json()
   if (!process.env.ANTHROPIC_API_KEY) return NextResponse.json({ error: "Missing API key" }, { status: 500 })
