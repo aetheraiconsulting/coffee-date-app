@@ -43,6 +43,7 @@ import {
   UserCheck,
   Lock,
   FileSpreadsheet,
+  Sparkles,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useRouter, usePathname } from "next/navigation"
@@ -501,6 +502,21 @@ export default function OpportunitiesPage() {
   }
 
   const [savingField, setSavingField] = useState<string | null>(null)
+
+  // AI-powered AOV estimates. Notes are keyed by niche id so switching niches
+  // doesn't leak the wrong explanations onto a different niche's inputs.
+  type AovEstimateNotes = {
+    aov_notes: string
+    database_size_low: number
+    database_size_high: number
+    database_size_notes: string
+    dormant_percentage: number
+    dormant_notes: string
+    reactivation_rate: number
+    reactivation_notes: string
+  }
+  const [fetchingEstimates, setFetchingEstimates] = useState(false)
+  const [estimateNotesByNiche, setEstimateNotesByNiche] = useState<Record<string, AovEstimateNotes>>({})
 
   const { toast } = useToast()
   const supabase = createClient()
@@ -1025,6 +1041,65 @@ export default function OpportunitiesPage() {
           prev ? { ...prev, user_state: { ...prev.user_state!, is_favourite: newFavState } } : null,
         )
       }
+    }
+  }
+
+  // Ask Claude for realistic industry benchmarks for the selected niche and
+  // pre-fill the AOV + database size inputs. We intentionally use the existing
+  // `updateField` helper so the values go through the same upsert/state-sync
+  // pipeline as a manual edit — this also keeps `aov_calculator_completed`
+  // unchanged so the user must still confirm the numbers.
+  const handleGetEstimates = async () => {
+    if (!selectedNiche?.niche_name || !selectedNiche?.id) return
+    setFetchingEstimates(true)
+    try {
+      const response = await fetch("/api/niches/aov-estimate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ niche_name: selectedNiche.niche_name }),
+      })
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}))
+        throw new Error(err?.error || "Failed to fetch estimates")
+      }
+      const data = await response.json()
+
+      const avgDbSize = Math.round(
+        (Number(data.database_size_low || 0) + Number(data.database_size_high || 0)) / 2,
+      )
+      const aov = Number(data.average_order_value || 0)
+
+      // Write both values via updateField (no toast per call; we show one
+      // consolidated toast below).
+      await updateField("aov_input", aov, false)
+      await updateField("database_size_input", avgDbSize, false)
+
+      setEstimateNotesByNiche((prev) => ({
+        ...prev,
+        [selectedNiche.id]: {
+          aov_notes: data.aov_notes || "",
+          database_size_low: Number(data.database_size_low || 0),
+          database_size_high: Number(data.database_size_high || 0),
+          database_size_notes: data.database_size_notes || "",
+          dormant_percentage: Number(data.dormant_percentage || 0),
+          dormant_notes: data.dormant_notes || "",
+          reactivation_rate: Number(data.reactivation_rate || 0),
+          reactivation_notes: data.reactivation_notes || "",
+        },
+      }))
+
+      toast({
+        title: "AI estimates loaded",
+        description: "Adjust values if you have better data for your target market.",
+      })
+    } catch (error: any) {
+      toast({
+        title: "Could not load estimates",
+        description: error?.message || "Please enter values manually.",
+        variant: "destructive",
+      })
+    } finally {
+      setFetchingEstimates(false)
     }
   }
 
@@ -1877,6 +1952,44 @@ export default function OpportunitiesPage() {
                               <Calculator className="h-4 w-4 text-green-400" />
                               <Label className="text-sm text-white/80">AOV & Database Snapshot</Label>
                             </div>
+
+                            {/* AI pre-fill prompt — shown only when both inputs
+                                are empty AND we haven't already loaded notes
+                                for this niche. Clicking it asks Claude for
+                                realistic benchmarks and fills the inputs. */}
+                            {!selectedNiche.user_state?.aov_input &&
+                              !selectedNiche.user_state?.database_size_input &&
+                              !estimateNotesByNiche[selectedNiche.id] && (
+                                <div className="border border-[#00AAFF]/25 bg-[#00AAFF]/5 rounded-lg p-4 flex items-center justify-between gap-4">
+                                  <div className="min-w-0">
+                                    <p className="text-[#00AAFF] text-xs font-semibold uppercase tracking-wider mb-0.5">
+                                      AI-powered estimates
+                                    </p>
+                                    <p className="text-white text-sm">
+                                      Let Claude research typical values for{" "}
+                                      <span className="font-semibold">{selectedNiche.niche_name}</span>
+                                    </p>
+                                  </div>
+                                  <Button
+                                    onClick={handleGetEstimates}
+                                    disabled={fetchingEstimates}
+                                    className="bg-[#00AAFF] hover:bg-[#0099EE] text-white font-bold whitespace-nowrap disabled:opacity-60"
+                                  >
+                                    {fetchingEstimates ? (
+                                      <>
+                                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                        Researching...
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Sparkles className="h-4 w-4 mr-2" />
+                                        Get AI estimates
+                                      </>
+                                    )}
+                                  </Button>
+                                </div>
+                              )}
+
                             <div className="grid grid-cols-3 gap-3">
                               <div className="space-y-1">
                                 <Label className="text-xs text-white/60">Database Size</Label>
@@ -1897,6 +2010,15 @@ export default function OpportunitiesPage() {
                                   }
                                   className="bg-zinc-900 border-zinc-700 text-white"
                                 />
+                                {estimateNotesByNiche[selectedNiche.id] && (
+                                  <p className="text-white/40 text-[11px] italic leading-snug mt-1">
+                                    {estimateNotesByNiche[selectedNiche.id].database_size_notes}
+                                    {" — typical: "}
+                                    {estimateNotesByNiche[selectedNiche.id].database_size_low.toLocaleString()}
+                                    {"–"}
+                                    {estimateNotesByNiche[selectedNiche.id].database_size_high.toLocaleString()}
+                                  </p>
+                                )}
                               </div>
                               <div className="space-y-1">
                                 <Label className="text-xs text-white/60">AOV ($)</Label>
@@ -1915,6 +2037,11 @@ export default function OpportunitiesPage() {
                                   }
                                   className="bg-zinc-900 border-zinc-700 text-white"
                                 />
+                                {estimateNotesByNiche[selectedNiche.id] && (
+                                  <p className="text-white/40 text-[11px] italic leading-snug mt-1">
+                                    {estimateNotesByNiche[selectedNiche.id].aov_notes}
+                                  </p>
+                                )}
                               </div>
                               <div className="space-y-1">
                                 <Label className="text-xs text-white/60">Target MRR ($)</Label>
@@ -1944,6 +2071,52 @@ export default function OpportunitiesPage() {
                                 />
                               </div>
                             </div>
+                            {/* Opportunity estimate — only shown once both inputs
+                                have values AND we have the AI notes (which include
+                                the dormant % and reactivation rate we multiply by). */}
+                            {selectedNiche.user_state?.aov_input &&
+                              selectedNiche.user_state?.database_size_input &&
+                              estimateNotesByNiche[selectedNiche.id] && (
+                                <div className="border border-[#00AAFF]/25 bg-[#00AAFF]/5 rounded-xl p-5">
+                                  <p className="text-[#00AAFF] text-xs font-semibold uppercase tracking-wider mb-3">
+                                    Opportunity estimate
+                                  </p>
+                                  <div className="grid grid-cols-2 gap-4 mb-4">
+                                    <div>
+                                      <p className="text-white/50 text-xs mb-0.5">Dormant leads</p>
+                                      <p className="text-white font-bold text-lg">
+                                        {Math.round(
+                                          Number(selectedNiche.user_state.database_size_input) *
+                                            (estimateNotesByNiche[selectedNiche.id].dormant_percentage / 100),
+                                        ).toLocaleString()}
+                                      </p>
+                                      <p className="text-white/40 text-xs">
+                                        {estimateNotesByNiche[selectedNiche.id].dormant_percentage}% of database
+                                      </p>
+                                    </div>
+                                    <div>
+                                      <p className="text-white/50 text-xs mb-0.5">Recoverable revenue</p>
+                                      <p className="text-[#00AAFF] font-bold text-lg">
+                                        $
+                                        {Math.round(
+                                          Number(selectedNiche.user_state.database_size_input) *
+                                            (estimateNotesByNiche[selectedNiche.id].dormant_percentage / 100) *
+                                            (estimateNotesByNiche[selectedNiche.id].reactivation_rate / 100) *
+                                            Number(selectedNiche.user_state.aov_input),
+                                        ).toLocaleString()}
+                                      </p>
+                                      <p className="text-white/40 text-xs">
+                                        {estimateNotesByNiche[selectedNiche.id].reactivation_rate}% reactivation rate
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <p className="text-white/50 text-xs leading-relaxed">
+                                    {estimateNotesByNiche[selectedNiche.id].dormant_notes}{" "}
+                                    {estimateNotesByNiche[selectedNiche.id].reactivation_notes}
+                                  </p>
+                                </div>
+                              )}
+
                             <div className="flex items-center gap-2">
                               <Checkbox
                                 id="aov_complete"
