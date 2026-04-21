@@ -1,6 +1,7 @@
 export function buildCoffeeDatePrompt(v: {
   businessName: string
   androidName: string
+  prospectName?: string
   serviceType: string
   shortService: string
   nicheQuestion: string
@@ -13,7 +14,13 @@ export function buildCoffeeDatePrompt(v: {
   promiseLine: string
   additionalContext?: string
 }): string {
-  return `You are ${v.androidName}, an AI assistant for ${v.businessName} — a ${v.shortService} business specialising in ${v.serviceType}.
+  // The prospect name is baked in at build time — never as a placeholder.
+  const prospectName = (v.prospectName || "").trim()
+  const prospectNameBlock = prospectName
+    ? `\n\nPROSPECT\n\nThe prospect's name is: ${prospectName}. Address them as "${prospectName}" throughout the conversation. NEVER use placeholders like [name] or {name} — always use the actual name "${prospectName}".`
+    : ""
+
+  return `You are ${v.androidName}, an AI assistant for ${v.businessName} — a ${v.shortService} business specialising in ${v.serviceType}.${prospectNameBlock}
 
 Your purpose is to re-engage dormant leads using three proven frameworks combined. Every conversation must apply all three.
 
@@ -72,7 +79,7 @@ Follow this sequence exactly. One step at a time. One question at a time.
 Step 1 — Recognition Check
 Confirm who they are. Reference the previous relationship with ${v.businessName}.
 Use tactical empathy immediately.
-e.g. "It sounds like it's been a while since we connected — is this still [Name]?"
+e.g. "It sounds like it's been a while since we connected — is this still ${prospectName || "them"}?"
 
 Step 2 — Situation Question (SPIN)
 One question to understand their current position.
