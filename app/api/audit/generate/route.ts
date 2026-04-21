@@ -79,7 +79,7 @@ Return this exact JSON:
       "priority": "critical or high or medium",
       "problem_solved": "specific problem from their responses this solves",
       "expected_outcome": "measurable outcome for this client",
-      "pricing_model": "suggested pricing model e.g. 50% profit share or $X per lead",
+      "pricing_model": "suggested pricing model — one of: '50% of net profit recovered', OR '$X per qualified lead', OR '$X per booked conversation', OR 'Monthly retainer'. Use 'net profit' (not 'net revenue') when describing profit-share.",
       "why_now": "why this is the right time for this client specifically"
     }
   ]

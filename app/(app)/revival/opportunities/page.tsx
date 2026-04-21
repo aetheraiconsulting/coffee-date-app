@@ -47,6 +47,94 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useRouter, usePathname } from "next/navigation"
+// Phase 4F — shared pricing module. The recoverable-revenue card below now
+// delegates its formula to calculateRecoverableRevenue() so every place in
+// the product that computes operator earnings uses identical maths.
+import { calculateRecoverableRevenue } from "@/lib/pricing/calculateRevenue"
+import { parsePricePoint } from "@/lib/pricing"
+
+/**
+ * RevenuePersister — tiny write-through helper that saves the computed
+ * commission / retainer values to the previously-dead columns on
+ * niche_user_state so other parts of the app (clients page, dashboard,
+ * pipeline reports) can read them without re-running the maths.
+ *
+ * We deliberately debounce with a ref so identical result payloads don't
+ * trigger repeated upserts as the parent re-renders. Rendering nothing —
+ * this is an effect-only component.
+ */
+function RevenuePersister({
+  nicheId,
+  result,
+  pricingModel,
+  commissionPct,
+}: {
+  nicheId: string
+  result: {
+    recoverableRevenue: number
+    operatorCommission: number | null
+    commissionBasis: string | null
+  }
+  pricingModel: string | null
+  commissionPct: number | null
+}) {
+  const supabase = createClient()
+  const lastSavedRef = useRef<string>("")
+
+  useEffect(() => {
+    // Only persist once we have a non-zero calc — avoids writing zeroes
+    // while the user is still typing into the AOV / database-size inputs.
+    if (!nicheId || result.recoverableRevenue <= 0) return
+
+    // Profit-share models can't give us a deterministic commission number,
+    // so we fall back to a 15% planning estimate (midpoint of the 10-20%
+    // band quoted in the UI note). Pay-per-lead / pay-per-conversation
+    // use the exact computed value. Retainer writes null + active retainer.
+    const profitSplitPotential =
+      result.operatorCommission !== null
+        ? result.operatorCommission
+        : pricingModel === "50_profit_share" || pricingModel === "custom_profit_share"
+          ? Math.round(result.recoverableRevenue * 0.15)
+          : null
+
+    const activeMonthlyRetainer =
+      pricingModel === "retainer" && commissionPct && commissionPct > 0
+        ? commissionPct
+        : null
+
+    const key = `${nicheId}:${profitSplitPotential}:${activeMonthlyRetainer}`
+    if (lastSavedRef.current === key) return
+    lastSavedRef.current = key
+
+    const save = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) return
+
+      await supabase.from("niche_user_state").upsert(
+        {
+          user_id: user.id,
+          niche_id: nicheId,
+          profit_split_potential: profitSplitPotential,
+          active_monthly_retainer: activeMonthlyRetainer,
+        },
+        { onConflict: "niche_id,user_id" },
+      )
+    }
+    // Fire-and-forget — failure here must never break the UI.
+    save().catch(() => {})
+  }, [
+    nicheId,
+    result.recoverableRevenue,
+    result.operatorCommission,
+    pricingModel,
+    commissionPct,
+    supabase,
+  ])
+
+  return null
+}
 
 function EditableCounter({
   value,
@@ -2107,49 +2195,102 @@ export default function OpportunitiesPage() {
                             </div>
                             {/* Opportunity estimate — only shown once both inputs
                                 have values AND we have the AI notes (which include
-                                the dormant % and reactivation rate we multiply by). */}
+                                the dormant % and reactivation rate we multiply by).
+                                Calculator is the shared calculateRecoverableRevenue()
+                                helper from /lib/pricing/calculateRevenue.ts — same
+                                maths used anywhere commissions are projected. */}
                             {selectedNiche.user_state?.aov_input &&
                               selectedNiche.user_state?.database_size_input &&
-                              estimateNotesByNiche[selectedNiche.id] && (
-                                <div className="border border-[#00AAFF]/25 bg-[#00AAFF]/5 rounded-xl p-5">
-                                  <p className="text-[#00AAFF] text-xs font-semibold uppercase tracking-wider mb-3">
-                                    Opportunity estimate
-                                  </p>
-                                  <div className="grid grid-cols-2 gap-4 mb-4">
-                                    <div>
-                                      <p className="text-white/50 text-xs mb-0.5">Dormant leads</p>
-                                      <p className="text-white font-bold text-lg">
-                                        {Math.round(
-                                          Number(selectedNiche.user_state.database_size_input) *
-                                            (estimateNotesByNiche[selectedNiche.id].dormant_percentage / 100),
-                                        ).toLocaleString()}
-                                      </p>
-                                      <p className="text-white/40 text-xs">
-                                        {estimateNotesByNiche[selectedNiche.id].dormant_percentage}% of database
-                                      </p>
+                              estimateNotesByNiche[selectedNiche.id] &&
+                              (() => {
+                                const notes = estimateNotesByNiche[selectedNiche.id]
+                                // Parse the numeric portion out of the offer's
+                                // price_point (e.g. "$25 per qualified lead" -> 25).
+                                // Only used when an active offer exists and its
+                                // niche matches the one we're looking at; otherwise
+                                // we skip commission projection entirely.
+                                const matchedOffer = activeOffer && nicheMatches ? activeOffer : null
+                                const commissionPct = matchedOffer
+                                  ? parsePricePoint(matchedOffer.price_point)
+                                  : null
+
+                                const result = calculateRecoverableRevenue({
+                                  databaseSize: Number(selectedNiche.user_state.database_size_input),
+                                  aov: Number(selectedNiche.user_state.aov_input),
+                                  dormantPercentage: notes.dormant_percentage,
+                                  reactivationRate: notes.reactivation_rate,
+                                  pricingModel: matchedOffer?.pricing_model,
+                                  commissionPercentage: commissionPct,
+                                })
+
+                                return (
+                                  <div className="border border-[#00AAFF]/25 bg-[#00AAFF]/5 rounded-xl p-5">
+                                    <p className="text-[#00AAFF] text-xs font-semibold uppercase tracking-wider mb-3">
+                                      Opportunity estimate
+                                    </p>
+                                    <div className="grid grid-cols-2 gap-4 mb-4">
+                                      <div>
+                                        <p className="text-white/50 text-xs mb-0.5">Dormant leads</p>
+                                        <p className="text-white font-bold text-lg">
+                                          {result.dormantLeads.toLocaleString()}
+                                        </p>
+                                        <p className="text-white/40 text-xs">
+                                          {notes.dormant_percentage}% of database
+                                        </p>
+                                      </div>
+                                      <div>
+                                        <p className="text-white/50 text-xs mb-0.5">Recoverable revenue</p>
+                                        <p className="text-[#00AAFF] font-bold text-lg">
+                                          ${result.recoverableRevenue.toLocaleString()}
+                                        </p>
+                                        <p className="text-white/40 text-xs">
+                                          {notes.reactivation_rate}% reactivation rate
+                                        </p>
+                                      </div>
                                     </div>
-                                    <div>
-                                      <p className="text-white/50 text-xs mb-0.5">Recoverable revenue</p>
-                                      <p className="text-[#00AAFF] font-bold text-lg">
-                                        $
-                                        {Math.round(
-                                          Number(selectedNiche.user_state.database_size_input) *
-                                            (estimateNotesByNiche[selectedNiche.id].dormant_percentage / 100) *
-                                            (estimateNotesByNiche[selectedNiche.id].reactivation_rate / 100) *
-                                            Number(selectedNiche.user_state.aov_input),
-                                        ).toLocaleString()}
-                                      </p>
-                                      <p className="text-white/40 text-xs">
-                                        {estimateNotesByNiche[selectedNiche.id].reactivation_rate}% reactivation rate
-                                      </p>
-                                    </div>
+
+                                    {/* Operator commission row — only shown when
+                                        an active offer is matched to this niche.
+                                        For profit-share models we can only
+                                        surface a note (margin unknown); for
+                                        per-lead / per-conversation we compute
+                                        the exact figure. */}
+                                    {matchedOffer && (
+                                      <div className="border-t border-white/10 pt-3 mb-3">
+                                        {result.operatorCommission !== null ? (
+                                          <div className="flex items-baseline justify-between gap-3">
+                                            <p className="text-white/50 text-xs">Your projected commission</p>
+                                            <p className="text-emerald-400 font-bold text-lg">
+                                              ${Math.round(result.operatorCommission).toLocaleString()}
+                                            </p>
+                                          </div>
+                                        ) : null}
+                                        <p className="text-white/60 text-xs leading-relaxed mt-1">
+                                          {result.commissionNote}
+                                        </p>
+                                      </div>
+                                    )}
+
+                                    <p className="text-white/50 text-xs leading-relaxed">
+                                      {notes.dormant_notes} {notes.reactivation_notes}
+                                    </p>
+
+                                    {/* Persist computed values to the three
+                                        previously-dead niche_user_state columns
+                                        so other parts of the app (clients,
+                                        dashboard, future pipeline views) can
+                                        read them without re-running the maths.
+                                        Runs once per result on mount via the
+                                        hidden RevenuePersister helper below. */}
+                                    <RevenuePersister
+                                      nicheId={selectedNiche.id}
+                                      result={result}
+                                      pricingModel={matchedOffer?.pricing_model ?? null}
+                                      commissionPct={commissionPct}
+                                    />
                                   </div>
-                                  <p className="text-white/50 text-xs leading-relaxed">
-                                    {estimateNotesByNiche[selectedNiche.id].dormant_notes}{" "}
-                                    {estimateNotesByNiche[selectedNiche.id].reactivation_notes}
-                                  </p>
-                                </div>
-                              )}
+                                )
+                              })()}
 
                             <div className="flex items-center gap-2">
                               <Checkbox
