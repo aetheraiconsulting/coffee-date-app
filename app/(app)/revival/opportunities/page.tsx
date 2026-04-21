@@ -233,8 +233,6 @@ type NicheUserState = {
   client_onboarded_at?: string | null
   outreach_complete?: boolean | null
   outreach_complete_at?: string | null
-  demo_secured?: boolean | null
-  demo_secured_at?: string | null
   // Optional: best-effort marker when a proposal has been won against this niche
   // (populated from proposals.deal_status = 'won' in a future iteration)
   proposal_won?: boolean | null
@@ -318,7 +316,7 @@ function deriveStage(userState: NicheUserState | null | undefined): string {
   // An explicit stage (set by progressToStage) wins when present
   if (userState.stage) return userState.stage
   if (userState.ghl_connected || userState.client_onboarded || userState.win_completed) return "revival"
-  if (userState.coffee_date_completed || userState.demo_secured) return "demo"
+  if (userState.coffee_date_completed) return "demo"
   if (userState.outreach_complete || userState.outreach_generated) return "outreach"
   if (userState.offer_id) return "offer"
   if (
@@ -1248,53 +1246,6 @@ export default function OpportunitiesPage() {
         description: nextValue
           ? "Great work. Now secure a Coffee Date Demo."
           : "You can continue logging outreach activity.",
-      })
-    } else {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      })
-    }
-  }
-
-  const handleToggleDemoSecured = async () => {
-    if (!selectedNiche) return
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-
-    const currentlySecured = !!selectedNiche.user_state?.demo_secured
-    const nextValue = !currentlySecured
-    const now = new Date().toISOString()
-
-    const { error } = await supabase.from("niche_user_state").upsert(
-      {
-        niche_id: selectedNiche.id,
-        user_id: user.id,
-        demo_secured: nextValue,
-        demo_secured_at: nextValue ? now : null,
-        updated_at: now,
-      },
-      { onConflict: "niche_id,user_id" },
-    )
-
-    if (!error) {
-      const updatedNiche = {
-        ...selectedNiche,
-        user_state: {
-          ...selectedNiche.user_state!,
-          demo_secured: nextValue,
-          demo_secured_at: nextValue ? now : null,
-          updated_at: now,
-        },
-      }
-      setSelectedNiche(updatedNiche)
-      setAllNiches((prev) => prev.map((n) => (n.id === selectedNiche.id ? updatedNiche : n)))
-      toast({
-        title: nextValue ? "Coffee Date Demo secured" : "Demo reopened",
-        description: nextValue
-          ? "Next step: build your Android and run the demo."
-          : "You can re-mark it secured once booked.",
       })
     } else {
       toast({
@@ -2493,53 +2444,24 @@ export default function OpportunitiesPage() {
                     {expandedSections.demo && (
                       <div className="px-4 pb-4">
                         <div className="bg-white/[0.03] border border-white/10 rounded-xl p-5 space-y-5">
-                          {/* Mark Demo Secured */}
-                          {(() => {
-                            const demoSecured = !!selectedNiche.user_state?.demo_secured
-                            const demoCompleted = !!selectedNiche.user_state?.coffee_date_completed
-                            return demoSecured || demoCompleted ? (
-                              <div
-                                className="rounded-lg p-3 flex items-center justify-between"
-                                style={{
-                                  background: "rgba(34,197,94,0.08)",
-                                  border: "0.5px solid rgba(34,197,94,0.3)",
-                                }}
-                              >
-                                <div className="flex items-center gap-2">
-                                  <CheckCircle className="h-4 w-4 text-green-400" />
-                                  <p className="text-sm font-medium text-green-400">
-                                    {demoCompleted ? "Coffee Date Demo completed" : "Coffee Date Demo secured"}
-                                  </p>
-                                </div>
-                                {!demoCompleted && (
-                                  <button
-                                    onClick={handleToggleDemoSecured}
-                                    className="text-xs text-white/40 hover:text-white/60 underline"
-                                  >
-                                    Undo
-                                  </button>
-                                )}
-                              </div>
-                            ) : (
-                              <>
-                                <p className="text-sm text-white/70 leading-relaxed">
-                                  Booked a Coffee Date Demo with a prospect from this niche?
-                                  Mark it below so the pipeline stays accurate.
-                                </p>
-                                <Button
-                                  onClick={handleToggleDemoSecured}
-                                  size="lg"
-                                  className="w-full h-12 bg-[#00AAFF] hover:bg-[#0099EE] text-white font-semibold shadow-lg shadow-[#00AAFF]/20 ring-1 ring-[#00AAFF]/40 hover:ring-[#00AAFF]/60 transition-all"
-                                >
-                                  <CheckCircle className="h-5 w-5 mr-2" />
-                                  Mark Coffee Date Demo Secured
-                                </Button>
-                              </>
-                            )
-                          })()}
+                          {/* Automatic demo completion indicator — set when the user actually runs the demo in presentation mode */}
+                          {selectedNiche.user_state?.coffee_date_completed && (
+                            <div
+                              className="rounded-lg p-3 flex items-center gap-2"
+                              style={{
+                                background: "rgba(34,197,94,0.08)",
+                                border: "0.5px solid rgba(34,197,94,0.3)",
+                              }}
+                            >
+                              <CheckCircle className="h-4 w-4 text-green-400" />
+                              <p className="text-sm font-medium text-green-400">
+                                Coffee Date Demo completed
+                              </p>
+                            </div>
+                          )}
 
                           {/* Android build / run demo */}
-                          <div className="pt-4 border-t border-white/5">
+                          <div className={cn(selectedNiche.user_state?.coffee_date_completed && "pt-4 border-t border-white/5")}>
                             {nicheAndroidCount > 0 ? (
                               <>
                                 <div className="flex items-center gap-2 mb-1">
