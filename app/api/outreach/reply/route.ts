@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 import { checkAccess, subscriptionGateResponse } from "@/lib/checkAccess"
+import { createNotification } from "@/lib/createNotification"
 
 const systemPrompt = `You are the AI engine inside Aether Revive. Write the perfect response to a prospect reply using Chris Voss tactical empathy and the 3C Storytelling Framework. The prospect is the hero. You are the guide. The only goal is to book a 10-minute screen share demo call — NOT a discovery call, NOT a sales call. A demo call is low pressure: "I'll show you the system working on your type of business, takes 10 minutes, no commitment." Use labelling, tactical empathy, and no-oriented questions. Keep responses under 100 words. Calm, confident, never pushy. Return valid JSON only. No markdown. No explanation.`
 
@@ -88,6 +89,19 @@ Return this exact JSON:
     .from("outreach_messages")
     .update({ status: "replied" })
     .eq("id", outreach_message_id)
+
+  // Notify the owner a prospect replied. Uses the authenticated session's
+  // server client (not service role) so RLS validates user_id ownership.
+  const prospectLabel =
+    (message as any).contact_name || (message as any).contact_business || "A prospect"
+  await createNotification({
+    user_id: user.id,
+    type: "outreach_reply_received",
+    title: "New reply",
+    body: `${prospectLabel} replied to your outreach.`,
+    action_href: `/outreach/reply/${outreach_message_id}`,
+    related_id: outreach_message_id,
+  })
 
   return NextResponse.json({
     suggested_response: result.suggested_response,
