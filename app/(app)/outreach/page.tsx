@@ -150,12 +150,15 @@ export default function OutreachPage() {
 
     setActiveOffer(offer)
 
-    // Fetch all messages for this offer and split by channel
+    // Fetch all messages for this offer and split by channel.
+    // Archived drafts (auto-moved by the weekly cron) are hidden here — users
+    // can still view them via My Outreach → Show archived toggle.
     const { data: allMessages } = await supabase
       .from("outreach_messages")
       .select("*")
       .eq("user_id", user.id)
       .eq("offer_id", offer.id)
+      .eq("archived", false)
       .order("created_at", { ascending: true })
 
     setLinkedinMessages(allMessages?.filter(m => m.channel === "linkedin") || [])
@@ -198,6 +201,7 @@ export default function OutreachPage() {
       .eq("user_id", userId)
       .eq("offer_id", activeOffer.id)
       .eq("channel", channel)
+      .eq("archived", false)
       .order("created_at", { ascending: true })
     setChannelMessages(channel, data || [])
   }
