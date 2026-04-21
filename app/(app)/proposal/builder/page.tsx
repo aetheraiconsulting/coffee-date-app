@@ -25,6 +25,7 @@ import {
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
+import { AccessGate } from "@/components/access-gate"
 
 type Offer = {
   service_name: string
@@ -71,7 +72,7 @@ export default function ProposalBuilderPage() {
 
   const { toast } = useToast()
   const supabase = createClient()
-  const { refreshState } = useUserState()
+  const { state, refreshState } = useUserState()
   const router = useRouter()
   const searchParams = useSearchParams()
   const proposalIdParam = searchParams?.get("id") ?? null
@@ -187,6 +188,17 @@ export default function ProposalBuilderPage() {
           additional_context: additionalContext || undefined,
         }),
       })
+
+      if (res.status === 402) {
+        toast({
+          title: "Subscription required",
+          description: "Your trial has ended. Subscribe to continue generating new content.",
+          variant: "destructive",
+        })
+        router.push("/upgrade")
+        setView("notes")
+        return
+      }
 
       const data = await res.json()
 
@@ -334,6 +346,21 @@ export default function ProposalBuilderPage() {
     return (
       <div className="min-h-screen bg-[#080B0F] flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-white/40" />
+      </div>
+    )
+  }
+
+  // Feature gate — limited users cannot start a new proposal. An existing
+  // proposal (view === "proposal") still renders so they can view/send it.
+  if (state?.accessLevel === "limited" && view !== "proposal") {
+    return (
+      <div className="min-h-screen bg-[#080B0F]">
+        <div className="max-w-2xl mx-auto px-4 py-16">
+          <AccessGate
+            feature="Proposal Builder"
+            description="Subscribe to generate new proposals. Existing proposals are still viewable and sendable."
+          />
+        </div>
       </div>
     )
   }
