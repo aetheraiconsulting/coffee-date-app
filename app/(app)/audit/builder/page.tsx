@@ -34,6 +34,8 @@ import {
   Link2,
   Copy,
   X,
+  // Phase 4H — used by the contextual "Request Aether Team help" trigger.
+  Users,
 } from "lucide-react"
 import { Switch } from "@/components/ui/switch"
 import { useState, useEffect, Suspense, useCallback, useRef } from "react"
@@ -47,6 +49,13 @@ import { AI_AUDIT_QUESTIONS, getQuestionsByCategory, type AuditQuestion } from "
 // Phase 4G — render concrete operator pricing inside the "Deployable agent
 // match" row under each service recommendation.
 import { formatAgentPricing, type AgentPricing } from "@/lib/pricing"
+// Phase 4H — contextual "Request Aether Team help" trigger lives below the
+// service recommendations so operators can escalate a delivery request with
+// the audit already linked as context.
+import {
+  SupportRequestModal,
+  type SupportRequestContext,
+} from "@/components/support-request-modal"
 
 const STEP_ICONS: Record<string, React.ElementType> = {
   "Business Overview": Building2,
@@ -157,6 +166,14 @@ function AuditBuilderContent() {
   const [showShareModal, setShowShareModal] = useState(false)
   const [shareUrl, setShareUrl] = useState("")
   const [teaserContent, setTeaserContent] = useState("")
+
+  // Phase 4H — Aether Team support request modal. Opened from the
+  // contextual trigger rendered just below the service recommendations
+  // card. The audit id is passed through so the request row joins back
+  // to the originating audit for admin triage.
+  const [supportOpen, setSupportOpen] = useState(false)
+  const [supportContext, setSupportContext] =
+    useState<SupportRequestContext | null>(null)
   const [generatingShareLink, setGeneratingShareLink] = useState(false)
 
   // Agent Library matching — maps the index of each service recommendation
@@ -1205,6 +1222,56 @@ function AuditBuilderContent() {
                   </CardContent>
                 </Card>
 
+                {/* Phase 4H — contextual "Aether Team help" trigger. Shown
+                    only when we actually have service recommendations, so
+                    it only appears on audits that have reached the review
+                    stage with real recs to deliver. */}
+                {editedInsights.service_recommendations &&
+                  editedInsights.service_recommendations.length > 0 && (
+                    <div className="border border-white/10 bg-white/[0.02] rounded-xl p-5">
+                      <div className="flex items-center justify-between gap-4 flex-wrap">
+                        <div className="flex items-start gap-3 min-w-0 flex-1">
+                          <div className="bg-[#00AAFF]/10 border border-[#00AAFF]/20 rounded-lg p-2 flex-shrink-0">
+                            <Users className="h-4 w-4 text-[#00AAFF]" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-[#00AAFF] text-xs font-semibold uppercase tracking-wider mb-1">
+                              Not sure how to deliver this?
+                            </p>
+                            <p className="text-white font-semibold text-sm">
+                              Aether Team can help build and deliver for{" "}
+                              {auditName || "this client"}
+                            </p>
+                            <p className="text-white/50 text-xs mt-1 leading-relaxed">
+                              10 / 30 / 50% revenue share based on level of
+                              involvement. You close, we deliver.
+                            </p>
+                          </div>
+                        </div>
+                        <Button
+                          onClick={() => {
+                            // Pull niche name from loaded niches list
+                            // when possible — falls back to whatever text
+                            // the user has typed into the niche field.
+                            const nicheName =
+                              niches.find((n) => n.id === selectedNiche)
+                                ?.niche_name || ""
+                            setSupportContext({
+                              request_type: "audit_delivery",
+                              audit_id: auditId || undefined,
+                              client_business_name: auditName || "",
+                              client_niche: nicheName,
+                            })
+                            setSupportOpen(true)
+                          }}
+                          className="bg-[#00AAFF] hover:bg-[#0099EE] text-black font-bold text-sm whitespace-nowrap"
+                        >
+                          Request help →
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
                 {/* Quick Wins */}
                 <Card className="bg-black/40 border-white/10">
                   <CardHeader>
@@ -1816,6 +1883,16 @@ function AuditBuilderContent() {
           </Card>
         </div>
       )}
+
+      {/* Phase 4H — Aether Team support request modal. Mounted once at
+          the root of the builder so the contextual trigger above (and
+          any future triggers) can open it without adding wrapper state
+          per call site. */}
+      <SupportRequestModal
+        open={supportOpen}
+        onClose={() => setSupportOpen(false)}
+        initialContext={supportContext}
+      />
     </div>
   )
 }

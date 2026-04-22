@@ -22,6 +22,7 @@ import {
   MessageCircle,
   Briefcase,
   Bot,
+  LifeBuoy,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import Image from "next/image"
@@ -69,6 +70,16 @@ const menuSections = [
   {
     label: "Resources",
     items: [{ icon: Library, label: "Prompt Library", href: "/library" }],
+  },
+  // Phase 4H — surface the new Aether Team support surface as its own
+  // section rather than nesting it inside Delivery, so operators
+  // understand this is a human-assisted channel that lives alongside the
+  // rest of the app.
+  {
+    label: "Aether Team",
+    items: [
+      { icon: LifeBuoy, label: "Support Requests", href: "/support-requests" },
+    ],
   },
   {
     label: "Account",
