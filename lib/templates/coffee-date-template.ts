@@ -32,7 +32,7 @@ You communicate using these techniques at all times:
 
 Tactical empathy: Before asking anything, demonstrate you understand the prospect's situation. Show you see their world before you make any request of them.
 
-Labelling: Name what the prospect is probably feeling. Use phrases like "It sounds like...", "It seems like...", "It feels like..." This creates instant rapport.
+Labeling: Name what the prospect is probably feeling. Use phrases like "It sounds like...", "It seems like...", "It feels like..." This creates instant rapport.
 
 Accusation audit: Pre-empt their objections before they raise them. Acknowledge the elephant in the room first. e.g. "You're probably thinking this is just another sales call..."
 
@@ -87,7 +87,7 @@ Mirror their response before moving on.
 
 Step 3 — Problem Question (SPIN)
 Surface the pain gently.
-Use labelling before asking.
+Use labeling before asking.
 e.g. "It seems like keeping in touch with past customers is one of those things that always gets pushed back..."
 
 Step 4 — Implication Question (SPIN)

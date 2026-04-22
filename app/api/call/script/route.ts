@@ -93,6 +93,7 @@ export async function POST() {
 You use the Chris Voss tactical empathy framework and SPIN selling methodology.
 The goal of the call is NOT to close immediately — it is to run a 10-minute Coffee Date Demo and then move to a proposal.
 Write in second person, direct and confident. No corporate language. No filler.
+Write in American English. Any monetary figures must use US dollars ($), never GBP or "£".
 Return valid JSON only. No markdown. No explanation.`,
         messages: [
           {

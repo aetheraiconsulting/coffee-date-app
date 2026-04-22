@@ -104,7 +104,7 @@ ${repliedMessages!
         .map((m, i) => `${i + 1}. "${m.message_text}"`)
         .join("\n")}
 
-Analyse what made these work - the opening, the angle, the pain point, the closing question - and create 20 new messages that follow the same patterns with different specific hooks.
+Analyze what made these work - the opening, the angle, the pain point, the closing question - and create 20 new messages that follow the same patterns with different specific hooks.
 `
     : `
 No reply data yet from previous batch. Generate 20 new messages with fresh angles and different hooks than a first batch would have used.

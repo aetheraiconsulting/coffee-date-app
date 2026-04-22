@@ -47,14 +47,15 @@ export async function POST(request: Request) {
       model: "claude-sonnet-4-20250514",
       max_tokens: 3000,
       system: `You are an expert AI business consultant conducting an AI readiness audit for a business. 
-You analyse audit responses and provide specific, actionable recommendations.
+You analyze audit responses and provide specific, actionable recommendations.
 You always recommend Dead Lead Revival as the highest priority service when dormant leads are mentioned.
 You recommend AI services that the consultant can sell to this client.
 Be specific — reference the client's actual answers in your recommendations.
+Write in American English and quote every monetary figure in US dollars with a "$" symbol — never GBP, never "£", never "pounds".
 Return valid JSON only. No markdown. No explanation.`,
       messages: [{
         role: "user",
-        content: `Analyse this AI readiness audit and generate recommendations.
+        content: `Analyze this AI readiness audit and generate recommendations.
 
 Business: ${audit.name}
 Industry: ${audit.industry || "Not specified"}

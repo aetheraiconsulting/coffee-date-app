@@ -23,6 +23,8 @@ NEVER use:
 - Exclamation marks
 - Hype words ("amazing", "incredible", "game-changing")
 
+Write in American English. Any monetary figures must use US dollars ($), never GBP or "£".
+
 Return valid JSON only, no markdown, no explanation.`
 
 function buildUserPrompt(
