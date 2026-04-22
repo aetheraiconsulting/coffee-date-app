@@ -176,31 +176,38 @@ export default function AgentsLibraryPage() {
         </p>
       </div>
 
-      {/* Category filter tabs */}
-      <div className="flex gap-1 border-b border-white/10 mb-5 overflow-x-auto">
-        <button
-          onClick={() => setCategoryFilter("all")}
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-            categoryFilter === "all"
-              ? "text-white border-[#00AAFF]"
-              : "text-white/40 border-transparent hover:text-white/70"
-          }`}
-        >
-          All Agents <span className="text-white/30 ml-1">{agents.length}</span>
-        </button>
-        {categories.map((cat) => (
+      {/* Category filter tabs — horizontally scrollable on mobile.
+          Uses negative margin + padding so the scrollable area bleeds to
+          the edge of the viewport, with a right-side fade mask to hint at
+          more content off-screen. */}
+      <div className="relative mb-5 -mx-4 sm:mx-0">
+        <div className="flex gap-1 border-b border-white/10 overflow-x-auto px-4 sm:px-0 scrollbar-thin">
           <button
-            key={cat}
-            onClick={() => setCategoryFilter(cat)}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-              categoryFilter === cat
+            onClick={() => setCategoryFilter("all")}
+            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap min-h-[44px] ${
+              categoryFilter === "all"
                 ? "text-white border-[#00AAFF]"
                 : "text-white/40 border-transparent hover:text-white/70"
             }`}
           >
-            {cat}
+            All Agents <span className="text-white/30 ml-1">{agents.length}</span>
           </button>
-        ))}
+          {categories.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setCategoryFilter(cat)}
+              className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap min-h-[44px] ${
+                categoryFilter === cat
+                  ? "text-white border-[#00AAFF]"
+                  : "text-white/40 border-transparent hover:text-white/70"
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+        {/* Scroll fade — visible only on mobile to signal more tabs exist */}
+        <div className="pointer-events-none absolute top-0 right-0 h-full w-8 bg-gradient-to-l from-[#0A0E14] to-transparent sm:hidden" />
       </div>
 
       {/* Search */}

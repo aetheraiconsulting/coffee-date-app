@@ -346,8 +346,8 @@ export default function PromptGeneratorForm({ userId }: PromptGeneratorFormProps
           Opportunities page with `?niche=<niche>`. Keeps the niche visible
           at the top of the page throughout both phases of the form. */}
       {prefilledNiche && (
-        <div className="border border-[#00AAFF]/20 bg-[#00AAFF]/5 rounded-xl px-5 py-4 mb-5 flex items-center justify-between gap-4">
-          <div className="min-w-0">
+        <div className="border border-[#00AAFF]/20 bg-[#00AAFF]/5 rounded-xl px-4 sm:px-5 py-3 sm:py-4 mb-5 flex items-center justify-between gap-3">
+          <div className="min-w-0 flex-1">
             <p className="text-[#00AAFF] text-xs font-semibold uppercase tracking-wider mb-0.5">
               Building for niche
             </p>
@@ -355,7 +355,7 @@ export default function PromptGeneratorForm({ userId }: PromptGeneratorFormProps
           </div>
           <a
             href="/prompt-generator"
-            className="text-xs text-white/40 hover:text-white/60 whitespace-nowrap"
+            className="text-xs text-white/40 hover:text-white/60 whitespace-nowrap flex-shrink-0 px-2 py-2 min-h-[44px] flex items-center"
           >
             Clear
           </a>
