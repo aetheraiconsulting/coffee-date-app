@@ -305,7 +305,7 @@ export default function ProspectAuditForm({ code, subdomain }: ProspectAuditForm
             <div className="bg-white/[0.02] border border-white/10 rounded-2xl p-8">
               <h1 className="text-2xl font-bold text-white mb-2">AI Readiness Audit</h1>
               <p className="text-white/50 text-sm mb-8 leading-relaxed">
-                This takes 10-15 minutes. We will analyse your responses and identify where AI can make the biggest impact in your business.
+                This takes 10-15 minutes. We will analyze your responses and identify where AI can make the biggest impact in your business.
               </p>
 
               <div className="space-y-4">

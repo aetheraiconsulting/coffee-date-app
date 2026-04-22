@@ -68,7 +68,7 @@ export function calculateRecoverableRevenue(
     operatorCommission = null
     commissionBasis = "net_profit"
     commissionNote =
-      "Your share: 50% of net profit (typically 10-20% of recoverable revenue once the client's cost of fulfilment is deducted)"
+      "Your share: 50% of net profit (typically 10-20% of recoverable revenue once the client's cost of fulfillment is deducted)"
   } else if (model === "custom_profit_share") {
     operatorCommission = null
     commissionBasis = "net_profit"

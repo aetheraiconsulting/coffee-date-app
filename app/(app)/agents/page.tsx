@@ -15,6 +15,10 @@ import {
   Headphones,
   Bot,
 } from "lucide-react"
+// Phase 4G — agent cards now render the concrete operator pricing for every
+// deployable agent. The formatter is shared with the audit builder so both
+// surfaces quote identical numbers.
+import { formatAgentPricing, type AgentPricing } from "@/lib/pricing"
 
 // Map the icon name stored on each seeded agent row to an actual lucide icon
 // component so we can render the right glyph inside the card header.
@@ -30,7 +34,10 @@ const iconMap: Record<string, any> = {
   Bot,
 }
 
-interface AgentRow {
+// Extends AgentPricing so we can pass the row straight to formatAgentPricing()
+// without re-packing. The non-pricing fields are the ones we already render
+// in the card header and grid below.
+interface AgentRow extends AgentPricing {
   id: string
   slug: string
   name: string
@@ -58,7 +65,10 @@ export default function AgentsLibraryPage() {
       const { data } = await supabase
         .from("agents")
         .select(
-          "id, slug, name, category, icon, problem_solved, one_liner, description, typical_roi, setup_time_estimate, is_public, sort_order",
+          // Pricing columns match the live schema (typical_setup_fee_low/high,
+          // typical_monthly_fee_low/high, typical_performance_fee). The
+          // formatter in lib/pricing reads these directly.
+          "id, slug, name, category, icon, problem_solved, one_liner, description, typical_roi, setup_time_estimate, is_public, sort_order, default_pricing_model, typical_setup_fee_low, typical_setup_fee_high, typical_monthly_fee_low, typical_monthly_fee_high, typical_performance_fee, performance_fee_basis, performance_notes, pricing_notes",
         )
         .eq("is_public", true)
         .order("sort_order", { ascending: true })
@@ -155,6 +165,10 @@ export default function AgentsLibraryPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {filteredAgents.map((agent) => {
             const Icon = iconMap[agent.icon || ""] || Bot
+            // Pre-compute pricing display so we can conditionally render the
+            // pricing block without calling the formatter twice inside JSX.
+            const pricing = formatAgentPricing(agent)
+            const hasPricing = Boolean(agent.default_pricing_model)
             return (
               <div
                 key={agent.id}
@@ -176,6 +190,25 @@ export default function AgentsLibraryPage() {
                 <p className="text-white/50 text-sm mb-4 leading-relaxed flex-1">
                   {agent.one_liner}
                 </p>
+
+                {/* Pricing block — prominent so operators can quote the deal
+                    without clicking in. Emerald-tinted to reinforce that
+                    these are concrete operator earnings numbers. */}
+                {hasPricing && (
+                  <div className="border border-emerald-400/20 bg-emerald-400/[0.05] rounded-lg px-3 py-2.5 mb-4">
+                    <p className="text-emerald-400/70 text-[10px] font-semibold uppercase tracking-wider mb-1">
+                      {pricing.modelLabel}
+                    </p>
+                    <p className="text-white font-bold text-sm leading-tight">
+                      {pricing.primary}
+                    </p>
+                    {pricing.notes && (
+                      <p className="text-white/40 text-xs mt-1.5 leading-relaxed">
+                        {pricing.notes}
+                      </p>
+                    )}
+                  </div>
+                )}
 
                 <div className="border-t border-white/5 pt-4 mb-4">
                   <div className="grid grid-cols-2 gap-3 text-xs">

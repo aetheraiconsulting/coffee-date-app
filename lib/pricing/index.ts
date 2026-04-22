@@ -147,3 +147,183 @@ export function getPricingModelBadge(model: string | null | undefined): {
       : model?.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()) || "Unknown"
   return { color: colour.tailwind, label }
 }
+
+// ---------------------------------------------------------------------------
+// Agent Library pricing — Phase 4G / 4G.2
+//
+// The `agents` table carries five existing numeric pricing columns from
+// Phase 4E plus four text columns added in migration 049. All prices are
+// USD — stored as raw dollar amounts (500 → $500, 2000 → $2k). This
+// formatter reads directly off those columns and produces the strings we
+// render on the Agent Library cards, in the audit builder's "Deployable
+// agent match" row, and in the admin pricing page.
+//
+// Column names match live Supabase schema (verified via db_schema):
+//   - default_pricing_model  text
+//   - typical_setup_fee_low  integer  (range minimum)
+//   - typical_setup_fee_high integer  (range maximum)
+//   - typical_monthly_fee_low  integer
+//   - typical_monthly_fee_high integer
+//   - typical_performance_fee  integer  (single value — % for profit share
+//                                        models, $ for per-deliverable)
+//   - performance_fee_basis text     (e.g. "net_profit_percentage",
+//                                        "per_booking")
+//   - performance_notes     text
+//   - pricing_notes         text
+// ---------------------------------------------------------------------------
+
+/** Shape of the pricing-related columns on an `agents` row. Types allow
+ *  `null` because agents without researched pricing start empty. */
+export interface AgentPricing {
+  default_pricing_model: string | null
+  typical_setup_fee_low: number | null
+  typical_setup_fee_high: number | null
+  typical_monthly_fee_low: number | null
+  typical_monthly_fee_high: number | null
+  typical_performance_fee: number | null
+  performance_fee_basis: string | null
+  performance_notes: string | null
+  pricing_notes: string | null
+}
+
+/** Display labels for the agent-level pricing model enum. Covers the
+ *  values produced by the research endpoint, the customize modal, and
+ *  any legacy values from earlier phases. */
+export const AGENT_PRICING_MODEL_LABELS: Record<string, string> = {
+  // Phase 4G.2 models (Claude research + customize modal)
+  "50_profit_share": "50% profit share",
+  custom_profit_share: "Profit share",
+  retainer: "Monthly retainer",
+  hybrid_retainer: "Setup + retainer",
+  per_deliverable: "Per deliverable",
+  // Legacy labels kept for backward compatibility with any rows that
+  // still carry the older model keys from Phase 4G.
+  performance_only: "Performance only",
+  hybrid_performance: "Setup + performance",
+  retainer_only: "Monthly retainer",
+}
+
+/** Human-readable labels for the performance_fee_basis enum. */
+export const PERFORMANCE_BASIS_LABELS: Record<string, string> = {
+  net_profit_percentage: "of net profit",
+  per_lead: "per qualified lead",
+  per_conversation: "per qualified conversation",
+  per_booking: "per booked appointment",
+  per_deliverable: "per deliverable",
+}
+
+/** Format a USD amount, compressing thousands to "k" once we're over 1000.
+ *  Returns null for null/undefined input so callers can chain checks. */
+function fmtUSD(n: number | null | undefined): string | null {
+  if (n === null || n === undefined) return null
+  if (n >= 1000) {
+    const k = n / 1000
+    // Keep one decimal only when we actually need it (1.5k, not 1.0k).
+    return `$${k % 1 === 0 ? k.toFixed(0) : k.toFixed(1)}k`
+  }
+  return `$${n}`
+}
+
+/** Format a [min,max] USD range, collapsing to a single value when min===max
+ *  or when only one bound is set. Uses a shared "k" suffix when both bounds
+ *  are in the thousands (e.g. "$2-3k" instead of "$2k-$3k"). */
+function fmtUSDRange(
+  min: number | null | undefined,
+  max: number | null | undefined,
+): string | null {
+  if (min === null || min === undefined) return fmtUSD(max ?? null)
+  if (max === null || max === undefined || max === min) return fmtUSD(min)
+  if (min >= 1000 && max >= 1000) {
+    const a = min / 1000
+    const b = max / 1000
+    const fmt = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(1))
+    return `$${fmt(a)}-${fmt(b)}k`
+  }
+  return `${fmtUSD(min)}-${fmtUSD(max)}`
+}
+
+/**
+ * Returns the display bundle for an agent's pricing:
+ *   - `modelLabel`  — short label matching the default_pricing_model enum
+ *   - `primary`     — headline price line (setup, retainer, performance combined)
+ *   - `notes`       — optional clarifier from the `performance_notes` column
+ *
+ * Primary line shape per model:
+ *   50_profit_share      -> "50% of net profit"
+ *   custom_profit_share  -> "X% of net profit"
+ *   retainer / retainer_only -> "$500-1k/mo"
+ *   hybrid_retainer      -> "$2k setup · $2-3k/mo"
+ *   per_deliverable      -> "$150 per booking"
+ *   performance_only     -> "$500 setup · 15% performance fee"
+ *   hybrid_performance   -> "$500 setup · $2k/mo · +10%"
+ */
+export function formatAgentPricing(agent: AgentPricing): {
+  modelLabel: string
+  primary: string
+  notes: string | null
+} {
+  const model = agent.default_pricing_model || ""
+  const modelLabel = AGENT_PRICING_MODEL_LABELS[model] || "Custom pricing"
+
+  const setup = fmtUSDRange(agent.typical_setup_fee_low, agent.typical_setup_fee_high)
+  const monthly = fmtUSDRange(agent.typical_monthly_fee_low, agent.typical_monthly_fee_high)
+  const perf = agent.typical_performance_fee
+  const basisKey = agent.performance_fee_basis?.trim() || ""
+  const basisLabel = PERFORMANCE_BASIS_LABELS[basisKey] || basisKey.replace(/_/g, " ")
+
+  let primary = ""
+
+  switch (model) {
+    case "50_profit_share":
+    case "custom_profit_share": {
+      // Profit share is a percentage of net profit. DLR locks this at 50.
+      const pct = perf != null ? `${perf}%` : "50%"
+      primary = `${pct}${basisLabel ? ` ${basisLabel}` : " of net profit"}`
+      break
+    }
+    case "retainer":
+    case "retainer_only": {
+      primary = monthly ? `${monthly}/mo` : "Monthly retainer"
+      break
+    }
+    case "hybrid_retainer": {
+      const parts: string[] = []
+      if (setup) parts.push(`${setup} setup`)
+      if (monthly) parts.push(`${monthly}/mo`)
+      primary = parts.join(" · ") || "Setup + retainer"
+      break
+    }
+    case "per_deliverable": {
+      const fee = fmtUSD(perf)
+      primary = fee
+        ? `${fee}${basisLabel ? ` ${basisLabel}` : " per deliverable"}`
+        : "Per deliverable"
+      break
+    }
+    case "performance_only": {
+      const parts: string[] = []
+      if (setup) parts.push(`${setup} setup`)
+      if (perf != null) parts.push(`${perf}% ${basisLabel || "performance fee"}`)
+      primary = parts.join(" · ") || "Performance only"
+      break
+    }
+    case "hybrid_performance": {
+      const parts: string[] = []
+      if (setup) parts.push(`${setup} setup`)
+      if (monthly) parts.push(`${monthly}/mo`)
+      if (perf != null) parts.push(`+${perf}%${basisLabel ? ` ${basisLabel}` : ""}`)
+      primary = parts.join(" · ") || "Setup + performance"
+      break
+    }
+    default: {
+      // Unknown / empty model — surface whatever fields are populated.
+      const parts: string[] = []
+      if (setup) parts.push(`${setup} setup`)
+      if (monthly) parts.push(`${monthly}/mo`)
+      if (perf != null) parts.push(`${perf}${basisKey === "net_profit_percentage" ? "%" : ""}${basisLabel ? ` ${basisLabel}` : ""}`)
+      primary = parts.join(" · ") || "Custom pricing"
+    }
+  }
+
+  return { modelLabel, primary, notes: agent.performance_notes?.trim() || null }
+}

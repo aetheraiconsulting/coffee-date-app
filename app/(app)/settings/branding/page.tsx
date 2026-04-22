@@ -189,9 +189,11 @@ export default function BrandingPage() {
             />
           </div>
 
-          {/* Section 3: Brand Colour */}
+          {/* Section 3: Brand Color. Variable + DB column names keep the
+              British `colour` spelling because the `user_branding.brand_colour`
+              column is the source of truth and renaming it is out of scope. */}
           <div className="space-y-2">
-            <Label className="text-white text-sm font-medium">Brand colour</Label>
+            <Label className="text-white text-sm font-medium">Brand color</Label>
             <div className="flex items-center gap-3">
               <input
                 type="color"
@@ -206,7 +208,7 @@ export default function BrandingPage() {
                 className="flex-1 bg-white/5 border-white/10 text-white font-mono"
               />
             </div>
-            <p className="text-white/40 text-xs">Used as accent colour on client-facing pages</p>
+            <p className="text-white/40 text-xs">Used as accent color on client-facing pages</p>
           </div>
 
           {/* Section 4: Calendar Link */}

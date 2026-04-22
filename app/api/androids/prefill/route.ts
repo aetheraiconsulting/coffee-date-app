@@ -55,11 +55,11 @@ export async function POST(request: Request) {
   const isAgentBuild = Boolean(android_prompt_template)
 
   const systemPrompt = isAgentBuild
-    ? `You are customising a deployable AI agent template for a specific business. The template below defines the core purpose and behaviour of the agent. Keep that purpose identical but weave in business-specific details (company name, services, tone, hours, promises, niche question) so the agent feels native to the client. Search for the business by name and visit their website to gather these details. Return valid JSON only. No markdown. No explanation. Just the JSON object.
+    ? `You are customizing a deployable AI agent template for a specific business. The template below defines the core purpose and behavior of the agent. Keep that purpose identical but weave in business-specific details (company name, services, tone, hours, promises, niche question) so the agent feels native to the client. Search for the business by name and visit their website to gather these details. Write all output in American English and quote any monetary figures in US dollars ($), never GBP. Return valid JSON only. No markdown. No explanation. Just the JSON object.
 
 Agent template (${agent_name || agent_slug || "Agent"}):
 ${android_prompt_template}`
-    : `You are researching a business to help build an AI dead lead revival demo. Search for the business by name and visit their website. Extract key information to pre-fill a demo configuration form. Return valid JSON only. No markdown. No explanation. Just the JSON object.`
+    : `You are researching a business to help build an AI dead lead revival demo. Search for the business by name and visit their website. Extract key information to pre-fill a demo configuration form. Write all output in American English and quote any monetary figures in US dollars ($), never GBP. Return valid JSON only. No markdown. No explanation. Just the JSON object.`
 
   const userMessage = `Research this business and extract information to pre-fill a demo form:
 
@@ -70,8 +70,8 @@ Search for this business, visit their website, and return this exact JSON:
 {
   "service_description": "2 sentence description of what the business does",
   "value_proposition": "what makes them different or better than competitors",
-  "niche_question": "a natural conversation opener a returning customer would recognise",
-  "region_tone": "communication style and region e.g. UK professional, US casual",
+  "niche_question": "a natural conversation opener a returning customer would recognize",
+  "region_tone": "communication style and region e.g. US casual, US professional",
   "industry_training": "the industry for AI training e.g. Roofing, Legal Services",
   "opening_hours": "their opening hours if found, otherwise empty string",
   "promise_line": "a short trust-building phrase capturing their brand promise",

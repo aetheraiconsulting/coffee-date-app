@@ -78,7 +78,7 @@ export async function POST(request: Request) {
       body: JSON.stringify({
         model: "claude-sonnet-4-20250514",
         max_tokens: 2000,
-        system: "You are the AI engine inside Aether Revive. Write a concise, professional proposal for an AI service. The proposal must be client-ready — clear, specific, and easy to say yes to. No jargon. No fluff. Return valid JSON only. No markdown. No explanation.",
+        system: "You are the AI engine inside Aether Revive. Write a concise, professional proposal for an AI service. The proposal must be client-ready — clear, specific, and easy to say yes to. No jargon. No fluff. Write in American English and quote every monetary figure in US dollars ($) — never GBP, never £. Return valid JSON only. No markdown. No explanation.",
         messages: [{
           role: "user",
           content: `Write a client-ready proposal based on:

@@ -39,7 +39,7 @@ export function WelcomeModal({ open, userId, onComplete }: WelcomeModalProps) {
     {
       icon: CheckCircle2,
       title: "First stop — choose your niche",
-      body: "Browse 1,300+ niches, favourite the ones that fit, and start your first opportunity. We'll handle the rest.",
+      body: "Browse 1,300+ niches, favorite the ones that fit, and start your first opportunity. We'll handle the rest.",
       cta: "Go to Opportunities",
     },
   ]

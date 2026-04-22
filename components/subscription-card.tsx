@@ -22,7 +22,11 @@ export function SubscriptionCard({ profile }: { profile: Profile | null }) {
     trial: `Free trial — ${trialDaysLeft} days remaining`,
     active: "Active subscriber",
     limited: "Limited access",
-    cancelled: "Cancelled",
+    // Label shown to the user. The enum key `cancelled` intentionally keeps
+    // its British spelling because it maps 1:1 to the subscription_status
+    // DB column value written by the Stripe webhook; only the display text
+    // is Americanised.
+    cancelled: "Canceled",
     student: "Student access",
   }
 

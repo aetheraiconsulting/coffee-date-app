@@ -2,6 +2,11 @@ import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 import { checkAccess, subscriptionGateResponse } from "@/lib/checkAccess"
 import { trackActivity } from "@/lib/trackActivity"
+// Phase 4G — after Claude returns service recommendations we match each rec
+// to a deployable Agent Library entry and persist the agent's pricing onto
+// the audit row so the builder can render concrete quote numbers without a
+// second round-trip.
+import { formatAgentPricing, type AgentPricing } from "@/lib/pricing"
 
 export async function POST(request: Request) {
   const supabase = await createClient()
@@ -42,14 +47,15 @@ export async function POST(request: Request) {
       model: "claude-sonnet-4-20250514",
       max_tokens: 3000,
       system: `You are an expert AI business consultant conducting an AI readiness audit for a business. 
-You analyse audit responses and provide specific, actionable recommendations.
+You analyze audit responses and provide specific, actionable recommendations.
 You always recommend Dead Lead Revival as the highest priority service when dormant leads are mentioned.
 You recommend AI services that the consultant can sell to this client.
 Be specific — reference the client's actual answers in your recommendations.
+Write in American English and quote every monetary figure in US dollars with a "$" symbol — never GBP, never "£", never "pounds".
 Return valid JSON only. No markdown. No explanation.`,
       messages: [{
         role: "user",
-        content: `Analyse this AI readiness audit and generate recommendations.
+        content: `Analyze this AI readiness audit and generate recommendations.
 
 Business: ${audit.name}
 Industry: ${audit.industry || "Not specified"}
@@ -105,7 +111,61 @@ CRITICAL RULES:
   const text = data.content[0].text.replace(/```json|```/g, "").trim()
   const result = JSON.parse(text)
 
-  // Save generated insights to audit record
+  // Pull every public agent with its pricing columns and keyword matcher,
+  // then run the same lowercase-substring match the builder uses client-side.
+  // Matching is O(recs × agents × keywords) — cheap at these sizes. We save
+  // the FIRST match per recommendation index so the UI can surface the agent
+  // name, ROI, and concrete pricing without re-matching on the client.
+  const { data: publicAgents } = await supabase
+    .from("agents")
+    .select(
+      "id, slug, name, category, typical_roi, service_recommendation_keywords, default_pricing_model, typical_setup_fee_low, typical_setup_fee_high, typical_monthly_fee_low, typical_monthly_fee_high, typical_performance_fee, performance_fee_basis, performance_notes, pricing_notes",
+    )
+    .eq("is_public", true)
+
+  // `pricing_suggestions` is keyed by the recommendation index (stringified
+  // because JSONB keys are strings). Each value contains the agent IDs + the
+  // already-formatted pricing line so consumers can render without importing
+  // the formatter (e.g. future server renders / PDF exports).
+  const pricingSuggestions: Record<
+    string,
+    {
+      agent_id: string
+      agent_slug: string
+      agent_name: string
+      typical_roi: string | null
+      model_label: string
+      pricing_display: string
+      pricing_notes: string | null
+    }
+  > = {}
+
+  if (Array.isArray(publicAgents) && Array.isArray(result.service_recommendations)) {
+    result.service_recommendations.forEach((rec: any, idx: number) => {
+      const haystack = `${rec.service || ""} ${rec.problem_solved || ""} ${rec.expected_outcome || ""}`.toLowerCase()
+      const matched = publicAgents.find((agent: any) => {
+        const keywords: unknown = agent.service_recommendation_keywords
+        if (!Array.isArray(keywords)) return false
+        return keywords.some(
+          (kw) => typeof kw === "string" && kw.length > 0 && haystack.includes(kw.toLowerCase()),
+        )
+      })
+      if (!matched) return
+
+      const formatted = formatAgentPricing(matched as AgentPricing)
+      pricingSuggestions[String(idx)] = {
+        agent_id: matched.id,
+        agent_slug: matched.slug,
+        agent_name: matched.name,
+        typical_roi: matched.typical_roi ?? null,
+        model_label: formatted.modelLabel,
+        pricing_display: formatted.primary,
+        pricing_notes: formatted.notes,
+      }
+    })
+  }
+
+  // Save generated insights + pricing suggestions to audit record.
   await supabase
     .from("audits")
     .update({
@@ -125,6 +185,7 @@ CRITICAL RULES:
         executive_summary: result.executive_summary,
         service_recommendations: result.service_recommendations,
       },
+      pricing_suggestions: pricingSuggestions,
       status: "completed",
       completed_at: new Date().toISOString(),
     })

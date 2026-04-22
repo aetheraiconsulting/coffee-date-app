@@ -121,7 +121,7 @@ export default function HomePage() {
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "16px" }}>
             {[
-              { title: "AI Audit Tool", money: "Turn a simple form into a $500+ paid audit", desc: "Send prospects a branded audit link. They fill it in. Claude analyses their responses and generates a professional report you sell." },
+              { title: "AI Audit Tool", money: "Turn a simple form into a $500+ paid audit", desc: "Send prospects a branded audit link. They fill it in. Claude analyzes their responses and generates a professional report you sell." },
               { title: "Dead Lead Revival", money: "Turn old leads into new revenue for your client", desc: "Connect GoHighLevel and watch AI re-engage dormant contacts automatically. Performance-based — your client only pays on results." },
               { title: "Coffee Date Demo", money: "Close on conviction, not pitch", desc: "Run a live AI demo on any Google Meet call. Presentation mode hides the product. The prospect only sees AI handling their business." },
               { title: "Outreach Engine", money: "20 messages written in 30 seconds", desc: "Claude writes channel-specific outreach using tactical empathy and the 3C framework. LinkedIn, Instagram, and email — ready to send." },
