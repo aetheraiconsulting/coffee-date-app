@@ -234,8 +234,8 @@ export function SupportRequestModal({ open, onClose, initialContext }: Props) {
   // Access-check state: brief loading card while we read the profile.
   if (checkingAccess) {
     return (
-      <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[9999] p-6">
-        <div className="bg-[#0F1318] border border-white/10 rounded-xl p-6">
+      <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[9999] p-4 sm:p-6">
+        <div className="bg-[#0F1318] border border-white/10 rounded-xl p-5 sm:p-6">
           <p className="text-white/40 text-sm">Checking access...</p>
         </div>
       </div>
@@ -247,8 +247,8 @@ export function SupportRequestModal({ open, onClose, initialContext }: Props) {
   // feature and should not appear to leak to free users.
   if (!canRequest) {
     return (
-      <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[9999] p-6">
-        <div className="bg-[#0F1318] border border-white/10 rounded-xl max-w-md w-full p-6">
+      <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[9999] p-4 sm:p-6 overflow-y-auto">
+        <div className="bg-[#0F1318] border border-white/10 rounded-xl max-w-md w-full p-5 sm:p-6 my-4">
           <div className="flex items-center justify-between mb-4">
             <p className="text-[#00AAFF] text-xs font-semibold uppercase tracking-wider">
               Subscription required
@@ -292,8 +292,8 @@ export function SupportRequestModal({ open, onClose, initialContext }: Props) {
   const involvement = INVOLVEMENT_OPTIONS[involvementLevel]
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[9999] p-6 overflow-y-auto">
-      <div className="bg-[#0F1318] border border-white/10 rounded-xl max-w-2xl w-full p-6 my-8">
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[9999] p-4 sm:p-6 overflow-y-auto">
+      <div className="bg-[#0F1318] border border-white/10 rounded-xl w-full max-w-lg sm:max-w-2xl p-4 sm:p-6 my-4 sm:my-8">
         <div className="flex items-start justify-between gap-4 mb-5">
           <div className="min-w-0">
             <p className="text-[#00AAFF] text-xs font-semibold uppercase tracking-wider mb-1">
@@ -436,10 +436,10 @@ export function SupportRequestModal({ open, onClose, initialContext }: Props) {
           </label>
         </div>
 
-        <div className="flex gap-3">
+        <div className="flex flex-col-reverse sm:flex-row gap-3">
           <button
             onClick={onClose}
-            className="flex-1 bg-white/5 border border-white/10 text-white/70 font-semibold py-3 rounded-lg hover:bg-white/10 transition-colors"
+            className="flex-1 bg-white/5 border border-white/10 text-white/70 font-semibold py-3 rounded-lg hover:bg-white/10 transition-colors min-h-[44px]"
           >
             Cancel
           </button>
@@ -451,7 +451,7 @@ export function SupportRequestModal({ open, onClose, initialContext }: Props) {
               !clientBusiness.trim() ||
               !userNotes.trim()
             }
-            className="flex-1 bg-[#00AAFF] text-black font-bold py-3 rounded-lg hover:bg-[#00AAFF]/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            className="flex-1 bg-[#00AAFF] text-black font-bold py-3 rounded-lg hover:bg-[#00AAFF]/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed min-h-[44px]"
           >
             {submitting ? "Submitting..." : "Submit request →"}
           </button>

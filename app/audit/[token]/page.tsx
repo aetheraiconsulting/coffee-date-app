@@ -230,8 +230,31 @@ export default function PublicAuditPage() {
         </div>
       </header>
 
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="flex gap-8">
+      <div className="max-w-4xl mx-auto px-4 py-6 sm:py-8">
+        <div className="flex flex-col lg:flex-row gap-4 lg:gap-8">
+          {/* Mobile-only step progress — the desktop sidebar below is hidden
+              on small screens, so we show an inline progress strip instead so
+              prospects always know how far they are through the audit. */}
+          <div className="lg:hidden">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-white/60 text-xs font-semibold uppercase tracking-wider">
+                Step {currentStep + 1} of {steps.length}
+              </p>
+              <p className="text-white/40 text-xs">
+                {steps[currentStep]?.label}
+              </p>
+            </div>
+            <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all"
+                style={{
+                  width: `${((currentStep + 1) / steps.length) * 100}%`,
+                  backgroundColor: brandColor,
+                }}
+              />
+            </div>
+          </div>
+
           {/* Sidebar Steps */}
           <div className="hidden lg:block w-64 flex-shrink-0">
             <div className="sticky top-28 space-y-1">
@@ -354,12 +377,12 @@ export default function PublicAuditPage() {
             )}
 
             {/* Navigation */}
-            <div className="flex justify-between">
+            <div className="flex justify-between gap-3">
               <Button
                 variant="outline"
                 onClick={() => setCurrentStep(Math.max(0, currentStep - 1))}
                 disabled={currentStep === 0}
-                className="border-white/20 text-white hover:bg-white/10"
+                className="border-white/20 text-white hover:bg-white/10 min-h-[44px]"
               >
                 <ChevronLeft className="h-4 w-4 mr-2" />
                 Previous
@@ -369,7 +392,7 @@ export default function PublicAuditPage() {
                 <Button
                   onClick={() => setCurrentStep(currentStep + 1)}
                   style={{ backgroundColor: brandColor }}
-                  className="text-white hover:opacity-90"
+                  className="text-white hover:opacity-90 min-h-[44px]"
                 >
                   Next
                   <ChevronRight className="h-4 w-4 ml-2" />
@@ -379,7 +402,7 @@ export default function PublicAuditPage() {
                   onClick={handleSubmit}
                   disabled={submitting || !prospectName.trim() || !prospectEmail.trim()}
                   style={{ backgroundColor: brandColor }}
-                  className="text-white hover:opacity-90"
+                  className="text-white hover:opacity-90 min-h-[44px]"
                 >
                   {submitting ? (
                     <Loader2 className="h-4 w-4 animate-spin mr-2" />

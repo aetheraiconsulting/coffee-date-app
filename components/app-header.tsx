@@ -1,6 +1,6 @@
 "use client"
 
-import { User, LogOut, Settings2 } from 'lucide-react'
+import { User, LogOut, Settings2, Menu } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -16,7 +16,7 @@ import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import { NotificationBell } from '@/components/notification-bell'
 
-export function AppHeader() {
+export function AppHeader({ onMenuClick }: { onMenuClick?: () => void } = {}) {
   const router = useRouter()
   const { toast } = useToast()
   const supabase = createClient()
@@ -67,8 +67,18 @@ export function AppHeader() {
 
   return (
     <header className="sticky top-0 z-10 border-b border-white/10 bg-black">
-      <div className="flex items-center justify-end px-6 py-4 h-[73px]">
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between px-4 sm:px-6 py-4 h-[73px]">
+        {/* Hamburger is rendered only below `lg`; on desktop this slot stays
+            empty but the flex container still pushes actions to the right. */}
+        <button
+          type="button"
+          onClick={onMenuClick}
+          aria-label="Open navigation"
+          className="flex h-10 w-10 items-center justify-center rounded-lg text-white/70 hover:bg-white/10 hover:text-white lg:hidden"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
+        <div className="flex items-center gap-2 ml-auto">
           <NotificationBell />
 
           <DropdownMenu>

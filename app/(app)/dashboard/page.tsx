@@ -179,8 +179,8 @@ export default async function DashboardPage() {
     
     {/* Trial ending soon — shows when 3 or fewer days remain */}
         {subscriptionStatus === "trial" && trialDaysLeft <= 3 && trialDaysLeft > 0 && (
-          <div className="bg-amber-500/[0.08] border border-amber-500/20 rounded-xl p-4 flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
+          <div className="bg-amber-500/[0.08] border border-amber-500/20 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
               <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse flex-shrink-0" />
               <div>
                 <p className="text-amber-300 text-sm font-semibold">
@@ -193,7 +193,7 @@ export default async function DashboardPage() {
             </div>
             <Link
               href="/upgrade"
-              className="flex-shrink-0 text-xs bg-amber-400 text-black font-bold px-4 py-2 rounded-lg whitespace-nowrap"
+              className="flex-shrink-0 w-full sm:w-auto text-center text-xs bg-amber-400 text-black font-bold px-4 py-2.5 rounded-lg whitespace-nowrap min-h-[44px] flex items-center justify-center"
             >
               Upgrade now →
             </Link>
@@ -202,8 +202,8 @@ export default async function DashboardPage() {
 
         {/* Grace period — trial just ended, soft 48h window before gate closes */}
         {isGrace && (
-          <div className="bg-amber-500/[0.08] border border-amber-500/20 rounded-xl p-4 flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
+          <div className="bg-amber-500/[0.08] border border-amber-500/20 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
               <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse flex-shrink-0" />
               <div>
                 <p className="text-amber-300 text-sm font-semibold">
@@ -216,7 +216,7 @@ export default async function DashboardPage() {
             </div>
             <Link
               href="/upgrade"
-              className="flex-shrink-0 text-xs bg-amber-400 text-black font-bold px-4 py-2 rounded-lg whitespace-nowrap"
+              className="flex-shrink-0 w-full sm:w-auto text-center text-xs bg-amber-400 text-black font-bold px-4 py-2.5 rounded-lg whitespace-nowrap min-h-[44px] flex items-center justify-center"
             >
               Subscribe now →
             </Link>
@@ -225,8 +225,8 @@ export default async function DashboardPage() {
 
         {/* Limited access — trial ended or payment failed */}
         {isLimited && (
-          <div className="bg-red-500/[0.08] border border-red-500/20 rounded-xl p-4 flex items-center justify-between gap-4">
-            <div>
+          <div className="bg-red-500/[0.08] border border-red-500/20 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="min-w-0">
               <p className="text-red-300 text-sm font-semibold mb-0.5">
                 Your access is limited
               </p>
@@ -236,7 +236,7 @@ export default async function DashboardPage() {
             </div>
             <Link
               href="/upgrade"
-              className="flex-shrink-0 text-xs bg-[#00AAFF] text-black font-bold px-4 py-2 rounded-lg whitespace-nowrap"
+              className="flex-shrink-0 w-full sm:w-auto text-center text-xs bg-[#00AAFF] text-black font-bold px-4 py-2.5 rounded-lg whitespace-nowrap min-h-[44px] flex items-center justify-center"
             >
               Start your sprint →
             </Link>
@@ -354,7 +354,7 @@ export default async function DashboardPage() {
                 <div
                   key={`${stall.type}-${i}`}
                   className={cn(
-                    "border rounded-xl p-4 flex items-center justify-between gap-4",
+                    "border rounded-xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3",
                     stall.severity === "urgent"
                       ? "border-red-500/20 bg-red-500/[0.05]"
                       : "border-amber-500/20 bg-amber-500/[0.05]",
@@ -371,7 +371,7 @@ export default async function DashboardPage() {
                   <Link
                     href={stall.action_href}
                     className={cn(
-                      "text-xs font-bold px-3 py-1.5 rounded-lg whitespace-nowrap flex-shrink-0",
+                      "text-xs font-bold px-3 py-2 rounded-lg whitespace-nowrap flex-shrink-0 w-full sm:w-auto text-center min-h-[44px] flex items-center justify-center",
                       stall.severity === "urgent"
                         ? "bg-red-400 text-black hover:bg-red-300"
                         : "bg-amber-400 text-black hover:bg-amber-300",

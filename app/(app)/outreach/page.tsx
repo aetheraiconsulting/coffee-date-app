@@ -670,14 +670,14 @@ export default function OutreachPage() {
           <span className="flex-shrink-0 text-xs text-white/30">Manual copy-paste for now</span>
         </div>
 
-        {/* Channel Tabs */}
-        <div className="flex border-b border-white/10">
+        {/* Channel Tabs — horizontally scrollable on mobile if ever extended */}
+        <div className="flex gap-1 overflow-x-auto border-b border-white/10 pb-px -mx-4 sm:mx-0 px-4 sm:px-0">
           {(["linkedin", "instagram", "email"] as Channel[]).map(channel => (
             <button
               key={channel}
               onClick={() => setActiveChannel(channel)}
               className={cn(
-                "px-6 py-3 text-sm font-medium capitalize border-b-2 transition-colors",
+                "px-4 sm:px-6 py-3 text-sm font-medium capitalize border-b-2 transition-colors whitespace-nowrap min-h-[44px]",
                 activeChannel === channel
                   ? "border-[#00AAFF] text-white"
                   : "border-transparent text-white/40 hover:text-white/60"
@@ -825,11 +825,11 @@ export default function OutreachPage() {
                   )}
                 >
                   <CardContent className="p-4 space-y-3">
-                    {/* Status Badge */}
-                    <div className="flex items-center justify-between">
+                    {/* Status Badge + Actions — stacked on mobile for full tap targets */}
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                       <span
                         className={cn(
-                          "text-xs px-2 py-0.5 rounded-full",
+                          "text-xs px-2 py-0.5 rounded-full self-start",
                           message.status === "draft" && "bg-white/10 text-white/50",
                           message.status === "sent" && "bg-[#00AAFF]/10 text-[#00AAFF]",
                           message.status === "replied" && "bg-green-500/15 text-green-400",
@@ -841,14 +841,14 @@ export default function OutreachPage() {
                         {message.status === "replied" && "Replied"}
                         {message.status === "no_reply" && "No reply"}
                       </span>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => handleCopy(message.message_text, message.subject_line)}
-                          className="h-7 px-2 text-xs text-white/40 hover:text-white hover:bg-white/10"
+                          className="h-9 px-3 text-xs text-white/60 hover:text-white hover:bg-white/10 min-h-[44px] sm:min-h-0"
                         >
-                          <Copy className="h-3 w-3 mr-1" />
+                          <Copy className="h-4 w-4 mr-1.5" />
                           Copy
                         </Button>
                         {message.status === "draft" && (
@@ -856,24 +856,24 @@ export default function OutreachPage() {
                             variant="ghost"
                             size="sm"
                             onClick={() => handleMarkSent(message.id)}
-                            className="h-7 px-2 text-xs text-white/40 hover:text-white hover:bg-white/10"
+                            className="h-9 px-3 text-xs text-white/60 hover:text-white hover:bg-white/10 min-h-[44px] sm:min-h-0"
                           >
-                            <Check className="h-3 w-3 mr-1" />
+                            <Check className="h-4 w-4 mr-1.5" />
                             Mark as sent
                           </Button>
                         )}
                         {message.status === "sent" && (
                           <button
                             onClick={() => setReplyModalFor(message.id)}
-                            className="bg-[#00AAFF]/15 text-[#00AAFF] hover:bg-[#00AAFF]/25 text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors"
+                            className="bg-[#00AAFF]/15 text-[#00AAFF] hover:bg-[#00AAFF]/25 text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-1.5 transition-colors min-h-[44px] sm:min-h-0"
                           >
-                            <MessageCircle className="h-3 w-3" />
+                            <MessageCircle className="h-4 w-4" />
                             Log reply
                           </button>
                         )}
                         {message.status === "replied" && (
-                          <span className="text-xs text-green-400 font-semibold flex items-center gap-1">
-                            <Check className="h-3 w-3" />
+                          <span className="text-xs text-green-400 font-semibold flex items-center gap-1 px-2">
+                            <Check className="h-4 w-4" />
                             Reply logged
                           </span>
                         )}
@@ -963,12 +963,12 @@ export default function OutreachPage() {
           then edit / copy the response and mark the reply logged. */}
       {replyModalFor && (
         <div
-          className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-6 overflow-y-auto"
+          className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 sm:p-6 overflow-y-auto"
           role="dialog"
           aria-modal="true"
           aria-labelledby="log-reply-title"
         >
-          <div className="bg-[#0F1318] border border-white/10 rounded-xl max-w-2xl w-full p-6 my-8">
+          <div className="bg-[#0F1318] border border-white/10 rounded-xl w-full max-w-lg sm:max-w-2xl p-4 sm:p-6 my-4 sm:my-8">
             <div className="flex items-start justify-between mb-5">
               <div>
                 <p className="text-[#00AAFF] text-xs font-semibold uppercase tracking-wider mb-1">

@@ -78,18 +78,18 @@ export function WelcomeModal({ open, userId, onComplete }: WelcomeModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={() => {}}>
-      <DialogContent className="max-w-lg bg-[#0F1318] border border-white/10 p-0 overflow-hidden [&>button]:hidden">
-        <div className="bg-gradient-to-br from-[#00AAFF]/10 to-transparent p-8">
-          <div className="flex items-center justify-center w-14 h-14 rounded-2xl bg-[#00AAFF]/15 border border-[#00AAFF]/30 mb-5">
-            <Icon className="h-7 w-7 text-[#00AAFF]" />
+      <DialogContent className="w-[calc(100vw-2rem)] max-w-sm sm:max-w-lg bg-[#0F1318] border border-white/10 p-0 overflow-hidden [&>button]:hidden">
+        <div className="bg-gradient-to-br from-[#00AAFF]/10 to-transparent p-5 sm:p-8">
+          <div className="flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-[#00AAFF]/15 border border-[#00AAFF]/30 mb-4 sm:mb-5">
+            <Icon className="h-6 w-6 sm:h-7 sm:w-7 text-[#00AAFF]" />
           </div>
 
-          <h2 className="text-2xl font-bold text-white mb-3 text-balance">{current.title}</h2>
-          <p className="text-white/60 leading-relaxed text-pretty">{current.body}</p>
+          <h2 className="text-xl sm:text-2xl font-bold text-white mb-2 sm:mb-3 text-balance">{current.title}</h2>
+          <p className="text-sm sm:text-base text-white/60 leading-relaxed text-pretty">{current.body}</p>
         </div>
 
-        <div className="flex items-center justify-between px-8 py-5 border-t border-white/[0.08]">
-          <div className="flex gap-2">
+        <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-4 px-5 sm:px-8 py-4 sm:py-5 border-t border-white/[0.08]">
+          <div className="flex gap-2 justify-center sm:justify-start">
             {steps.map((_, i) => (
               <div
                 key={i}
@@ -100,12 +100,12 @@ export function WelcomeModal({ open, userId, onComplete }: WelcomeModalProps) {
             ))}
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center justify-between sm:justify-end gap-3">
             {!isLastStep && (
               <button
                 onClick={handleSkip}
                 disabled={loading}
-                className="text-white/40 hover:text-white/60 text-sm disabled:opacity-50"
+                className="text-white/40 hover:text-white/60 text-sm disabled:opacity-50 min-h-[44px] px-2"
               >
                 Skip tour
               </button>
@@ -113,7 +113,7 @@ export function WelcomeModal({ open, userId, onComplete }: WelcomeModalProps) {
             <Button
               onClick={handleNext}
               disabled={loading}
-              className="bg-[#00AAFF] hover:bg-[#00AAFF]/90 text-black font-semibold"
+              className="bg-[#00AAFF] hover:bg-[#00AAFF]/90 text-black font-semibold min-h-[44px]"
             >
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : current.cta}
             </Button>

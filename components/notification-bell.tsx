@@ -124,7 +124,10 @@ export function NotificationBell() {
 
       <PopoverContent
         align="end"
-        className="w-[360px] p-0 bg-[#0B0F14] border-white/10 text-white"
+        sideOffset={8}
+        // Use a viewport-aware width on mobile so the dropdown never bleeds
+        // off-screen on iPhone SE (375px). Keep the original 384px on `sm+`.
+        className="w-[calc(100vw-1.5rem)] max-w-sm sm:w-96 sm:max-w-none p-0 bg-[#0B0F14] border-white/10 text-white"
       >
         <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
           <p className="text-sm font-semibold">Notifications</p>

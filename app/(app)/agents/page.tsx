@@ -321,8 +321,8 @@ export default function AgentsLibraryPage() {
           this to their client, and gives them the rough effort estimate
           up front so the decision is informed. */}
       {deployingAgent && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[9999] p-6 overflow-y-auto">
-          <div className="bg-[#0F1318] border border-white/10 rounded-xl max-w-2xl w-full p-6 my-8">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[9999] p-4 sm:p-6 overflow-y-auto">
+          <div className="bg-[#0F1318] border border-white/10 rounded-xl w-full max-w-lg sm:max-w-2xl p-4 sm:p-6 my-4 sm:my-8">
             <div className="flex items-start justify-between gap-4 mb-5">
               <div className="min-w-0">
                 <p className="text-[#00AAFF] text-xs font-semibold uppercase tracking-wider mb-1">

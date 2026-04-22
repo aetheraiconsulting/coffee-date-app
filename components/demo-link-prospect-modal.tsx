@@ -190,7 +190,7 @@ export function DemoLinkProspectModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-[#0B0F14] border-white/10 text-white sm:max-w-[480px]">
+      <DialogContent className="w-[calc(100vw-2rem)] max-w-sm sm:max-w-[480px] bg-[#0B0F14] border-white/10 text-white">
         <DialogHeader>
           <DialogTitle className="text-white">Link demo to prospect</DialogTitle>
         </DialogHeader>
@@ -246,7 +246,7 @@ export function DemoLinkProspectModal({
                         type="button"
                         disabled={submitting}
                         onClick={() => linkToProspect(p)}
-                        className="w-full text-left py-3 hover:bg-white/5 px-2 rounded-md transition-colors disabled:opacity-50"
+                        className="w-full text-left py-3 min-h-[52px] hover:bg-white/5 px-2 rounded-md transition-colors disabled:opacity-50"
                       >
                         <p className="text-sm font-medium text-white truncate">
                           {p.name || p.email || "Unnamed prospect"}
