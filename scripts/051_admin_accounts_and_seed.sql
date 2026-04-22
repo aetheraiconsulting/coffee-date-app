@@ -292,17 +292,16 @@ BEGIN
   -- ------------------------------------------------------------------
   -- Prospects (used by call_scripts, proposals, reply_threads)
   -- ------------------------------------------------------------------
+  -- Prospects: source must be one of 'audit','quiz','manual','demo','import'
+  -- current_stage must be one of 'new','contacted','replied','demo_booked','demo_completed','proposal_sent','won','lost'
   SELECT id INTO v_prospect_a FROM prospects WHERE user_id = p_user_id AND email = 'sarah@glowmedspa.com';
   IF v_prospect_a IS NULL THEN
-    -- current_stage column has a CHECK constraint with unknown allowed values,
-    -- so we omit it and let it default (NULL). The pipeline page derives
-    -- stage from the related outreach_messages/reply_threads anyway.
     INSERT INTO prospects (
-      user_id, name, business, email, niche, source,
+      user_id, name, business, email, niche, source, current_stage,
       score, first_contact_at, last_activity_at, created_at, updated_at
     ) VALUES (
       p_user_id, 'Sarah Chen', 'Glow Med Spa', 'sarah@glowmedspa.com',
-      'Med Spas', 'quiz',
+      'Med Spas', 'audit', 'won',
       95, v_sprint_start + INTERVAL '4 days', v_sprint_start + INTERVAL '13 days',
       v_sprint_start + INTERVAL '4 days', NOW()
     )
@@ -312,11 +311,11 @@ BEGIN
   SELECT id INTO v_prospect_b FROM prospects WHERE user_id = p_user_id AND email = 'mike@peakfitness.com';
   IF v_prospect_b IS NULL THEN
     INSERT INTO prospects (
-      user_id, name, business, email, niche, source,
+      user_id, name, business, email, niche, source, current_stage,
       score, first_contact_at, last_activity_at, created_at, updated_at
     ) VALUES (
       p_user_id, 'Mike Rodriguez', 'Peak Fitness Studio', 'mike@peakfitness.com',
-      'Fitness Studios', 'quiz',
+      'Fitness Studios', 'demo', 'demo_completed',
       78, v_sprint_start + INTERVAL '6 days', v_sprint_start + INTERVAL '11 days',
       v_sprint_start + INTERVAL '6 days', NOW()
     )
@@ -326,11 +325,11 @@ BEGIN
   SELECT id INTO v_prospect_c FROM prospects WHERE user_id = p_user_id AND email = 'jessica@bridalstudio.com';
   IF v_prospect_c IS NULL THEN
     INSERT INTO prospects (
-      user_id, name, business, email, niche, source,
+      user_id, name, business, email, niche, source, current_stage,
       score, first_contact_at, last_activity_at, created_at, updated_at
     ) VALUES (
       p_user_id, 'Jessica Miller', 'Radiant Bridal Studio', 'jessica@bridalstudio.com',
-      'Wedding Services', 'quiz',
+      'Wedding Services', 'manual', 'replied',
       65, v_sprint_start + INTERVAL '9 days', v_sprint_start + INTERVAL '10 days',
       v_sprint_start + INTERVAL '9 days', NOW()
     )
