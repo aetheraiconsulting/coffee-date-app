@@ -65,9 +65,10 @@ export default function AgentsLibraryPage() {
       const { data } = await supabase
         .from("agents")
         .select(
-          // Include the nine pricing columns added in migration 049 so we can
-          // render the concrete price on each card via formatAgentPricing().
-          "id, slug, name, category, icon, problem_solved, one_liner, description, typical_roi, setup_time_estimate, is_public, sort_order, default_pricing_model, setup_fee_min, setup_fee_max, monthly_fee_min, monthly_fee_max, performance_fee_min, performance_fee_max, performance_fee_basis, performance_notes, pricing_notes",
+          // Pricing columns match the live schema (typical_setup_fee_low/high,
+          // typical_monthly_fee_low/high, typical_performance_fee). The
+          // formatter in lib/pricing reads these directly.
+          "id, slug, name, category, icon, problem_solved, one_liner, description, typical_roi, setup_time_estimate, is_public, sort_order, default_pricing_model, typical_setup_fee_low, typical_setup_fee_high, typical_monthly_fee_low, typical_monthly_fee_high, typical_performance_fee, performance_fee_basis, performance_notes, pricing_notes",
         )
         .eq("is_public", true)
         .order("sort_order", { ascending: true })

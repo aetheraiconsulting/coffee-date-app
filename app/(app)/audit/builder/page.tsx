@@ -81,6 +81,32 @@ interface RoadmapPhase {
   outcome: string
 }
 
+// Phase 4G.2 — shape of a customized pricing entry saved into
+// `audits.pricing_suggestions`. Extends (not replaces) any AI-generated
+// entry for the same recommendation index, so fields written by the
+// /api/audit/generate endpoint are preserved verbatim.
+interface CustomPricing {
+  agent_id?: string | null
+  agent_slug?: string | null
+  agent_name?: string | null
+  // Commercial deal shape — must match the enum the formatter supports.
+  model:
+    | "50_profit_share"
+    | "custom_profit_share"
+    | "retainer"
+    | "hybrid_retainer"
+    | "per_deliverable"
+  setup_fee?: number | null
+  monthly_fee?: number | null
+  // Percentage (for profit share) OR USD (for per_deliverable). Context
+  // depends on `model` — the formatter handles both.
+  performance_fee?: number | null
+  performance_basis?: string | null
+  rationale?: string
+  // Flag flipped by savePricing(). Buttons and prompt builder key off this.
+  customized?: boolean
+}
+
 interface ServiceRecommendation {
   service: string
   priority: "critical" | "high" | "medium"
@@ -140,6 +166,16 @@ function AuditBuilderContent() {
   const [availableAgents, setAvailableAgents] = useState<any[]>([])
   const [matchingAgents, setMatchingAgents] = useState<Record<number, any>>({})
 
+  // Phase 4G.2 — per-recommendation pricing customizations. Keyed by the
+  // recommendation index (string, to match the JSONB key type). Entries
+  // may be AI-generated (from /api/audit/generate) OR customized by the
+  // operator via the modal below. `customized: true` flips the button
+  // from "Customize pricing" to "Edit pricing" and is what the prompt
+  // generator uses to decide whether to inject pricing into the build.
+  const [pricingSuggestions, setPricingSuggestions] = useState<Record<string, any>>({})
+  const [editingPricingIndex, setEditingPricingIndex] = useState<number | null>(null)
+  const [editedPricing, setEditedPricing] = useState<CustomPricing | null>(null)
+
   const { toast } = useToast()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -187,7 +223,7 @@ function AuditBuilderContent() {
       const { data } = await supabase
         .from("agents")
         .select(
-          "id, slug, name, category, problem_solved, typical_roi, service_recommendation_keywords, default_pricing_model, setup_fee_min, setup_fee_max, monthly_fee_min, monthly_fee_max, performance_fee_min, performance_fee_max, performance_fee_basis, performance_notes, pricing_notes",
+          "id, slug, name, category, problem_solved, typical_roi, service_recommendation_keywords, default_pricing_model, typical_setup_fee_low, typical_setup_fee_high, typical_monthly_fee_low, typical_monthly_fee_high, typical_performance_fee, performance_fee_basis, performance_notes, pricing_notes",
         )
         .eq("is_public", true)
       if (data) setAvailableAgents(data)
@@ -230,6 +266,10 @@ function AuditBuilderContent() {
         if (data.edited_insights) {
           setEditedInsights(data.edited_insights)
           setView("review")
+        }
+        // Phase 4G.2 — restore any previously-saved pricing customizations.
+        if (data.pricing_suggestions && typeof data.pricing_suggestions === "object") {
+          setPricingSuggestions(data.pricing_suggestions as Record<string, any>)
         }
       }
     } catch (error) {
@@ -513,6 +553,114 @@ function AuditBuilderContent() {
     if (!editedInsights) return
     const updated = editedInsights.service_recommendations.filter((_, i) => i !== index)
     setEditedInsights({ ...editedInsights, service_recommendations: updated })
+  }
+
+  // -----------------------------------------------------------------
+  // Phase 4G.2 — pricing customization helpers
+  // -----------------------------------------------------------------
+
+  /** Open the modal for the given recommendation. Pre-fills from the
+   *  current saved customization if one exists; otherwise uses the
+   *  matched agent's default pricing as a sensible starting point. */
+  function openCustomizePricing(index: number) {
+    const existing = pricingSuggestions[String(index)]
+    const matched = matchingAgents[index]
+
+    // If the user has already customized this row, re-open their values.
+    if (existing && existing.customized) {
+      setEditedPricing({
+        agent_id: existing.agent_id || matched?.id || null,
+        agent_slug: existing.agent_slug || matched?.slug || null,
+        agent_name: existing.agent_name || matched?.name || null,
+        model: existing.model,
+        setup_fee: existing.setup_fee ?? null,
+        monthly_fee: existing.monthly_fee ?? null,
+        performance_fee: existing.performance_fee ?? null,
+        performance_basis: existing.performance_basis ?? null,
+        rationale: existing.rationale || "",
+        customized: true,
+      })
+    } else if (matched) {
+      // Seed from the matched agent's default columns. The agent's
+      // `default_pricing_model` drives which fields the modal shows.
+      const model = (matched.default_pricing_model as CustomPricing["model"]) || "retainer"
+      setEditedPricing({
+        agent_id: matched.id,
+        agent_slug: matched.slug,
+        agent_name: matched.name,
+        model,
+        // Seed with the upper bound so operators edit down rather than up.
+        setup_fee: matched.typical_setup_fee_high ?? matched.typical_setup_fee_low ?? null,
+        monthly_fee: matched.typical_monthly_fee_high ?? matched.typical_monthly_fee_low ?? null,
+        performance_fee: matched.typical_performance_fee ?? null,
+        performance_basis: matched.performance_fee_basis ?? null,
+        rationale: "",
+        customized: true,
+      })
+    } else {
+      // No matched agent — start with a blank retainer entry.
+      setEditedPricing({
+        model: "retainer",
+        setup_fee: null,
+        monthly_fee: null,
+        performance_fee: null,
+        performance_basis: null,
+        rationale: "",
+        customized: true,
+      })
+    }
+    setEditingPricingIndex(index)
+  }
+
+  /** Persist the modal's state to `audits.pricing_suggestions`. Merges
+   *  (doesn't replace) the existing JSONB object so AI-generated rows
+   *  for OTHER indices are untouched. */
+  async function savePricing() {
+    if (!auditId || editingPricingIndex === null || !editedPricing) return
+
+    const key = String(editingPricingIndex)
+    const existing = pricingSuggestions[key] || {}
+    const merged = {
+      // Preserve AI-generated display fields from /api/audit/generate so
+      // the report/export code paths still have something to render if
+      // they haven't been updated to read the customized fields yet.
+      ...existing,
+      // Overwrite with operator inputs. Flag as customized.
+      agent_id: editedPricing.agent_id ?? existing.agent_id ?? null,
+      agent_slug: editedPricing.agent_slug ?? existing.agent_slug ?? null,
+      agent_name: editedPricing.agent_name ?? existing.agent_name ?? null,
+      model: editedPricing.model,
+      setup_fee: editedPricing.setup_fee ?? null,
+      monthly_fee: editedPricing.monthly_fee ?? null,
+      performance_fee: editedPricing.performance_fee ?? null,
+      performance_basis: editedPricing.performance_basis ?? null,
+      rationale: editedPricing.rationale || "",
+      customized: true,
+    }
+
+    const next = { ...pricingSuggestions, [key]: merged }
+    setPricingSuggestions(next)
+
+    const { error } = await supabase
+      .from("audits")
+      .update({ pricing_suggestions: next })
+      .eq("id", auditId)
+
+    if (error) {
+      toast({
+        title: "Failed to save pricing",
+        description: error.message,
+        variant: "destructive",
+      })
+      return
+    }
+
+    setEditingPricingIndex(null)
+    setEditedPricing(null)
+    toast({
+      title: "Pricing saved",
+      description: "This price will be used when you build the agent.",
+    })
   }
 
   async function generateReport() {
@@ -963,13 +1111,31 @@ function AuditBuilderContent() {
                             audit without bouncing to the Agent Library. */}
                         {matchingAgents[i] && (() => {
                           const matched = matchingAgents[i]
-                          // Only format when the agent row has pricing data
-                          // (older rows pre-migration may not). Falls back to
-                          // the pre-Phase-4G layout when pricing is absent.
-                          const hasPricing = Boolean(matched.default_pricing_model)
-                          const pricing = hasPricing
-                            ? formatAgentPricing(matched as AgentPricing)
+                          // Phase 4G.2 — if the operator has customized pricing
+                          // for this recommendation, render the customized
+                          // pricing instead of the agent's default. The button
+                          // label also flips from "Customize" → "Edit".
+                          const custom = pricingSuggestions[String(i)]
+                          const hasCustom = Boolean(custom?.customized)
+                          const customFormatted = hasCustom
+                            ? formatAgentPricing({
+                                default_pricing_model: custom.model,
+                                typical_setup_fee_low: custom.setup_fee ?? null,
+                                typical_setup_fee_high: custom.setup_fee ?? null,
+                                typical_monthly_fee_low: custom.monthly_fee ?? null,
+                                typical_monthly_fee_high: custom.monthly_fee ?? null,
+                                typical_performance_fee: custom.performance_fee ?? null,
+                                performance_fee_basis: custom.performance_basis ?? null,
+                                performance_notes: null,
+                                pricing_notes: null,
+                              })
                             : null
+                          const hasPricing = Boolean(matched.default_pricing_model)
+                          const pricing = customFormatted
+                            ? customFormatted
+                            : hasPricing
+                              ? formatAgentPricing(matched as AgentPricing)
+                              : null
                           return (
                             <div className="border-t border-white/5 pt-3 mt-3 flex items-center justify-between gap-3 flex-wrap">
                               <div className="min-w-0 flex-1">
@@ -987,7 +1153,7 @@ function AuditBuilderContent() {
                                 {pricing && (
                                   <div className="mt-2 inline-flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
                                     <span className="text-emerald-400/70 text-[10px] font-semibold uppercase tracking-wider">
-                                      {pricing.modelLabel}
+                                      {hasCustom ? "Custom pricing" : pricing.modelLabel}
                                     </span>
                                     <span className="text-emerald-400 text-xs font-bold">
                                       {pricing.primary}
@@ -995,23 +1161,42 @@ function AuditBuilderContent() {
                                   </div>
                                 )}
                               </div>
-                              <Button
-                                onClick={() => {
-                                  const niche = niches.find((n) => n.id === selectedNiche)
-                                  const params = new URLSearchParams({
-                                    agent_slug: matched.slug,
-                                    agent_name: matched.name,
-                                    business: auditName || "",
-                                    client_name: auditName || "",
-                                    ...(niche?.niche_name ? { niche: niche.niche_name } : {}),
-                                    ...(auditId ? { audit_id: auditId } : {}),
-                                  })
-                                  router.push(`/prompt-generator?${params.toString()}`)
-                                }}
-                                className="bg-[#00AAFF] hover:bg-[#0099EE] text-white font-bold text-sm whitespace-nowrap"
-                              >
-                                Build for client →
-                              </Button>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <button
+                                  onClick={() => openCustomizePricing(i)}
+                                  className="bg-white/5 border border-white/10 text-white/70 font-semibold text-xs px-3 py-2 rounded-lg hover:bg-white/10 hover:text-white transition-colors whitespace-nowrap"
+                                >
+                                  {hasCustom ? "Edit pricing" : "Customize pricing"}
+                                </button>
+                                <Button
+                                  onClick={() => {
+                                    const niche = niches.find((n) => n.id === selectedNiche)
+                                    const params = new URLSearchParams({
+                                      agent_slug: matched.slug,
+                                      agent_name: matched.name,
+                                      business: auditName || "",
+                                      client_name: auditName || "",
+                                      ...(niche?.niche_name ? { niche: niche.niche_name } : {}),
+                                      ...(auditId ? { audit_id: auditId } : {}),
+                                    })
+                                    // Pipe the operator's customized pricing
+                                    // through so the prompt generator can bake
+                                    // it into the quote/proposal it produces.
+                                    if (hasCustom) {
+                                      if (custom.model) params.set("pricing_model", custom.model)
+                                      if (custom.setup_fee != null) params.set("pricing_setup_fee", String(custom.setup_fee))
+                                      if (custom.monthly_fee != null) params.set("pricing_monthly_fee", String(custom.monthly_fee))
+                                      if (custom.performance_fee != null) params.set("pricing_performance_fee", String(custom.performance_fee))
+                                      if (custom.performance_basis) params.set("pricing_basis", custom.performance_basis)
+                                      if (custom.rationale) params.set("pricing_rationale", custom.rationale)
+                                    }
+                                    router.push(`/prompt-generator?${params.toString()}`)
+                                  }}
+                                  className="bg-[#00AAFF] hover:bg-[#0099EE] text-white font-bold text-sm whitespace-nowrap"
+                                >
+                                  Build for client →
+                                </Button>
+                              </div>
                             </div>
                           )
                         })()}
@@ -1326,6 +1511,222 @@ function AuditBuilderContent() {
           </div>
         </div>
       </div>
+
+      {/* Phase 4G.2 — Pricing Customization Modal */}
+      {editingPricingIndex !== null && editedPricing && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#0A0E14] border border-white/10 rounded-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-5">
+                <h3 className="text-white font-bold text-lg">
+                  Customize pricing
+                </h3>
+                <button
+                  onClick={() => {
+                    setEditingPricingIndex(null)
+                    setEditedPricing(null)
+                  }}
+                  className="text-white/40 hover:text-white"
+                  aria-label="Close pricing modal"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Dead Lead Revival hard lock — operators must never underprice
+                  or restructure the 50% profit share deal. */}
+              {editedPricing.agent_slug === "dead-lead-revival" && (
+                <div className="border border-amber-400/20 bg-amber-400/5 rounded-lg p-3 mb-5">
+                  <p className="text-amber-400 text-xs font-semibold mb-1">
+                    Dead Lead Revival pricing is fixed
+                  </p>
+                  <p className="text-amber-300/70 text-xs leading-relaxed">
+                    50% of net profit, zero setup, zero monthly. This pricing
+                    is never changed.
+                  </p>
+                </div>
+              )}
+
+              {/* Pricing model selector */}
+              <div className="mb-5">
+                <label className="text-white/40 text-xs uppercase tracking-wider block mb-2">
+                  Pricing model
+                </label>
+                <select
+                  value={editedPricing.model}
+                  onChange={(e) =>
+                    setEditedPricing({
+                      ...editedPricing,
+                      model: e.target.value as CustomPricing["model"],
+                    })
+                  }
+                  disabled={editedPricing.agent_slug === "dead-lead-revival"}
+                  className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white disabled:opacity-50"
+                >
+                  <option value="retainer">Monthly retainer only</option>
+                  <option value="hybrid_retainer">Setup + monthly retainer</option>
+                  <option value="per_deliverable">Per deliverable (per lead / per booking)</option>
+                  <option value="50_profit_share">50% profit share (Dead Lead Revival)</option>
+                  <option value="custom_profit_share">Custom profit share</option>
+                </select>
+              </div>
+
+              {/* Setup + monthly fields — shown for retainer / hybrid. */}
+              {(editedPricing.model === "retainer" || editedPricing.model === "hybrid_retainer") && (
+                <div className="grid grid-cols-2 gap-3 mb-5">
+                  {editedPricing.model === "hybrid_retainer" && (
+                    <div>
+                      <label className="text-white/40 text-xs uppercase tracking-wider block mb-2">
+                        Setup fee
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40">$</span>
+                        <input
+                          type="number"
+                          min={0}
+                          value={editedPricing.setup_fee ?? ""}
+                          onChange={(e) =>
+                            setEditedPricing({
+                              ...editedPricing,
+                              setup_fee: e.target.value === "" ? null : parseInt(e.target.value, 10) || 0,
+                            })
+                          }
+                          className="w-full bg-white/5 border border-white/10 rounded-lg pl-7 pr-3 py-3 text-white"
+                        />
+                      </div>
+                    </div>
+                  )}
+                  <div className={editedPricing.model === "retainer" ? "col-span-2" : ""}>
+                    <label className="text-white/40 text-xs uppercase tracking-wider block mb-2">
+                      Monthly fee
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40">$</span>
+                      <input
+                        type="number"
+                        min={0}
+                        value={editedPricing.monthly_fee ?? ""}
+                        onChange={(e) =>
+                          setEditedPricing({
+                            ...editedPricing,
+                            monthly_fee: e.target.value === "" ? null : parseInt(e.target.value, 10) || 0,
+                          })
+                        }
+                        className="w-full bg-white/5 border border-white/10 rounded-lg pl-7 pr-3 py-3 text-white"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Profit share percentage */}
+              {(editedPricing.model === "50_profit_share" || editedPricing.model === "custom_profit_share") && (
+                <div className="mb-5">
+                  <label className="text-white/40 text-xs uppercase tracking-wider block mb-2">
+                    Percentage of net profit
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={editedPricing.performance_fee ?? 50}
+                      onChange={(e) =>
+                        setEditedPricing({
+                          ...editedPricing,
+                          performance_fee: parseInt(e.target.value, 10) || 0,
+                          performance_basis: "net_profit_percentage",
+                        })
+                      }
+                      disabled={editedPricing.model === "50_profit_share"}
+                      className="w-full bg-white/5 border border-white/10 rounded-lg p-3 pr-8 text-white disabled:opacity-50"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40">%</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Per-deliverable fee */}
+              {editedPricing.model === "per_deliverable" && (
+                <>
+                  <div className="mb-4">
+                    <label className="text-white/40 text-xs uppercase tracking-wider block mb-2">
+                      Fee per deliverable
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40">$</span>
+                      <input
+                        type="number"
+                        min={0}
+                        value={editedPricing.performance_fee ?? ""}
+                        onChange={(e) =>
+                          setEditedPricing({
+                            ...editedPricing,
+                            performance_fee: e.target.value === "" ? null : parseInt(e.target.value, 10) || 0,
+                          })
+                        }
+                        className="w-full bg-white/5 border border-white/10 rounded-lg pl-7 pr-3 py-3 text-white"
+                      />
+                    </div>
+                  </div>
+                  <div className="mb-5">
+                    <label className="text-white/40 text-xs uppercase tracking-wider block mb-2">
+                      Basis
+                    </label>
+                    <select
+                      value={editedPricing.performance_basis || "per_lead"}
+                      onChange={(e) =>
+                        setEditedPricing({ ...editedPricing, performance_basis: e.target.value })
+                      }
+                      className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white"
+                    >
+                      <option value="per_lead">per qualified lead</option>
+                      <option value="per_conversation">per qualified conversation</option>
+                      <option value="per_booking">per booked appointment</option>
+                      <option value="per_deliverable">per deliverable</option>
+                    </select>
+                    <p className="text-white/30 text-xs mt-1.5 leading-relaxed">
+                      e.g. $50 per qualified lead, $150 per booking, $25 per conversation.
+                    </p>
+                  </div>
+                </>
+              )}
+
+              {/* Rationale */}
+              <div className="mb-6">
+                <label className="text-white/40 text-xs uppercase tracking-wider block mb-2">
+                  Rationale (shown on the proposal)
+                </label>
+                <textarea
+                  value={editedPricing.rationale || ""}
+                  onChange={(e) => setEditedPricing({ ...editedPricing, rationale: e.target.value })}
+                  rows={2}
+                  placeholder="e.g. Pricing reflects the complexity of their FAQ base and expected monthly volume."
+                  className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white text-sm"
+                />
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setEditingPricingIndex(null)
+                    setEditedPricing(null)
+                  }}
+                  className="flex-1 bg-white/5 border border-white/10 text-white/70 font-semibold py-3 rounded-lg hover:bg-white/10 hover:text-white transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={savePricing}
+                  className="flex-1 bg-[#00AAFF] text-black font-bold py-3 rounded-lg hover:bg-[#00AAFF]/90 transition-colors"
+                >
+                  Save pricing →
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Share Modal */}
       {showShareModal && (

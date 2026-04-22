@@ -119,7 +119,7 @@ CRITICAL RULES:
   const { data: publicAgents } = await supabase
     .from("agents")
     .select(
-      "id, slug, name, category, typical_roi, service_recommendation_keywords, default_pricing_model, setup_fee_min, setup_fee_max, monthly_fee_min, monthly_fee_max, performance_fee_min, performance_fee_max, performance_fee_basis, performance_notes, pricing_notes",
+      "id, slug, name, category, typical_roi, service_recommendation_keywords, default_pricing_model, typical_setup_fee_low, typical_setup_fee_high, typical_monthly_fee_low, typical_monthly_fee_high, typical_performance_fee, performance_fee_basis, performance_notes, pricing_notes",
     )
     .eq("is_public", true)
 
