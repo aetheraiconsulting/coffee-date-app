@@ -44,6 +44,9 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import Link from "next/link"
 import { AI_AUDIT_QUESTIONS, getQuestionsByCategory, type AuditQuestion } from "@/lib/audit-questions"
+// Phase 4G — render concrete operator pricing inside the "Deployable agent
+// match" row under each service recommendation.
+import { formatAgentPricing, type AgentPricing } from "@/lib/pricing"
 
 const STEP_ICONS: Record<string, React.ElementType> = {
   "Business Overview": Building2,
@@ -176,11 +179,16 @@ function AuditBuilderContent() {
   // Pull the full public Agent Library once, then run keyword matching
   // against service recommendations whenever the edited insights change.
   // Matching is O(recs × agents × keywords) which is fine at these sizes.
+  // Phase 4G: also fetch the nine pricing columns so the matched agent row
+  // can render a concrete operator price inline with the "Build for client"
+  // CTA — no second query needed.
   useEffect(() => {
     const loadAgents = async () => {
       const { data } = await supabase
         .from("agents")
-        .select("id, slug, name, category, problem_solved, typical_roi, service_recommendation_keywords")
+        .select(
+          "id, slug, name, category, problem_solved, typical_roi, service_recommendation_keywords, default_pricing_model, setup_fee_min, setup_fee_max, monthly_fee_min, monthly_fee_max, performance_fee_min, performance_fee_max, performance_fee_basis, performance_notes, pricing_notes",
+        )
         .eq("is_public", true)
       if (data) setAvailableAgents(data)
     }
@@ -949,41 +957,64 @@ function AuditBuilderContent() {
                             turns the audit from a read-only report into an
                             actionable pipeline event: one click spawns an
                             Android seeded with the agent template and the
-                            audit insights baked in. */}
-                        {matchingAgents[i] && (
-                          <div className="border-t border-white/5 pt-3 mt-3 flex items-center justify-between gap-3 flex-wrap">
-                            <div className="min-w-0">
-                              <p className="text-white/40 text-[10px] uppercase tracking-wider mb-0.5">
-                                Deployable agent match
-                              </p>
-                              <p className="text-white/80 text-sm font-semibold truncate">
-                                {matchingAgents[i].name}
-                              </p>
-                              {matchingAgents[i].typical_roi && (
-                                <p className="text-white/40 text-xs">
-                                  {matchingAgents[i].typical_roi} typical ROI
+                            audit insights baked in.
+                            Phase 4G: also surfaces concrete operator pricing
+                            so the user can quote numbers directly from the
+                            audit without bouncing to the Agent Library. */}
+                        {matchingAgents[i] && (() => {
+                          const matched = matchingAgents[i]
+                          // Only format when the agent row has pricing data
+                          // (older rows pre-migration may not). Falls back to
+                          // the pre-Phase-4G layout when pricing is absent.
+                          const hasPricing = Boolean(matched.default_pricing_model)
+                          const pricing = hasPricing
+                            ? formatAgentPricing(matched as AgentPricing)
+                            : null
+                          return (
+                            <div className="border-t border-white/5 pt-3 mt-3 flex items-center justify-between gap-3 flex-wrap">
+                              <div className="min-w-0 flex-1">
+                                <p className="text-white/40 text-[10px] uppercase tracking-wider mb-0.5">
+                                  Deployable agent match
                                 </p>
-                              )}
+                                <p className="text-white/80 text-sm font-semibold truncate">
+                                  {matched.name}
+                                </p>
+                                {matched.typical_roi && (
+                                  <p className="text-white/40 text-xs">
+                                    {matched.typical_roi} typical ROI
+                                  </p>
+                                )}
+                                {pricing && (
+                                  <div className="mt-2 inline-flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                                    <span className="text-emerald-400/70 text-[10px] font-semibold uppercase tracking-wider">
+                                      {pricing.modelLabel}
+                                    </span>
+                                    <span className="text-emerald-400 text-xs font-bold">
+                                      {pricing.primary}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                              <Button
+                                onClick={() => {
+                                  const niche = niches.find((n) => n.id === selectedNiche)
+                                  const params = new URLSearchParams({
+                                    agent_slug: matched.slug,
+                                    agent_name: matched.name,
+                                    business: auditName || "",
+                                    client_name: auditName || "",
+                                    ...(niche?.niche_name ? { niche: niche.niche_name } : {}),
+                                    ...(auditId ? { audit_id: auditId } : {}),
+                                  })
+                                  router.push(`/prompt-generator?${params.toString()}`)
+                                }}
+                                className="bg-[#00AAFF] hover:bg-[#0099EE] text-white font-bold text-sm whitespace-nowrap"
+                              >
+                                Build for client →
+                              </Button>
                             </div>
-                            <Button
-                              onClick={() => {
-                                const niche = niches.find((n) => n.id === selectedNiche)
-                                const params = new URLSearchParams({
-                                  agent_slug: matchingAgents[i].slug,
-                                  agent_name: matchingAgents[i].name,
-                                  business: auditName || "",
-                                  client_name: auditName || "",
-                                  ...(niche?.niche_name ? { niche: niche.niche_name } : {}),
-                                  ...(auditId ? { audit_id: auditId } : {}),
-                                })
-                                router.push(`/prompt-generator?${params.toString()}`)
-                              }}
-                              className="bg-[#00AAFF] hover:bg-[#0099EE] text-white font-bold text-sm whitespace-nowrap"
-                            >
-                              Build for client →
-                            </Button>
-                          </div>
-                        )}
+                          )
+                        })()}
                       </div>
                     ))}
                   </CardContent>

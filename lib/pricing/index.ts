@@ -147,3 +147,161 @@ export function getPricingModelBadge(model: string | null | undefined): {
       : model?.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()) || "Unknown"
   return { color: colour.tailwind, label }
 }
+
+// ---------------------------------------------------------------------------
+// Agent Library pricing — Phase 4G
+//
+// The `agents` table now carries nine pricing columns so every deployable
+// agent has a concrete, defensible price the operator can quote with zero
+// calculation. The helpers below format those columns into the strings we
+// render on the agent cards, in the audit's "Deployable agent match" row,
+// and anywhere else we surface agent pricing. All prices are GBP.
+// ---------------------------------------------------------------------------
+
+/** Shape of the pricing-related columns on an `agents` row. Types allow
+ *  `null` because older agents (pre-migration) may not have all fields set. */
+export interface AgentPricing {
+  default_pricing_model: string | null
+  setup_fee_min: number | null
+  setup_fee_max: number | null
+  monthly_fee_min: number | null
+  monthly_fee_max: number | null
+  performance_fee_min: number | null
+  performance_fee_max: number | null
+  performance_fee_basis: string | null
+  performance_notes: string | null
+  pricing_notes: string | null
+}
+
+/** Display labels for the agent-level pricing model enum. These describe
+ *  the SHAPE of the commercial deal, not the offer's price point. */
+export const AGENT_PRICING_MODEL_LABELS: Record<string, string> = {
+  performance_only: "Performance only",
+  hybrid_performance: "Setup + performance",
+  hybrid_retainer: "Setup + retainer",
+  per_deliverable: "Per deliverable",
+  retainer_only: "Monthly retainer",
+}
+
+/** Format a GBP amount, compressing thousands to "k" once we're over 1000.
+ *  Returns null for null/undefined input so callers can chain checks. */
+function fmtGBP(n: number | null | undefined): string | null {
+  if (n === null || n === undefined) return null
+  if (n >= 1000) {
+    const k = n / 1000
+    // Keep one decimal only when we actually need it (1.5k, not 1.0k).
+    return `£${k % 1 === 0 ? k.toFixed(0) : k.toFixed(1)}k`
+  }
+  return `£${n}`
+}
+
+/** Format a [min,max] GBP range, collapsing to a single value when min===max
+ *  or when only one bound is set. Uses a shared "k" suffix when both bounds
+ *  are in the thousands (e.g. "£2-3k" instead of "£2k-£3k"). */
+function fmtGBPRange(
+  min: number | null | undefined,
+  max: number | null | undefined,
+): string | null {
+  if (min === null || min === undefined) return fmtGBP(max ?? null)
+  if (max === null || max === undefined || max === min) return fmtGBP(min)
+  if (min >= 1000 && max >= 1000) {
+    const a = min / 1000
+    const b = max / 1000
+    const fmt = (v: number) => (v % 1 === 0 ? v.toFixed(0) : v.toFixed(1))
+    return `£${fmt(a)}-${fmt(b)}k`
+  }
+  return `${fmtGBP(min)}-${fmtGBP(max)}`.replace("£", "£") // keep as-is
+}
+
+/** Format a percentage range. Used for performance-fee percentages. */
+function fmtPercentRange(
+  min: number | null | undefined,
+  max: number | null | undefined,
+): string | null {
+  if (min === null || min === undefined) {
+    return max === null || max === undefined ? null : `${max}%`
+  }
+  if (max === null || max === undefined || max === min) return `${min}%`
+  return `${min}-${max}%`
+}
+
+/**
+ * Returns the display bundle for an agent's pricing:
+ *   - `modelLabel`  — short label matching the default_pricing_model enum
+ *   - `primary`     — headline price line (setup, retainer, performance combined)
+ *   - `notes`       — optional clarifier from the `performance_notes` column
+ *
+ * The shape of `primary` depends on the model:
+ *   performance_only    -> "£500 setup · 15-30% of recovered profit"
+ *   hybrid_performance  -> "£500 setup · £2k/mo · +10% uplift"
+ *   hybrid_retainer     -> "£2k setup · £2-3k/mo"
+ *   per_deliverable     -> "£150-300 per booking"
+ *   retainer_only       -> "£500-1k/mo"
+ */
+export function formatAgentPricing(agent: AgentPricing): {
+  modelLabel: string
+  primary: string
+  notes: string | null
+} {
+  const model = agent.default_pricing_model || ""
+  const modelLabel = AGENT_PRICING_MODEL_LABELS[model] || "Custom pricing"
+
+  const setup = fmtGBPRange(agent.setup_fee_min, agent.setup_fee_max)
+  const monthly = fmtGBPRange(agent.monthly_fee_min, agent.monthly_fee_max)
+  const basis = agent.performance_fee_basis?.trim() || ""
+
+  // Performance fee is a percentage unless the agent's model is per-deliverable,
+  // in which case the min/max represent a GBP amount per unit delivered.
+  const perfAsPercent =
+    model === "performance_only" || model === "hybrid_performance"
+  const perfGBP = fmtGBPRange(agent.performance_fee_min, agent.performance_fee_max)
+  const perfPct = fmtPercentRange(agent.performance_fee_min, agent.performance_fee_max)
+
+  let primary = ""
+
+  switch (model) {
+    case "performance_only": {
+      const parts: string[] = []
+      if (setup) parts.push(`${setup} setup`)
+      if (perfPct) parts.push(`${perfPct}${basis ? ` ${basis}` : " performance fee"}`)
+      primary = parts.join(" · ") || "Performance only"
+      break
+    }
+    case "hybrid_performance": {
+      const parts: string[] = []
+      if (setup) parts.push(`${setup} setup`)
+      if (monthly) parts.push(`${monthly}/mo`)
+      if (perfPct) parts.push(`+${perfPct}${basis ? ` ${basis}` : ""}`)
+      primary = parts.join(" · ")
+      break
+    }
+    case "hybrid_retainer": {
+      const parts: string[] = []
+      if (setup) parts.push(`${setup} setup`)
+      if (monthly) parts.push(`${monthly}/mo`)
+      primary = parts.join(" · ")
+      break
+    }
+    case "per_deliverable": {
+      primary = perfGBP
+        ? `${perfGBP}${basis ? ` ${basis}` : " per deliverable"}`
+        : "Per deliverable"
+      break
+    }
+    case "retainer_only": {
+      primary = monthly ? `${monthly}/mo` : "Monthly retainer"
+      break
+    }
+    default: {
+      // Unknown / legacy model — join whatever fields are present.
+      const parts: string[] = []
+      if (setup) parts.push(`${setup} setup`)
+      if (monthly) parts.push(`${monthly}/mo`)
+      if (perfAsPercent && perfPct) parts.push(`${perfPct}${basis ? ` ${basis}` : ""}`)
+      else if (perfGBP) parts.push(`${perfGBP}${basis ? ` ${basis}` : ""}`)
+      primary = parts.join(" · ") || "Custom pricing"
+    }
+  }
+
+  return { modelLabel, primary, notes: agent.performance_notes?.trim() || null }
+}
