@@ -511,14 +511,14 @@ BEGIN
 
   -- ------------------------------------------------------------------
   -- Notifications — a handful of realistic alerts
-  -- Type must be one of: proposal_pending, outreach_reply_received, proposal_won
+  -- Type must be one of: audit_submitted, quiz_completed, reply_received, new_prospect, deal_won
   -- ------------------------------------------------------------------
   IF NOT EXISTS (SELECT 1 FROM notifications WHERE user_id = p_user_id) THEN
     INSERT INTO notifications (user_id, type, title, body, action_href, read, created_at)
     VALUES
-      (p_user_id, 'proposal_pending', 'Mike opened your proposal', 'Peak Fitness Studio proposal was opened 3 times in the last 2 hours.', '/proposal/builder', FALSE, NOW() - INTERVAL '3 hours'),
-      (p_user_id, 'proposal_won', 'Glow Med Spa signed', 'Sarah Chen accepted the Dead Lead Revival proposal. Kickoff scheduled.', '/pipeline', TRUE, v_sprint_start + INTERVAL '11 days'),
-      (p_user_id, 'outreach_reply_received', 'New reply from Jessica Miller', 'Radiant Bridal Studio replied — waiting for your response.', '/outreach', FALSE, v_sprint_start + INTERVAL '10 days');
+      (p_user_id, 'new_prospect', 'Mike opened your proposal', 'Peak Fitness Studio proposal was opened 3 times in the last 2 hours.', '/proposal/builder', FALSE, NOW() - INTERVAL '3 hours'),
+      (p_user_id, 'deal_won', 'Glow Med Spa signed', 'Sarah Chen accepted the Dead Lead Revival proposal. Kickoff scheduled.', '/pipeline', TRUE, v_sprint_start + INTERVAL '11 days'),
+      (p_user_id, 'reply_received', 'New reply from Jessica Miller', 'Radiant Bridal Studio replied — waiting for your response.', '/outreach', FALSE, v_sprint_start + INTERVAL '10 days');
   END IF;
 END;
 $$;
