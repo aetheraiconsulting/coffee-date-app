@@ -337,38 +337,75 @@ BEGIN
   END IF;
 
   -- ------------------------------------------------------------------
-  -- Outreach messages — 10 sent, mix of statuses
+  -- Outreach messages — 10 sent, mix of statuses. We insert them one
+  -- by one for the "replied" ones so we can capture their IDs for the
+  -- reply_threads FK.
   -- ------------------------------------------------------------------
-  IF NOT EXISTS (SELECT 1 FROM outreach_messages WHERE user_id = p_user_id) THEN
-    INSERT INTO outreach_messages (user_id, offer_id, contact_name, contact_business, channel, status, subject_line, message_text, sent_at, created_at)
-    VALUES
-      (p_user_id, v_offer_id, 'Sarah Chen', 'Glow Med Spa', 'email', 'replied', 'Quick question about Glow Med Spa''s lead follow-up', 'Hey Sarah — noticed Glow Med Spa has been running paid ads for 6+ months but your Google reviews mention leads not hearing back...', v_sprint_start + INTERVAL '4 days', v_sprint_start + INTERVAL '4 days'),
-      (p_user_id, v_offer_id, 'Mike Rodriguez', 'Peak Fitness Studio', 'email', 'replied', 'Peak Fitness — recovering your old leads', 'Hi Mike, saw Peak Fitness is doing well on IG but noticed your old lead database is probably sitting untouched...', v_sprint_start + INTERVAL '6 days', v_sprint_start + INTERVAL '6 days'),
-      (p_user_id, v_offer_id, 'Jessica Miller', 'Radiant Bridal Studio', 'email', 'replied', 'Bridal season recovery idea', 'Hey Jessica — bridal businesses have this weird problem where 70% of inquiries ghost after the first email...', v_sprint_start + INTERVAL '9 days', v_sprint_start + INTERVAL '9 days'),
-      (p_user_id, v_offer_id, 'Dan Park', 'Elevate Med Spa', 'email', 'sent', 'Elevate Med Spa — unconverted leads', 'Dan — your med spa has been growing fast this year but my guess is you have $15K-$40K sitting in your unconverted lead database...', v_sprint_start + INTERVAL '5 days', v_sprint_start + INTERVAL '5 days'),
-      (p_user_id, v_offer_id, 'Rachel Green', 'Pure Pilates', 'email', 'sent', 'Pure Pilates — old leads revival', 'Hi Rachel, Pure Pilates looks great. Quick question...', v_sprint_start + INTERVAL '7 days', v_sprint_start + INTERVAL '7 days'),
-      (p_user_id, v_offer_id, 'Tom Harris', 'Aesthetic MD', 'email', 'sent', 'Aesthetic MD — revenue from your CRM', 'Tom — how many unconverted leads are sitting in your CRM right now?', v_sprint_start + INTERVAL '7 days', v_sprint_start + INTERVAL '7 days'),
-      (p_user_id, v_offer_id, 'Amanda White', 'Studio F Wellness', 'email', 'sent', 'Studio F — recovering booked revenue', 'Amanda — noticed Studio F has been consistent on content for a while...', v_sprint_start + INTERVAL '8 days', v_sprint_start + INTERVAL '8 days'),
-      (p_user_id, v_offer_id, 'Brian Lee', 'Zen Med Aesthetics', 'email', 'sent', 'Zen Med — dead leads to revenue', 'Brian, a lot of med spas are sitting on lead lists of 2,000+ that never got worked properly...', v_sprint_start + INTERVAL '10 days', v_sprint_start + INTERVAL '10 days'),
-      (p_user_id, v_offer_id, 'Priya Nair', 'Lotus Bridal', 'email', 'sent', 'Lotus — bridal lead follow-up', 'Hi Priya — bridal businesses have inquiry-to-booking gap that costs real money...', v_sprint_start + INTERVAL '11 days', v_sprint_start + INTERVAL '11 days'),
-      (p_user_id, v_offer_id, 'Kevin Chen', 'Apex Fit', 'email', 'sent', 'Apex Fit — inactive member re-engagement', 'Kevin, Apex Fit has active members but probably also a bunch of members who stopped showing up...', v_sprint_start + INTERVAL '12 days', v_sprint_start + INTERVAL '12 days');
-  END IF;
+  DECLARE
+    v_msg_sarah UUID;
+    v_msg_mike UUID;
+    v_msg_jessica UUID;
+  BEGIN
+    -- Sarah's outreach message (replied)
+    SELECT id INTO v_msg_sarah FROM outreach_messages WHERE user_id = p_user_id AND contact_name = 'Sarah Chen';
+    IF v_msg_sarah IS NULL THEN
+      INSERT INTO outreach_messages (user_id, offer_id, contact_name, contact_business, channel, status, subject_line, message_text, sent_at, created_at)
+      VALUES (p_user_id, v_offer_id, 'Sarah Chen', 'Glow Med Spa', 'email', 'replied', 'Quick question about Glow Med Spa''s lead follow-up', 'Hey Sarah — noticed Glow Med Spa has been running paid ads for 6+ months but your Google reviews mention leads not hearing back...', v_sprint_start + INTERVAL '4 days', v_sprint_start + INTERVAL '4 days')
+      RETURNING id INTO v_msg_sarah;
+    END IF;
 
-  -- Link outreach aggregate row
-  INSERT INTO outreach (user_id, started, messages_generated, messages_generated_at, total_sent, first_sent_at, created_at)
-  SELECT p_user_id, TRUE, TRUE, v_sprint_start + INTERVAL '3 days', 10, v_sprint_start + INTERVAL '4 days', v_sprint_start + INTERVAL '3 days'
-  WHERE NOT EXISTS (SELECT 1 FROM outreach WHERE user_id = p_user_id);
+    -- Mike's outreach message (replied)
+    SELECT id INTO v_msg_mike FROM outreach_messages WHERE user_id = p_user_id AND contact_name = 'Mike Rodriguez';
+    IF v_msg_mike IS NULL THEN
+      INSERT INTO outreach_messages (user_id, offer_id, contact_name, contact_business, channel, status, subject_line, message_text, sent_at, created_at)
+      VALUES (p_user_id, v_offer_id, 'Mike Rodriguez', 'Peak Fitness Studio', 'email', 'replied', 'Peak Fitness — recovering your old leads', 'Hi Mike, saw Peak Fitness is doing well on IG but noticed your old lead database is probably sitting untouched...', v_sprint_start + INTERVAL '6 days', v_sprint_start + INTERVAL '6 days')
+      RETURNING id INTO v_msg_mike;
+    END IF;
 
-  -- ------------------------------------------------------------------
-  -- Reply threads — 3 prospects replied (matches outreach status = 'replied')
-  -- ------------------------------------------------------------------
-  IF NOT EXISTS (SELECT 1 FROM reply_threads WHERE user_id = p_user_id) THEN
-    INSERT INTO reply_threads (user_id, prospect_reply, response_goal, suggested_response, response_sent, created_at)
-    VALUES
-      (p_user_id, 'Interesting — how does this actually work? Do we have to change anything in our GHL setup?', 'book_call', 'Great question. The whole thing runs alongside your current GHL setup, nothing changes for your team...', TRUE, v_sprint_start + INTERVAL '5 days'),
-      (p_user_id, 'We''re pretty swamped right now but tell me more about pricing', 'book_call', 'Totally understand. I''ll keep this short — we run on pure profit split so there''s zero risk to you...', TRUE, v_sprint_start + INTERVAL '7 days'),
-      (p_user_id, 'What''s the catch? Sounds too good to be true.', 'book_call', 'Fair question. The "catch" is that it only works if you''ve got a decent-sized lead database already...', FALSE, v_sprint_start + INTERVAL '10 days');
-  END IF;
+    -- Jessica's outreach message (replied)
+    SELECT id INTO v_msg_jessica FROM outreach_messages WHERE user_id = p_user_id AND contact_name = 'Jessica Miller';
+    IF v_msg_jessica IS NULL THEN
+      INSERT INTO outreach_messages (user_id, offer_id, contact_name, contact_business, channel, status, subject_line, message_text, sent_at, created_at)
+      VALUES (p_user_id, v_offer_id, 'Jessica Miller', 'Radiant Bridal Studio', 'email', 'replied', 'Bridal season recovery idea', 'Hey Jessica — bridal businesses have this weird problem where 70% of inquiries ghost after the first email...', v_sprint_start + INTERVAL '9 days', v_sprint_start + INTERVAL '9 days')
+      RETURNING id INTO v_msg_jessica;
+    END IF;
+
+    -- Rest of the outreach messages (sent, no reply)
+    IF NOT EXISTS (SELECT 1 FROM outreach_messages WHERE user_id = p_user_id AND contact_name = 'Dan Park') THEN
+      INSERT INTO outreach_messages (user_id, offer_id, contact_name, contact_business, channel, status, subject_line, message_text, sent_at, created_at)
+      VALUES
+        (p_user_id, v_offer_id, 'Dan Park', 'Elevate Med Spa', 'email', 'sent', 'Elevate Med Spa — unconverted leads', 'Dan — your med spa has been growing fast this year but my guess is you have $15K-$40K sitting in your unconverted lead database...', v_sprint_start + INTERVAL '5 days', v_sprint_start + INTERVAL '5 days'),
+        (p_user_id, v_offer_id, 'Rachel Green', 'Pure Pilates', 'email', 'sent', 'Pure Pilates — old leads revival', 'Hi Rachel, Pure Pilates looks great. Quick question...', v_sprint_start + INTERVAL '7 days', v_sprint_start + INTERVAL '7 days'),
+        (p_user_id, v_offer_id, 'Tom Harris', 'Aesthetic MD', 'email', 'sent', 'Aesthetic MD — revenue from your CRM', 'Tom — how many unconverted leads are sitting in your CRM right now?', v_sprint_start + INTERVAL '7 days', v_sprint_start + INTERVAL '7 days'),
+        (p_user_id, v_offer_id, 'Amanda White', 'Studio F Wellness', 'email', 'sent', 'Studio F — recovering booked revenue', 'Amanda — noticed Studio F has been consistent on content for a while...', v_sprint_start + INTERVAL '8 days', v_sprint_start + INTERVAL '8 days'),
+        (p_user_id, v_offer_id, 'Brian Lee', 'Zen Med Aesthetics', 'email', 'sent', 'Zen Med — dead leads to revenue', 'Brian, a lot of med spas are sitting on lead lists of 2,000+ that never got worked properly...', v_sprint_start + INTERVAL '10 days', v_sprint_start + INTERVAL '10 days'),
+        (p_user_id, v_offer_id, 'Priya Nair', 'Lotus Bridal', 'email', 'sent', 'Lotus — bridal lead follow-up', 'Hi Priya — bridal businesses have inquiry-to-booking gap that costs real money...', v_sprint_start + INTERVAL '11 days', v_sprint_start + INTERVAL '11 days'),
+        (p_user_id, v_offer_id, 'Kevin Chen', 'Apex Fit', 'email', 'sent', 'Apex Fit — inactive member re-engagement', 'Kevin, Apex Fit has active members but probably also a bunch of members who stopped showing up...', v_sprint_start + INTERVAL '12 days', v_sprint_start + INTERVAL '12 days');
+    END IF;
+
+    -- Link outreach aggregate row
+    INSERT INTO outreach (user_id, started, messages_generated, messages_generated_at, total_sent, first_sent_at, created_at)
+    SELECT p_user_id, TRUE, TRUE, v_sprint_start + INTERVAL '3 days', 10, v_sprint_start + INTERVAL '4 days', v_sprint_start + INTERVAL '3 days'
+    WHERE NOT EXISTS (SELECT 1 FROM outreach WHERE user_id = p_user_id);
+
+    -- ------------------------------------------------------------------
+    -- Reply threads — 3 prospects replied. Each links to its outreach_message_id.
+    -- ------------------------------------------------------------------
+    IF NOT EXISTS (SELECT 1 FROM reply_threads WHERE user_id = p_user_id AND outreach_message_id = v_msg_sarah) THEN
+      INSERT INTO reply_threads (user_id, outreach_message_id, prospect_reply, response_goal, suggested_response, response_sent, created_at)
+      VALUES (p_user_id, v_msg_sarah, 'Interesting — how does this actually work? Do we have to change anything in our GHL setup?', 'book_call', 'Great question. The whole thing runs alongside your current GHL setup, nothing changes for your team...', TRUE, v_sprint_start + INTERVAL '5 days');
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM reply_threads WHERE user_id = p_user_id AND outreach_message_id = v_msg_mike) THEN
+      INSERT INTO reply_threads (user_id, outreach_message_id, prospect_reply, response_goal, suggested_response, response_sent, created_at)
+      VALUES (p_user_id, v_msg_mike, 'We''re pretty swamped right now but tell me more about pricing', 'book_call', 'Totally understand. I''ll keep this short — we run on pure profit split so there''s zero risk to you...', TRUE, v_sprint_start + INTERVAL '7 days');
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM reply_threads WHERE user_id = p_user_id AND outreach_message_id = v_msg_jessica) THEN
+      INSERT INTO reply_threads (user_id, outreach_message_id, prospect_reply, response_goal, suggested_response, response_sent, created_at)
+      VALUES (p_user_id, v_msg_jessica, 'What''s the catch? Sounds too good to be true.', 'book_call', 'Fair question. The "catch" is that it only works if you''ve got a decent-sized lead database already...', FALSE, v_sprint_start + INTERVAL '10 days');
+    END IF;
+  END;
 
   -- ------------------------------------------------------------------
   -- Call scripts — 2 created, 1 completed, 1 pending
@@ -474,13 +511,14 @@ BEGIN
 
   -- ------------------------------------------------------------------
   -- Notifications — a handful of realistic alerts
+  -- Type must be one of: proposal_pending, outreach_reply_received, proposal_won
   -- ------------------------------------------------------------------
   IF NOT EXISTS (SELECT 1 FROM notifications WHERE user_id = p_user_id) THEN
     INSERT INTO notifications (user_id, type, title, body, action_href, read, created_at)
     VALUES
-      (p_user_id, 'proposal_viewed', 'Mike opened your proposal', 'Peak Fitness Studio proposal was opened 3 times in the last 2 hours.', '/proposal/builder', FALSE, NOW() - INTERVAL '3 hours'),
-      (p_user_id, 'win', 'Glow Med Spa signed', 'Sarah Chen accepted the Dead Lead Revival proposal. Kickoff scheduled.', '/pipeline', TRUE, v_sprint_start + INTERVAL '11 days'),
-      (p_user_id, 'reply', 'New reply from Jessica Miller', 'Radiant Bridal Studio replied — waiting for your response.', '/outreach', FALSE, v_sprint_start + INTERVAL '10 days');
+      (p_user_id, 'proposal_pending', 'Mike opened your proposal', 'Peak Fitness Studio proposal was opened 3 times in the last 2 hours.', '/proposal/builder', FALSE, NOW() - INTERVAL '3 hours'),
+      (p_user_id, 'proposal_won', 'Glow Med Spa signed', 'Sarah Chen accepted the Dead Lead Revival proposal. Kickoff scheduled.', '/pipeline', TRUE, v_sprint_start + INTERVAL '11 days'),
+      (p_user_id, 'outreach_reply_received', 'New reply from Jessica Miller', 'Radiant Bridal Studio replied — waiting for your response.', '/outreach', FALSE, v_sprint_start + INTERVAL '10 days');
   END IF;
 END;
 $$;
