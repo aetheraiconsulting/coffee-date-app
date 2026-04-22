@@ -179,7 +179,7 @@ BEGIN
       '50_profit_share',
       '50% of net profit, zero setup, zero monthly',
       'If we don''t recover at least $5K in booked revenue in 30 days, you pay nothing',
-      'high',
+      'strong',
       'Fixed structure validated across 40+ med spa deployments',
       TRUE,
       v_sprint_start + INTERVAL '2 days'
@@ -212,13 +212,13 @@ BEGIN
       research_notes_added, outreach_complete, outreach_complete_at,
       offer_id, created_at, updated_at
     ) VALUES (
-      p_user_id, v_niche_a, TRUE, 'onboarded', 'won',
+      p_user_id, v_niche_a, TRUE, 'revival', 'Win',
       450, 2400, TRUE, TRUE, TRUE,
       TRUE, v_sprint_start + INTERVAL '3 days',
       v_sprint_start + INTERVAL '3 days', 12,
       TRUE, TRUE, TRUE, TRUE, TRUE,
       TRUE, v_sprint_start + INTERVAL '13 days',
-      TRUE, v_sprint_start + INTERVAL '12 days', 'profit_split',
+      TRUE, v_sprint_start + INTERVAL '12 days', 'revival',
       2000, 1500, 3500, 5000,
       TRUE, TRUE, v_sprint_start + INTERVAL '10 days',
       v_offer_id, v_sprint_start + INTERVAL '1 day', NOW()
@@ -239,7 +239,7 @@ BEGIN
       research_notes_added,
       offer_id, created_at, updated_at
     ) VALUES (
-      p_user_id, v_niche_b, TRUE, 'proposal_sent', 'active',
+      p_user_id, v_niche_b, TRUE, 'demo', 'Coffee Date Demo',
       250, 1800, TRUE, TRUE, TRUE,
       TRUE, v_sprint_start + INTERVAL '5 days',
       v_sprint_start + INTERVAL '5 days', 8,
@@ -263,7 +263,7 @@ BEGIN
       research_notes_added,
       offer_id, created_at, updated_at
     ) VALUES (
-      p_user_id, v_niche_c, TRUE, 'outreach', 'active',
+      p_user_id, v_niche_c, TRUE, 'outreach', 'Outreach in Progress',
       180, 1500, TRUE, TRUE, TRUE,
       TRUE, v_sprint_start + INTERVAL '8 days',
       v_sprint_start + INTERVAL '8 days', 6,
@@ -282,7 +282,7 @@ BEGIN
       research_notes_added,
       created_at, updated_at
     ) VALUES (
-      p_user_id, v_niche_d, FALSE, 'research', 'active',
+      p_user_id, v_niche_d, FALSE, 'outreach', 'Outreach in Progress',
       FALSE,
       v_sprint_start + INTERVAL '11 days', NOW()
     )
@@ -294,12 +294,15 @@ BEGIN
   -- ------------------------------------------------------------------
   SELECT id INTO v_prospect_a FROM prospects WHERE user_id = p_user_id AND email = 'sarah@glowmedspa.com';
   IF v_prospect_a IS NULL THEN
+    -- current_stage column has a CHECK constraint with unknown allowed values,
+    -- so we omit it and let it default (NULL). The pipeline page derives
+    -- stage from the related outreach_messages/reply_threads anyway.
     INSERT INTO prospects (
-      user_id, name, business, email, niche, source, current_stage,
+      user_id, name, business, email, niche, source,
       score, first_contact_at, last_activity_at, created_at, updated_at
     ) VALUES (
       p_user_id, 'Sarah Chen', 'Glow Med Spa', 'sarah@glowmedspa.com',
-      'Med Spas', 'outreach', 'client_onboarded',
+      'Med Spas', 'quiz',
       95, v_sprint_start + INTERVAL '4 days', v_sprint_start + INTERVAL '13 days',
       v_sprint_start + INTERVAL '4 days', NOW()
     )
@@ -309,11 +312,11 @@ BEGIN
   SELECT id INTO v_prospect_b FROM prospects WHERE user_id = p_user_id AND email = 'mike@peakfitness.com';
   IF v_prospect_b IS NULL THEN
     INSERT INTO prospects (
-      user_id, name, business, email, niche, source, current_stage,
+      user_id, name, business, email, niche, source,
       score, first_contact_at, last_activity_at, created_at, updated_at
     ) VALUES (
       p_user_id, 'Mike Rodriguez', 'Peak Fitness Studio', 'mike@peakfitness.com',
-      'Fitness Studios', 'outreach', 'proposal_sent',
+      'Fitness Studios', 'quiz',
       78, v_sprint_start + INTERVAL '6 days', v_sprint_start + INTERVAL '11 days',
       v_sprint_start + INTERVAL '6 days', NOW()
     )
@@ -323,11 +326,11 @@ BEGIN
   SELECT id INTO v_prospect_c FROM prospects WHERE user_id = p_user_id AND email = 'jessica@bridalstudio.com';
   IF v_prospect_c IS NULL THEN
     INSERT INTO prospects (
-      user_id, name, business, email, niche, source, current_stage,
+      user_id, name, business, email, niche, source,
       score, first_contact_at, last_activity_at, created_at, updated_at
     ) VALUES (
       p_user_id, 'Jessica Miller', 'Radiant Bridal Studio', 'jessica@bridalstudio.com',
-      'Wedding Services', 'outreach', 'reply_received',
+      'Wedding Services', 'quiz',
       65, v_sprint_start + INTERVAL '9 days', v_sprint_start + INTERVAL '10 days',
       v_sprint_start + INTERVAL '9 days', NOW()
     )
@@ -425,7 +428,7 @@ BEGIN
       '50% of net profit on recovered revenue. No setup. No monthly.',
       'If we don''t book at least $5K in recovered revenue in the first 30 days, you pay nothing.',
       'Sign the agreement and we kick off deployment this week. First revenue targets hit within 14 days.',
-      'high',
+      'strong',
       'Strong fit — established database, clear conversion gap, aligned on profit-share structure during discovery call.',
       TRUE, v_sprint_start + INTERVAL '11 days', 'pending', v_sprint_start + INTERVAL '10 days'
     );
@@ -447,7 +450,7 @@ BEGIN
       '50% of net profit. Zero setup. Zero monthly.',
       'First 30 days: if we don''t book at least $8K in recovered revenue, you pay nothing.',
       'Sign agreement Monday, kickoff Tuesday. First revenue targeted by end of week 2.',
-      'high',
+      'strong',
       'Perfect ICP. Sarah aligned on structure, active database is large, clear immediate revenue opportunity.',
       TRUE, v_sprint_start + INTERVAL '11 days', 'won', v_sprint_start + INTERVAL '11 days'
     );
