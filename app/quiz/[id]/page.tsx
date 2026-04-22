@@ -277,8 +277,8 @@ export default function QuizFunnelPage() {
           </div>
 
           <Card className="border-gray-200 shadow-lg rounded-2xl">
-            <CardContent className="p-8 space-y-6">
-              <h2 className="text-2xl font-semibold text-gray-900">Let's get started</h2>
+            <CardContent className="p-5 sm:p-8 space-y-5 sm:space-y-6">
+              <h2 className="text-xl sm:text-2xl font-semibold text-gray-900">Let&apos;s get started</h2>
 
               <div className="space-y-4">
                 <div>
@@ -358,8 +358,8 @@ export default function QuizFunnelPage() {
         </div>
 
         <Card className="border-gray-200 shadow-lg rounded-2xl">
-          <CardContent className="p-8 space-y-6">
-            <h2 className="text-xl font-semibold text-gray-900">{question?.text}</h2>
+          <CardContent className="p-5 sm:p-8 space-y-5 sm:space-y-6">
+            <h2 className="text-lg sm:text-xl font-semibold text-gray-900">{question?.text}</h2>
 
             <div className="space-y-3">
               {question?.options?.map((option, idx) => {
@@ -368,7 +368,7 @@ export default function QuizFunnelPage() {
                   <button
                     key={idx}
                     onClick={() => handleAnswerSelect(question.id, option.value)}
-                    className={`w-full p-4 text-left rounded-xl border-2 transition-all ${
+                    className={`w-full min-h-[56px] p-4 text-left rounded-xl border-2 transition-all ${
                       isSelected
                         ? "border-blue-500 bg-blue-50"
                         : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"

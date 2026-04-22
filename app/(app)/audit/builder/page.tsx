@@ -782,17 +782,17 @@ function AuditBuilderContent() {
     <div className="min-h-screen bg-background">
       {/* Sticky Header */}
       <div className="sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-white/10">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex items-center gap-3 sm:gap-4 min-w-0">
               <Link href="/audit">
-                <Button variant="ghost" size="icon" className="hover:bg-[#3a8bff]/10 hover:text-[#3a8bff] text-white">
+                <Button variant="ghost" size="icon" className="hover:bg-[#3a8bff]/10 hover:text-[#3a8bff] text-white flex-shrink-0">
                   <ArrowLeft className="h-5 w-5" />
                 </Button>
               </Link>
-              <div>
-                <h1 className="text-2xl font-bold text-white">{auditId ? "Edit Audit" : "New Audit"}</h1>
-                <p className="text-white/60 text-sm">{auditName || "Untitled Audit"}</p>
+              <div className="min-w-0">
+                <h1 className="text-xl sm:text-2xl font-bold text-white truncate">{auditId ? "Edit Audit" : "New Audit"}</h1>
+                <p className="text-white/60 text-sm truncate">{auditName || "Untitled Audit"}</p>
               </div>
             </div>
 
@@ -807,8 +807,16 @@ function AuditBuilderContent() {
               </div>
             </div>
 
+            {/* Mobile progress strip — sits between the title and the action row */}
+            <div className="md:hidden flex items-center gap-3">
+              <div className="flex-1 h-2 bg-white/10 rounded-full overflow-hidden">
+                <div className="h-full bg-[#3a8bff] rounded-full transition-all" style={{ width: `${completion}%` }} />
+              </div>
+              <p className="text-xs text-white/60 font-semibold whitespace-nowrap">{completion}%</p>
+            </div>
+
             {/* Actions */}
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button
                 variant="outline"
                 onClick={() => setShowShareModal(true)}
@@ -844,8 +852,27 @@ function AuditBuilderContent() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className="flex gap-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+        {/* Mobile-only step progress — stacks above the main content when the
+            desktop sidebar is hidden so prospects and operators always know
+            which step they are on. */}
+        <div className="lg:hidden mb-6">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-white/60 text-xs font-semibold uppercase tracking-wider">
+              Step {currentStep + 1} of {steps.length}
+            </p>
+            <p className="text-white/40 text-xs">
+              {steps[currentStep]?.name}
+            </p>
+          </div>
+          <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-[#3a8bff] rounded-full transition-all"
+              style={{ width: `${((currentStep + 1) / steps.length) * 100}%` }}
+            />
+          </div>
+        </div>
+        <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
           {/* Sidebar Navigation */}
           <div className="hidden lg:block w-64 flex-shrink-0">
             <div className="sticky top-28 space-y-2">
@@ -1047,9 +1074,9 @@ function AuditBuilderContent() {
                           "bg-[#00AAFF]/5 border-l-[#00AAFF]"
                         }`}
                       >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <span className={`text-[10px] font-bold px-2 py-1 rounded-full uppercase ${
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                          <div className="flex items-center gap-3 min-w-0 flex-1">
+                            <span className={`text-[10px] font-bold px-2 py-1 rounded-full uppercase flex-shrink-0 ${
                               s.priority === "critical" ? "bg-red-500/20 text-red-400" :
                               s.priority === "high" ? "bg-amber-500/20 text-amber-400" :
                               "bg-[#00AAFF]/20 text-[#00AAFF]"
@@ -1062,7 +1089,7 @@ function AuditBuilderContent() {
                               className="bg-transparent border-none text-white font-bold text-lg p-0 h-auto focus-visible:ring-0"
                             />
                           </div>
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-3 flex-shrink-0">
                             <div className="flex items-center gap-2">
                               <span className="text-xs text-white/40">Include</span>
                               <Switch
@@ -1080,7 +1107,7 @@ function AuditBuilderContent() {
                             </Button>
                           </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <div>
                             <Label className="text-xs text-white/40">Problem Solved</Label>
                             <Textarea
@@ -1154,7 +1181,7 @@ function AuditBuilderContent() {
                               ? formatAgentPricing(matched as AgentPricing)
                               : null
                           return (
-                            <div className="border-t border-white/5 pt-3 mt-3 flex items-center justify-between gap-3 flex-wrap">
+                            <div className="border-t border-white/5 pt-3 mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                               <div className="min-w-0 flex-1">
                                 <p className="text-white/40 text-[10px] uppercase tracking-wider mb-0.5">
                                   Deployable agent match
@@ -1581,9 +1608,9 @@ function AuditBuilderContent() {
 
       {/* Phase 4G.2 — Pricing Customization Modal */}
       {editingPricingIndex !== null && editedPricing && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#0A0E14] border border-white/10 rounded-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+          <div className="bg-[#0A0E14] border border-white/10 rounded-xl w-full max-w-sm sm:max-w-lg max-h-[90vh] overflow-y-auto my-4">
+            <div className="p-4 sm:p-6">
               <div className="flex items-center justify-between mb-5">
                 <h3 className="text-white font-bold text-lg">
                   Customize pricing
@@ -1797,8 +1824,8 @@ function AuditBuilderContent() {
 
       {/* Share Modal */}
       {showShareModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <Card className="bg-[#0A0E14] border-white/10 w-full max-w-lg">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 sm:p-6">
+          <Card className="bg-[#0A0E14] border-white/10 w-full max-w-sm sm:max-w-lg">
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
                 <CardTitle className="text-white">Share Audit Link</CardTitle>

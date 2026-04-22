@@ -12,7 +12,11 @@ export default function HomePage() {
             <img 
               src="/images/aether-revive-logo.png" 
               alt="Aether Revive" 
-              style={{ height: "144px", width: "auto", objectFit: "contain" }} 
+              // Logo was previously hard-coded to 144px which overflowed the
+              // 64px sticky nav on every device. Use a `clamp()` so the logo
+              // scales fluidly from ~40px on phones to 56px on desktop while
+              // still fitting inside the nav bar.
+              style={{ height: "clamp(40px, 6vw, 56px)", width: "auto", objectFit: "contain" }} 
             />
           </div>
           <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
@@ -59,7 +63,7 @@ export default function HomePage() {
 
       {/* SOCIAL PROOF BAR */}
       <section style={{ borderTop: "0.5px solid rgba(255,255,255,0.06)", borderBottom: "0.5px solid rgba(255,255,255,0.06)", padding: "24px" }}>
-        <div style={{ maxWidth: "900px", margin: "0 auto", display: "flex", justifyContent: "center", gap: "48px", flexWrap: "wrap" }}>
+        <div style={{ maxWidth: "900px", margin: "0 auto", display: "flex", justifyContent: "center", gap: "clamp(16px, 4vw, 48px)", flexWrap: "wrap" }}>
           {[
             { value: "14 days", label: "avg to first client" },
             { value: "$0", label: "to start" },

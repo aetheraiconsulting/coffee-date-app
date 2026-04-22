@@ -21,6 +21,7 @@ import {
   Search,
   Star,
   ChevronDown,
+  ChevronLeft,
   Flame,
   TrendingUp,
   Snowflake,
@@ -504,6 +505,10 @@ export default function OpportunitiesPage() {
   const [allNiches, setAllNiches] = useState<Niche[]>([])
   const [filteredNiches, setFilteredNiches] = useState<Niche[]>([])
   const [selectedNiche, setSelectedNiche] = useState<Niche | null>(null)
+  // Mobile list/details toggle. Below `lg` we show EITHER the list or the
+  // details panel — never both — because stacking them vertically on a 375px
+  // screen produces a page thousands of pixels tall and an unusable scroll.
+  const [mobileView, setMobileView] = useState<"list" | "details">("list")
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [industryFilter, setIndustryFilter] = useState<string>("all")
@@ -1089,6 +1094,11 @@ export default function OpportunitiesPage() {
     setWhyThisWorksContent(null)
     setLoadingWhyThisWorks(false)
     setAiSuggestions(null)
+    // On mobile, flip to the details view so the user sees what they tapped.
+    // Desktop is unaffected — both panels stay visible side-by-side.
+    if (typeof window !== "undefined" && window.innerWidth < 1024) {
+      setMobileView("details")
+    }
     // Reset expanded sections to false (auto-expand effect sets correct ones after nicheState loads)
     setExpandedSections({
       whyThisWorks: false,
@@ -1733,9 +1743,12 @@ export default function OpportunitiesPage() {
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
         ) : (
-          <div className="grid grid-cols-12 gap-6">
-            {/* Niche List - Left */}
-            <div className="col-span-5 space-y-4">
+          <div className="lg:grid lg:grid-cols-12 lg:gap-6">
+            {/* Niche List - Left (hidden on mobile when viewing details) */}
+            <div className={cn(
+              "lg:col-span-5 space-y-4",
+              mobileView === "details" ? "hidden lg:block" : "block",
+            )}>
               <div className="text-sm text-white/60">{filteredNiches.length} Niches</div>
               <div className="space-y-2 max-h-[calc(100vh-280px)] overflow-y-auto pr-2 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full">
                 {filteredNiches.map((niche) => {
@@ -1883,10 +1896,23 @@ export default function OpportunitiesPage() {
               </div>
             </div>
 
-            {/* Detail Panel - Right */}
-            <div className="col-span-7">
+            {/* Detail Panel - Right (hidden on mobile when viewing list) */}
+            <div className={cn(
+              "lg:col-span-7 mt-4 lg:mt-0",
+              mobileView === "list" ? "hidden lg:block" : "block",
+            )}>
+              {/* Back-to-list button for mobile only */}
+              {selectedNiche && (
+                <button
+                  onClick={() => setMobileView("list")}
+                  className="lg:hidden mb-3 inline-flex items-center gap-2 text-sm text-white/60 hover:text-white min-h-[44px]"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Back to niches
+                </button>
+              )}
               {selectedNiche ? (
-                <Card className="border border-white/10 bg-zinc-900/50 p-6 space-y-6 max-h-[calc(100vh-220px)] overflow-y-auto rounded-xl [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full">
+                <Card className="border border-white/10 bg-zinc-900/50 p-4 sm:p-6 space-y-6 lg:max-h-[calc(100vh-220px)] lg:overflow-y-auto rounded-xl [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full">
                   {/* Header */}
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
@@ -1924,8 +1950,12 @@ export default function OpportunitiesPage() {
                       )}
                     </div>
                     <button
-                      onClick={() => setSelectedNiche(null)}
-                      className="text-white/60 hover:text-white transition-colors"
+                      onClick={() => {
+                        setSelectedNiche(null)
+                        setMobileView("list")
+                      }}
+                      className="text-white/60 hover:text-white transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+                      aria-label="Close details"
                     >
                       <X className="h-5 w-5" />
                     </button>

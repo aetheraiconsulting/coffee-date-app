@@ -536,10 +536,11 @@ export default function ProposalBuilderPage() {
           All proposals
         </Link>
 
-        {/* Header */}
-        <div className="flex items-start justify-between mb-8">
-          <h1 className="text-2xl font-bold text-white">Your proposal</h1>
-          <div className="text-right">
+        {/* Header — stacks vertically on mobile so the title doesn't
+            compete for width with the confidence badge + reason text. */}
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-6 sm:mb-8">
+          <h1 className="text-xl sm:text-2xl font-bold text-white">Your proposal</h1>
+          <div className="sm:text-right">
             <div
               className={cn(
                 "inline-block px-3 py-1.5 rounded-lg border text-sm font-medium",
@@ -548,7 +549,7 @@ export default function ProposalBuilderPage() {
             >
               {confidenceDisplay.label}
             </div>
-            <p className="text-xs text-white/40 mt-2 max-w-[200px]">
+            <p className="text-xs text-white/40 mt-2 sm:max-w-[200px]">
               {proposal.confidence_reason}
             </p>
           </div>
