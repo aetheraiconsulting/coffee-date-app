@@ -45,6 +45,7 @@ export async function checkAccess(allowInGrace = true): Promise<AccessCheckResul
 
   if (
     profile.subscription_status === "active" ||
+    profile.subscription_status === "admin" ||
     profile.subscription_status === "student" ||
     profile.promo_code_used
   ) {

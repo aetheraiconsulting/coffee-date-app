@@ -28,6 +28,9 @@ const ADMIN_EMAILS = [
   "adam@aetherai.consulting",
   "adam.stacey@yahoomail.co.uk",
   "adam@americanbrit.com",
+  "hello@aetheraiconsulting.org",
+  "anjal@aetheraiconsulting.org",
+  "adam@aetheraiconsulting.org",
 ]
 
 interface ClaudePricing {

@@ -125,6 +125,7 @@ export function SupportRequestModal({ open, onClose, initialContext }: Props) {
     const eligible =
       !!profile &&
       (profile.subscription_status === "active" ||
+        profile.subscription_status === "admin" ||
         profile.subscription_status === "trialing" ||
         profile.subscription_status === "student" ||
         (typeof profile.promo_code_used === "string" &&

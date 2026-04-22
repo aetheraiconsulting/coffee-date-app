@@ -238,7 +238,7 @@ export async function getUserState(): Promise<UserState | null> {
   let accessLevel: AccessLevel = "full"
   let gracePeriodEndsAt: string | null = null
 
-  if (status === "active" || status === "student" || profile?.promo_code_used) {
+  if (status === "active" || status === "admin" || status === "student" || profile?.promo_code_used) {
     accessLevel = "full"
   } else if (status === "trial") {
     if (trialEndsAtDate && now > trialEndsAtDate) {
