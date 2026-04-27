@@ -63,7 +63,7 @@ export default function HomePage() {
           {[
             { value: "14 days", label: "avg to first client" },
             { value: "$0", label: "to start" },
-            { value: "1,300+", label: "niches to target" },
+            { value: "1,000+", label: "niches to target" },
             { value: "24–72hrs", label: "first replies" },
           ].map(stat => (
             <div key={stat.label} style={{ textAlign: "center" }}>
@@ -90,7 +90,7 @@ export default function HomePage() {
 
         <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
           {[
-            { num: "01", title: "Pick your niche", desc: "Browse 1,300+ business types. The system shows you which ones have the highest revenue potential for AI services." },
+            { num: "01", title: "Pick your niche", desc: "Browse 1,000+ business types. The system shows you which ones have the highest revenue potential for AI services." },
             { num: "02", title: "Your offer is written for you", desc: "Claude builds a niche-specific AI service offer in under 60 seconds. Pricing model, guarantee, and outcome statement included." },
             { num: "03", title: "Send 20 messages — already written", desc: "LinkedIn, Instagram, and email outreach written using proven sales frameworks. Every message invites prospects to a demo — not a sales call." },
             { num: "04", title: "Run the demo live on a call", desc: "Show prospects their own business being handled by AI in real time. Present mode hides the product — they only see the demo." },
