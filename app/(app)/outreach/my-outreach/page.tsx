@@ -35,6 +35,12 @@ type GroupedOutreach = {
 export default function MyOutreachPage() {
   const [loading, setLoading] = useState(true)
   const [groupedOutreach, setGroupedOutreach] = useState<GroupedOutreach>({})
+  // Archived view toggle — archived = true shows the older-than-90-days
+  // messages that the weekly archive cron has set aside, false shows the
+  // active queue. We also surface the archived count so users can see
+  // there's history available even when they aren't viewing it.
+  const [showArchived, setShowArchived] = useState(false)
+  const [archivedCount, setArchivedCount] = useState(0)
   const supabase = createClient()
 
   useEffect(() => {
@@ -45,11 +51,20 @@ export default function MyOutreachPage() {
         return
       }
 
-      const { data: messages } = await supabase
-        .from("outreach_messages")
-        .select("*, offers(niche, service_name)")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
+      const [{ data: messages }, { count: archived }] = await Promise.all([
+        supabase
+          .from("outreach_messages")
+          .select("*, offers(niche, service_name)")
+          .eq("user_id", user.id)
+          .eq("archived", showArchived)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("outreach_messages")
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", user.id)
+          .eq("archived", true),
+      ])
+      setArchivedCount(archived ?? 0)
 
       if (!messages) {
         setLoading(false)
@@ -92,8 +107,9 @@ export default function MyOutreachPage() {
       setLoading(false)
     }
 
+    setLoading(true)
     fetchOutreach()
-  }, [supabase])
+  }, [supabase, showArchived])
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString("en-US", {
@@ -122,6 +138,32 @@ export default function MyOutreachPage() {
               Generate new messages
             </Link>
           </Button>
+        </div>
+
+        {/* Archive toggle — surfaces archived count even when hidden so users
+            know their history is preserved. */}
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-white/40 text-sm">
+              {showArchived
+                ? "Showing archived messages (older than 90 days)"
+                : "Showing active messages"}
+            </p>
+            {!showArchived && archivedCount > 0 && (
+              <p className="text-white/30 text-xs mt-1">
+                {archivedCount} archived {archivedCount === 1 ? "message" : "messages"} available
+              </p>
+            )}
+          </div>
+          {(showArchived || archivedCount > 0) && (
+            <button
+              type="button"
+              onClick={() => setShowArchived(!showArchived)}
+              className="text-[#00AAFF] text-xs hover:underline"
+            >
+              {showArchived ? "Hide archived" : "Show archived"}
+            </button>
+          )}
         </div>
 
         {/* Loading */}

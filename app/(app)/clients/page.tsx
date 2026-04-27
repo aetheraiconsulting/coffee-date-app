@@ -25,9 +25,23 @@ type ClientRow = {
 
 type FilterKey = "all" | "won" | "onboarded"
 
+// Multi-client GHL aggregate — populated from revival_conversations and
+// revival_campaigns across all of the user's GHL connections. Lets the user
+// see weekly activity at a glance when they manage multiple clients.
+type GhlAggregateStats = {
+  totalConnections: number
+  totalConversations: number
+  totalReplies: number
+  totalHotLeads: number
+  averageResponseRate: number
+}
+
+const HOT_LEAD_KEYWORDS = ["book", "appointment", "schedule", "call", "interested", "yes"]
+
 export default function ClientsPage() {
   const supabase = createClient()
   const [clients, setClients] = useState<ClientRow[]>([])
+  const [ghlAggregateStats, setGhlAggregateStats] = useState<GhlAggregateStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
   const [filter, setFilter] = useState<FilterKey>("all")
@@ -112,6 +126,56 @@ export default function ClientsPage() {
     })
 
     setClients(Array.from(clientMap.values()))
+
+    // Aggregate GHL stats across all connections, last 7 days. Skipped
+    // entirely when the user has no connections so we don't waste queries.
+    const connectionIds = ghlConnections?.map((c) => c.id) ?? []
+    if (connectionIds.length > 0) {
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+      const [{ data: conversations }, { data: campaigns }] = await Promise.all([
+        supabase
+          .from("revival_conversations")
+          .select("id, status, messages, last_message_at")
+          .in("ghl_connection_id", connectionIds)
+          .gte("last_message_at", sevenDaysAgo),
+        supabase
+          .from("revival_campaigns")
+          .select("metrics")
+          .in("ghl_connection_id", connectionIds),
+      ])
+
+      // Hot lead = last inbound message in the conversation contains a
+      // booking-intent keyword. We inspect the last entry of the `messages`
+      // JSON array since `last_message_body` does not exist on the table.
+      const hotLeads = (conversations ?? []).filter((c) => {
+        const msgs = Array.isArray(c.messages) ? (c.messages as any[]) : []
+        const last = msgs.length > 0 ? msgs[msgs.length - 1] : null
+        const body: string = (last?.body || last?.text || last?.message || "").toLowerCase()
+        return HOT_LEAD_KEYWORDS.some((kw) => body.includes(kw))
+      }).length
+
+      const totalReplies = (conversations ?? []).filter((c) => c.status === "open").length
+
+      // `metrics.response_rate` is written by the sync route as an integer
+      // percentage (0-100). We average across campaigns; missing values
+      // are treated as 0 to keep the math honest.
+      const rates = (campaigns ?? [])
+        .map((c) => Number((c.metrics as any)?.response_rate ?? 0))
+        .filter((n) => Number.isFinite(n))
+      const averageResponseRate =
+        rates.length > 0 ? rates.reduce((sum, r) => sum + r, 0) / rates.length : 0
+
+      setGhlAggregateStats({
+        totalConnections: connectionIds.length,
+        totalConversations: conversations?.length ?? 0,
+        totalReplies,
+        totalHotLeads: hotLeads,
+        averageResponseRate,
+      })
+    } else {
+      setGhlAggregateStats(null)
+    }
+
     setLoading(false)
   }
 
@@ -148,6 +212,43 @@ export default function ClientsPage() {
             </p>
           </div>
         </div>
+
+        {/* Multi-client GHL aggregate — surfaces weekly activity across
+            every connected GHL location so users with multiple clients get
+            a single bird's-eye view above their per-client list. */}
+        {ghlAggregateStats && ghlAggregateStats.totalConnections > 0 && (
+          <div className="border border-[#00AAFF]/20 bg-[#00AAFF]/[0.05] rounded-xl p-5 mb-6">
+            <p className="text-[#00AAFF] text-xs font-semibold uppercase tracking-wider mb-3">
+              This week across all clients
+            </p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div>
+                <p className="text-white font-bold text-2xl">
+                  {ghlAggregateStats.totalConversations}
+                </p>
+                <p className="text-white/40 text-xs mt-1">Conversations</p>
+              </div>
+              <div>
+                <p className="text-white font-bold text-2xl">{ghlAggregateStats.totalReplies}</p>
+                <p className="text-white/40 text-xs mt-1">Replies received</p>
+              </div>
+              <div>
+                <p className="text-white font-bold text-2xl">{ghlAggregateStats.totalHotLeads}</p>
+                <p className="text-white/40 text-xs mt-1">Hot leads</p>
+              </div>
+              <div>
+                <p className="text-white font-bold text-2xl">
+                  {Math.round(ghlAggregateStats.averageResponseRate)}%
+                </p>
+                <p className="text-white/40 text-xs mt-1">Avg response rate</p>
+              </div>
+            </div>
+            <p className="text-white/30 text-xs mt-4">
+              Across {ghlAggregateStats.totalConnections} connected{" "}
+              {ghlAggregateStats.totalConnections === 1 ? "client" : "clients"}
+            </p>
+          </div>
+        )}
 
         {/* Stats */}
         <div className="grid grid-cols-3 gap-3 mb-6">

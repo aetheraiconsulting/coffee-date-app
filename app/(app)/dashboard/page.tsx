@@ -31,13 +31,59 @@ export default async function DashboardPage() {
   } = await supabase.auth.getUser()
 
   let hasCompletedOnboarding = true
+  let lastActivityAt: string | null = null
   if (user) {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("has_completed_onboarding")
+      .select("has_completed_onboarding, last_activity_at")
       .eq("id", user.id)
       .single()
     hasCompletedOnboarding = profile?.has_completed_onboarding ?? false
+    lastActivityAt = profile?.last_activity_at ?? null
+  }
+
+  // Welcome-back card — show when user has been away 7+ days. We fetch the
+  // pipeline counts in parallel only when the user actually qualifies, so the
+  // common-case dashboard render stays fast for active users.
+  const daysSinceActivity = lastActivityAt
+    ? Math.floor((Date.now() - new Date(lastActivityAt).getTime()) / (1000 * 60 * 60 * 24))
+    : 0
+  const showWelcomeBack = daysSinceActivity >= 7
+
+  let welcomeBackContext: {
+    daysAway: number
+    unreadReplies: number
+    pendingProposals: number
+    pendingAudits: number
+  } | null = null
+
+  if (showWelcomeBack && user) {
+    const [unreadRepliesRes, pendingProposalsRes, pendingAuditsRes] = await Promise.all([
+      supabase
+        .from("reply_threads")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("response_sent", false),
+      supabase
+        .from("proposals")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("sent", true)
+        .eq("deal_status", "pending"),
+      supabase
+        .from("audits")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .not("prospect_submitted_at", "is", null)
+        .neq("status", "completed"),
+    ])
+
+    welcomeBackContext = {
+      daysAway: daysSinceActivity,
+      unreadReplies: unreadRepliesRes.count ?? 0,
+      pendingProposals: pendingProposalsRes.count ?? 0,
+      pendingAudits: pendingAuditsRes.count ?? 0,
+    }
   }
 
   // Destructure state for easier access
@@ -196,6 +242,82 @@ export default async function DashboardPage() {
             >
               Start your sprint →
             </Link>
+          </div>
+        )}
+
+        {/* ============================================
+            WELCOME BACK CARD — only when away 7+ days
+        ============================================ */}
+        {welcomeBackContext && (
+          <div className="border border-[#00AAFF]/30 bg-gradient-to-r from-[#00AAFF]/[0.08] to-transparent rounded-xl p-5">
+            <p className="text-[#00AAFF] text-xs font-semibold uppercase tracking-wider mb-2">
+              Welcome back
+            </p>
+            <p className="text-white text-xl font-bold mb-2 text-balance">
+              {welcomeBackContext.daysAway === 7 && "It has been a week."}
+              {welcomeBackContext.daysAway > 7 &&
+                welcomeBackContext.daysAway <= 14 &&
+                `It has been ${welcomeBackContext.daysAway} days.`}
+              {welcomeBackContext.daysAway > 14 &&
+                welcomeBackContext.daysAway <= 30 &&
+                "It has been over two weeks."}
+              {welcomeBackContext.daysAway > 30 && "It has been over a month."}
+            </p>
+
+            {welcomeBackContext.unreadReplies +
+              welcomeBackContext.pendingProposals +
+              welcomeBackContext.pendingAudits >
+            0 ? (
+              <>
+                <p className="text-white/60 text-sm mb-4">Here is what was waiting for you:</p>
+                <div className="space-y-2 mb-4">
+                  {welcomeBackContext.unreadReplies > 0 && (
+                    <Link
+                      href="/replies"
+                      className="flex items-center justify-between border border-white/[0.08] rounded-lg px-4 py-3 hover:border-[#00AAFF]/30 transition-colors"
+                    >
+                      <span className="text-white/80 text-sm">
+                        <strong className="text-white">{welcomeBackContext.unreadReplies}</strong> unread{" "}
+                        {welcomeBackContext.unreadReplies === 1 ? "reply" : "replies"}
+                      </span>
+                      <span className="text-[#00AAFF] text-xs">Respond →</span>
+                    </Link>
+                  )}
+                  {welcomeBackContext.pendingAudits > 0 && (
+                    <Link
+                      href="/audit"
+                      className="flex items-center justify-between border border-white/[0.08] rounded-lg px-4 py-3 hover:border-[#00AAFF]/30 transition-colors"
+                    >
+                      <span className="text-white/80 text-sm">
+                        <strong className="text-white">{welcomeBackContext.pendingAudits}</strong>{" "}
+                        {welcomeBackContext.pendingAudits === 1 ? "prospect" : "prospects"} completed your audit
+                      </span>
+                      <span className="text-[#00AAFF] text-xs">Review →</span>
+                    </Link>
+                  )}
+                  {welcomeBackContext.pendingProposals > 0 && (
+                    <Link
+                      href="/proposal"
+                      className="flex items-center justify-between border border-white/[0.08] rounded-lg px-4 py-3 hover:border-[#00AAFF]/30 transition-colors"
+                    >
+                      <span className="text-white/80 text-sm">
+                        <strong className="text-white">{welcomeBackContext.pendingProposals}</strong>{" "}
+                        {welcomeBackContext.pendingProposals === 1 ? "proposal" : "proposals"} awaiting outcome
+                      </span>
+                      <span className="text-[#00AAFF] text-xs">Mark outcome →</span>
+                    </Link>
+                  )}
+                </div>
+              </>
+            ) : (
+              <p className="text-white/60 text-sm mb-4">
+                Your pipeline is clean. Pick up where you left off or start fresh.
+              </p>
+            )}
+
+            <p className="text-white/40 text-xs text-pretty">
+              Start with the highest priority item above, then use Mission Control to guide the rest of your day.
+            </p>
           </div>
         )}
 
