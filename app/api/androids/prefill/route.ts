@@ -75,7 +75,8 @@ Search for this business, visit their website, and return this exact JSON:
   "industry_training": "the industry for AI training e.g. Roofing, Legal Services",
   "opening_hours": "their opening hours if found, otherwise empty string",
   "promise_line": "a short trust-building phrase capturing their brand promise",
-  "additional_context": "relevant context about typical customers, common questions, or business specifics"
+  "additional_context": "relevant context about typical customers, common questions, or business specifics",
+  "niche_slug": "lowercase hyphenated string, maximum 3 words, describing the business category — e.g. cash-home-buying, motorcycle-dealership, roofing-contractor, family-law-firm"
 }`
 
   const response = await fetch("https://api.anthropic.com/v1/messages", {

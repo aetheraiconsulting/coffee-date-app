@@ -42,13 +42,22 @@ function TypingIndicator() {
   )
 }
 
-function extractFirstMessage(prompt: string, androidName: string, companyName: string, niche: string): string {
+function extractFirstMessage(
+  prompt: string,
+  androidName: string,
+  companyName: string,
+  prospectName: string,
+  openingServicePhrase: string,
+): string {
   const firstMessageMatch = prompt.match(/FIRST MESSAGE SENT:\s*\n(.*?)(?=\n\n|$)/s)
   if (firstMessageMatch && firstMessageMatch[1]) {
     return firstMessageMatch[1].trim()
   }
 
-  return `It's ${androidName} from ${companyName} here. Is this the same person that got a ${niche} quote from us in the last couple of months?`
+  // Fallback only fires for legacy Androids built before the FIRST MESSAGE
+  // SENT block was added to the template. We still want a personalised
+  // opener that uses the prospect's name and the explicit service phrase.
+  return `It's ${androidName} from ${companyName} here. Is this the same ${prospectName} that reached out about ${openingServicePhrase} in the last couple of months?`
 }
 
 const aiBubble = {
@@ -100,9 +109,21 @@ export default function DemoChat({ android, userId, autoPresent = false }: DemoC
   const [linkedProspectId, setLinkedProspectId] = useState<string | null>(null)
 
   const companyName = android.business_context?.company_name || android.business_context?.businessName || "My Business"
-  const niche = android.business_context?.niche || android.business_context?.industry || "services"
+  // Read the prospect name and opening service phrase off business_context so
+  // the FIRST MESSAGE SENT fallback (legacy Androids only) renders a fully
+  // personalised opener instead of the old "the same person" placeholder.
+  const prospectName = android.business_context?.prospect_name || "person"
+  const openingServicePhrase =
+    android.business_context?.opening_service_phrase ||
+    (android.business_context?.niche ? `getting a ${android.business_context.niche} quote` : "the service we discussed")
 
-  const firstAIMessage = extractFirstMessage(android.prompt || "", android.name, companyName, niche)
+  const firstAIMessage = extractFirstMessage(
+    android.prompt || "",
+    android.name,
+    companyName,
+    prospectName,
+    openingServicePhrase,
+  )
 
   const { messages, sendMessage, status, error } = useChat({
     transport: new DefaultChatTransport({
