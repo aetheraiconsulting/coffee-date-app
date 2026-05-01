@@ -68,15 +68,11 @@ Website: ${website_url}${auditContext}
 
 Search for this business, visit their website, and return this exact JSON:
 {
-  "service_description": "2 sentence description of what the business does",
-  "value_proposition": "what makes them different or better than competitors",
-  "niche_question": "a natural conversation opener a returning customer would recognize",
-  "region_tone": "communication style and region e.g. US casual, US professional",
-  "industry_training": "the industry for AI training e.g. Roofing, Legal Services",
-  "opening_hours": "their opening hours if found, otherwise empty string",
-  "promise_line": "a short trust-building phrase capturing their brand promise",
-  "additional_context": "relevant context about typical customers, common questions, or business specifics",
-  "niche_slug": "lowercase hyphenated string, maximum 3 words, describing the business category — e.g. cash-home-buying, motorcycle-dealership, roofing-contractor, family-law-firm"
+  "company_summary": "8 to 10 sentences in the third person covering what the business does, who it serves, what problems it solves, key services offered, and any notable differentiators. Source the content directly from the website. No generic filler — be specific.",
+  "qualifying_question": "ONE single natural conversational question an admin person would ask to qualify this prospect. Should feel like an SMS, not a survey. Should be specific to the service. Examples: for solar — \"Are you still at the same property you were looking to get panels installed on?\"; for roofing — \"How old is the roof we'd be looking at?\"; for AI consulting — \"Are you still looking at ways to automate your lead follow-up?\"",
+  "region_tone": "short descriptor of region and tone inferred from the website. e.g. \"US casual, Texas tone\" or \"UK professional\"",
+  "industry_training": "human readable industry label. e.g. \"Roofing\" or \"Solar Panels\" or \"Business Consulting\"",
+  "niche_slug": "lowercase hyphenated string, maximum 3 words. e.g. cash-home-buying, roofing-contractor, ai-consulting"
 }`
 
   const response = await fetch("https://api.anthropic.com/v1/messages", {
