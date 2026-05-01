@@ -6,7 +6,7 @@ import { useChat } from "@ai-sdk/react"
 import { DefaultChatTransport } from "ai"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Send, RefreshCw, ArrowLeft, Link2 } from "lucide-react"
+import { Send, RefreshCw, ArrowLeft, Link2, RotateCcw } from "lucide-react"
 import { useRouter } from "next/navigation"
 import type { Android } from "@/lib/types"
 import { DemoLinkProspectModal } from "@/components/demo-link-prospect-modal"
@@ -107,6 +107,9 @@ export default function DemoChat({ android, userId, autoPresent = false }: DemoC
   // from the header's "Link prospect" button.
   const [linkModalOpen, setLinkModalOpen] = useState(false)
   const [linkedProspectId, setLinkedProspectId] = useState<string | null>(null)
+  // Reset-demo confirmation dialog. Gating the reset behind a confirm step
+  // prevents accidental clicks during a live demo from wiping the chat.
+  const [resetDialogOpen, setResetDialogOpen] = useState(false)
 
   const companyName = android.business_context?.company_name || android.business_context?.businessName || "My Business"
   // Read the prospect name and opening service phrase off business_context so
@@ -125,7 +128,7 @@ export default function DemoChat({ android, userId, autoPresent = false }: DemoC
     openingServicePhrase,
   )
 
-  const { messages, sendMessage, status, error } = useChat({
+  const { messages, sendMessage, setMessages, status, error } = useChat({
     transport: new DefaultChatTransport({
       api: `/api/chat?androidId=${android.id}`,
     }),
@@ -262,6 +265,16 @@ export default function DemoChat({ android, userId, autoPresent = false }: DemoC
 
   const handleNewChat = () => {
     window.location.reload()
+  }
+
+  // Reset just the conversation in place — no API call, no navigation, no
+  // page reload. Clears the useChat message buffer; the opening AI bubble
+  // continues to render via showFirstMessage + firstAIMessage so the chat
+  // looks identical to the post-boot state.
+  const handleResetConfirm = () => {
+    setMessages([])
+    setInput("")
+    setResetDialogOpen(false)
   }
 
   const handleBack = () => {
@@ -566,6 +579,15 @@ export default function DemoChat({ android, userId, autoPresent = false }: DemoC
                 </div>
                 <div className="flex items-center gap-2">
                   <button
+                    onClick={() => setResetDialogOpen(true)}
+                    title="Reset demo"
+                    aria-label="Reset demo"
+                    className="flex items-center justify-center h-8 w-8 rounded-lg border border-white/10 hover:border-white/20 transition-colors"
+                    style={{ color: isDarkMode ? "rgba(255,255,255,0.5)" : "rgba(0,0,0,0.5)" }}
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" />
+                  </button>
+                  <button
                     onClick={() => setLinkModalOpen(true)}
                     className="flex items-center gap-2 px-3 py-1.5 text-sm border border-white/10 hover:border-white/20 rounded-lg transition-colors"
                     style={{
@@ -735,6 +757,89 @@ export default function DemoChat({ android, userId, autoPresent = false }: DemoC
         androidId={android.id}
         onLinked={(id) => setLinkedProspectId(id)}
       />
+
+      {/* Reset-demo confirmation. Inline overlay (no shadcn AlertDialog in
+          this project) so it stays self-contained and matches the rest of
+          the demo screen's overlay pattern. Confirming clears the useChat
+          message buffer; the opening message remains because it's rendered
+          from extractFirstMessage(), not stored in `messages`. */}
+      {resetDialogOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="reset-dialog-title"
+          onClick={() => setResetDialogOpen(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 100001,
+            background: "rgba(0,0,0,0.6)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "16px",
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: "#0F1318",
+              border: "1px solid rgba(255,255,255,0.1)",
+              borderRadius: "12px",
+              padding: "20px 22px",
+              maxWidth: "360px",
+              width: "100%",
+              boxShadow: "0 20px 50px rgba(0,0,0,0.5)",
+            }}
+          >
+            <h2
+              id="reset-dialog-title"
+              style={{
+                color: "#FFFFFF",
+                fontSize: "16px",
+                fontWeight: 600,
+                margin: 0,
+                marginBottom: "16px",
+              }}
+            >
+              Reset the conversation?
+            </h2>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px" }}>
+              <button
+                onClick={() => setResetDialogOpen(false)}
+                className="hover:border-white/30 transition-colors"
+                style={{
+                  padding: "8px 14px",
+                  fontSize: "13px",
+                  background: "transparent",
+                  border: "1px solid rgba(255,255,255,0.15)",
+                  borderRadius: "8px",
+                  color: "rgba(255,255,255,0.7)",
+                  cursor: "pointer",
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleResetConfirm}
+                className="hover:bg-aether/90 transition-colors"
+                style={{
+                  padding: "8px 14px",
+                  fontSize: "13px",
+                  background: "#089FEF",
+                  border: "1px solid #089FEF",
+                  borderRadius: "8px",
+                  color: "#FFFFFF",
+                  cursor: "pointer",
+                  fontWeight: 500,
+                }}
+              >
+                Reset
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
