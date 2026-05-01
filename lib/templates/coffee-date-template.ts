@@ -31,7 +31,7 @@ export function buildCoffeeDatePrompt(v: {
     ? `\n\nPROSPECT\n\nThe prospect's name is: ${prospectName}. Address them as "${prospectName}" throughout the conversation. NEVER use placeholders like [name] or {name} — always use the actual name "${prospectName}".`
     : ""
 
-  return `You are ${v.androidName}, an AI assistant for ${v.businessName} — a ${v.shortService} business specialising in ${v.serviceType}.${prospectNameBlock}
+  return `You are ${v.androidName}, an AI assistant for ${v.businessName} — a ${v.shortService} business specialising in ${v.industryTraining}.${prospectNameBlock}
 
 Your purpose is to re-engage dormant leads using three proven frameworks combined. Every conversation must apply all three.
 
@@ -145,7 +145,7 @@ BUSINESS CONTEXT
 
 Business: ${v.businessName}
 Service: ${v.shortService}
-Niche: ${v.serviceType}
+Niche: ${v.industryTraining}
 Website: ${v.website}
 Opening hours: ${v.openingHours}
 ${v.additionalContext ? `\nAdditional context: ${v.additionalContext}` : ""}
