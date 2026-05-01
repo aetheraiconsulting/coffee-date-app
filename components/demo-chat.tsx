@@ -117,6 +117,21 @@ export default function DemoChat({ android, userId, autoPresent = false }: DemoC
     android.business_context?.opening_service_phrase ||
     (android.business_context?.niche ? `getting a ${android.business_context.niche} quote` : "the service we discussed")
 
+  // Dan Wardrobe Method word-for-word responses. Stored on the Android at
+  // build time and baked into the system prompt — surfaced here for parity
+  // with the template fallbacks and any future UI/observability use. Not
+  // consumed by extractFirstMessage(): the opener never references these.
+  const positiveResponse =
+    android.business_context?.positive_response ||
+    `Great to hear from you — are you still looking at ${openingServicePhrase}?`
+  const negativeResponse =
+    android.business_context?.negative_response ||
+    `Sorry about that — did someone from your side reach out to ${companyName} recently about ${openingServicePhrase}?`
+  // Reference both so the bundler doesn't drop the reads (and to make the
+  // intent of populating them explicit to future maintainers).
+  void positiveResponse
+  void negativeResponse
+
   const firstAIMessage = extractFirstMessage(
     android.prompt || "",
     android.name,

@@ -22,6 +22,11 @@ interface PromptFormData {
   // the opening message — replaces the role of the old niche dropdown for
   // the opener line. e.g. "getting a motorcycle quote".
   openingServicePhrase?: string
+  // Dan Wardrobe Method — exact word-for-word follow-up messages the user
+  // wants the Android to send when the prospect either confirms or pushes
+  // back on the opener.
+  positiveResponse?: string
+  negativeResponse?: string
   aiPrefilled?: boolean
   // Agent Library / Audit attribution
   agentId?: string | null
@@ -98,6 +103,10 @@ export async function generatePrompt(formData: PromptFormData, userId: string) {
           // off android.business_context.opening_service_phrase to render
           // the FIRST MESSAGE SENT fallback when the regex doesn't match.
           opening_service_phrase: formData.openingServicePhrase || null,
+          // Dan Wardrobe Method word-for-word responses. Stored snake-cased
+          // for downstream readers (demo-chat, audits, observability).
+          positive_response: formData.positiveResponse || null,
+          negative_response: formData.negativeResponse || null,
           // Denormalised agent/audit pointers for cheaper UI reads.
           built_from_agent: formData.agentSlug || null,
           built_from_audit: formData.auditId || null,

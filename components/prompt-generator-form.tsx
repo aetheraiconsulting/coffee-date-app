@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Loader2, Sparkles, Copy, Check, ArrowLeft, Bot } from "lucide-react"
@@ -50,6 +51,11 @@ export default function PromptGeneratorForm({ userId }: PromptGeneratorFormProps
   const [androidName, setAndroidName] = useState("")
   const [prospectName, setProspectName] = useState("")
   const [openingServicePhrase, setOpeningServicePhrase] = useState("")
+  // Dan Wardrobe Method — word-for-word follow-up messages the operator wants
+  // sent when the prospect responds positively or negatively to the opener.
+  // Both are required Phase 1 inputs and are baked into the system prompt.
+  const [positiveResponse, setPositiveResponse] = useState("")
+  const [negativeResponse, setNegativeResponse] = useState("")
   const [calendarLink, setCalendarLink] = useState("")
 
   // Phase 2 inputs (AI pre-filled, editable)
@@ -160,6 +166,8 @@ export default function PromptGeneratorForm({ userId }: PromptGeneratorFormProps
         promiseLine,
         additionalContext,
         openingServicePhrase,
+        positiveResponse,
+        negativeResponse,
         aiPrefilled: true,
         // Agent Library / Audit attribution — these are saved on the Android
         // row so we can trace which agent template and audit this was built
@@ -208,13 +216,16 @@ export default function PromptGeneratorForm({ userId }: PromptGeneratorFormProps
     setNicheSlug("")
   }
 
-  // Phase 1 validation now requires the new Opening Service Phrase field.
+  // Phase 1 validation now requires the new Opening Service Phrase field
+  // plus the two Dan Wardrobe Method response messages (positive / negative).
   const isPhase1Valid =
     businessName.trim() &&
     websiteUrl.trim() &&
     androidName.trim() &&
     prospectName.trim() &&
     openingServicePhrase.trim() &&
+    positiveResponse.trim() &&
+    negativeResponse.trim() &&
     calendarLink.trim()
 
   if (generatedPrompt) {
@@ -366,6 +377,40 @@ export default function PromptGeneratorForm({ userId }: PromptGeneratorFormProps
               />
               <p className="text-xs text-white/40">
                 How the AI will describe your service in the opening message
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="positiveResponse" className="text-white">
+                Positive Response Message <span className="text-red-400">*</span>
+              </Label>
+              <Textarea
+                id="positiveResponse"
+                placeholder="The exact message you want sent when the prospect confirms it's them"
+                value={positiveResponse}
+                onChange={(e) => setPositiveResponse(e.target.value)}
+                rows={3}
+                className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
+              />
+              <p className="text-xs text-white/40">
+                Write this in your own voice — it will be sent word for word
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="negativeResponse" className="text-white">
+                Negative Response Message <span className="text-red-400">*</span>
+              </Label>
+              <Textarea
+                id="negativeResponse"
+                placeholder="The exact message you want sent when the prospect says wrong number or not interested"
+                value={negativeResponse}
+                onChange={(e) => setNegativeResponse(e.target.value)}
+                rows={3}
+                className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
+              />
+              <p className="text-xs text-white/40">
+                Write this in your own voice — it will be sent word for word
               </p>
             </div>
 
