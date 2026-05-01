@@ -21,7 +21,7 @@ export function buildCoffeeDatePrompt(v: {
   // Fallback when an old Android (built before the Opening Service Phrase
   // field existed) is loaded. We use serviceType so the message still reads
   // naturally rather than emitting a placeholder.
-  const openingServicePhrase = (v.openingServicePhrase || `getting a ${v.serviceType} quote`).trim()
+  const openingServicePhrase = (v.openingServicePhrase || `getting a ${v.industryTraining} quote`).trim()
   // Prospect name fallback for the FIRST MESSAGE SENT block. We never want
   // the literal string "undefined" or a placeholder in the demo opener.
   const prospectNameForOpener = (v.prospectName || "you").trim()
