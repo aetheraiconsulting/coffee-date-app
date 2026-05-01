@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Loader2, Sparkles, Copy, Check, ArrowLeft, Bot } from "lucide-react"
+import { Loader2, Sparkles, Copy, Check, ArrowLeft } from "lucide-react"
 import { generatePrompt } from "@/app/actions/generate-prompt"
 import { createClient } from "@/lib/supabase/client"
 
@@ -15,14 +15,24 @@ interface PromptGeneratorFormProps {
   userId: string
 }
 
+// Default response messages — used to pre-populate the textareas in Phase 1
+// so the operator only has to edit if they want a different voice. The
+// negative default is a function of openingServicePhrase: when the operator
+// types into Opening Service Phrase, the negative response default updates
+// dynamically (until the operator manually edits it themselves).
+const POSITIVE_DEFAULT =
+  "Thank goodness, my calendar just pinged me to call, but I didn't want to disturb you — are you still looking for help?"
+const buildNegativeDefault = (phrase: string) =>
+  `Sorry about that — just to confirm, are you still interested in ${phrase || "[openingServicePhrase]"}?`
+
 export default function PromptGeneratorForm({ userId }: PromptGeneratorFormProps) {
   const router = useRouter()
   const supabase = createClient()
   const searchParams = useSearchParams()
 
-  // Agent Library context — when the user clicks "Build this agent" in
-  // /agents, or "Build for client" on a matched audit recommendation, we
-  // receive these params and feed the agent template into the prefill API.
+  // Agent / audit URL params still flow through to the prefill API so Claude
+  // can seed from a template, but the visible banner has been removed per
+  // the simplification brief. The fields silently feed the research call.
   const agentSlug = searchParams.get("agent_slug")
   const agentNameParam = searchParams.get("agent_name")
   const prefilledClientName = searchParams.get("client_name")
@@ -35,46 +45,48 @@ export default function PromptGeneratorForm({ userId }: PromptGeneratorFormProps
   const [generatedAndroidId, setGeneratedAndroidId] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
 
-  // Phase state
+  // Phase state.
   const [phase, setPhase] = useState<1 | 2>(1)
   const [prefillLoading, setPrefillLoading] = useState(false)
   const [prefillError, setPrefillError] = useState<string | null>(null)
 
-  // Phase 1 inputs (human required). `prospectName` is the actual name the
-  // Android will use when talking to the prospect — we bake this into the
-  // generated prompt so there are no runtime placeholders like [Name].
-  // `openingServicePhrase` is the user-supplied phrase the AI uses to
-  // describe the original service interaction in the opening message
-  // (e.g. "getting a motorcycle quote", "selling your property for cash").
+  // Phase 1 — operator-supplied fields. Required unless marked optional.
   const [businessName, setBusinessName] = useState("")
   const [websiteUrl, setWebsiteUrl] = useState("")
   const [androidName, setAndroidName] = useState("")
   const [prospectName, setProspectName] = useState("")
   const [openingServicePhrase, setOpeningServicePhrase] = useState("")
-  // Dan Wardrobe Method — word-for-word follow-up messages the operator wants
-  // sent when the prospect responds positively or negatively to the opener.
-  // Both are required Phase 1 inputs and are baked into the system prompt.
-  const [positiveResponse, setPositiveResponse] = useState("")
-  const [negativeResponse, setNegativeResponse] = useState("")
+  const [positiveResponse, setPositiveResponse] = useState(POSITIVE_DEFAULT)
+  const [negativeResponse, setNegativeResponse] = useState(buildNegativeDefault(""))
+  // Tracks whether the operator has manually edited the negative response.
+  // Once true, the dynamic update on openingServicePhrase change stops so we
+  // don't silently overwrite the operator's wording.
+  const [negativeUserEdited, setNegativeUserEdited] = useState(false)
   const [calendarLink, setCalendarLink] = useState("")
+  const [faq, setFaq] = useState("")
 
-  // Phase 2 inputs (AI pre-filled, editable)
-  const [serviceDescription, setServiceDescription] = useState("")
-  const [valueProp, setValueProp] = useState("")
-  const [nicheQuestion, setNicheQuestion] = useState("")
+  // Phase 2 — Claude pre-fills these from the website. The operator can edit
+  // them before the final prompt is generated. companySummary, regionTone,
+  // industryTraining and the hidden nicheSlug are pre-filled but not shown
+  // as editable fields in Phase 2 (only qualifyingQuestion is, per brief).
+  const [qualifyingQuestion, setQualifyingQuestion] = useState("")
+  const [companySummary, setCompanySummary] = useState("")
   const [regionTone, setRegionTone] = useState("")
   const [industryTraining, setIndustryTraining] = useState("")
-  const [openingHours, setOpeningHours] = useState("")
-  const [promiseLine, setPromiseLine] = useState("")
-  const [additionalContext, setAdditionalContext] = useState("")
-  // Hidden niche slug — populated by Claude during prefill research and
-  // saved straight onto androids.niche so the downstream Opportunities,
-  // Pipeline, and Agent Library joins keep working without a user-visible
-  // dropdown. The user never sees this value.
   const [nicheSlug, setNicheSlug] = useState("")
 
-  // Load the agent template so we can 1) show a context banner and 2) pass
-  // the android_prompt_template through to the prefill API as a Claude seed.
+  // Negative response default tracks openingServicePhrase until the operator
+  // edits the textarea themselves. This implements the brief's requirement
+  // that "[openingServicePhrase]" in the default is replaced live.
+  useEffect(() => {
+    if (!negativeUserEdited) {
+      setNegativeResponse(buildNegativeDefault(openingServicePhrase))
+    }
+  }, [openingServicePhrase, negativeUserEdited])
+
+  // Load the agent template silently so we can pass the prompt template
+  // through to the prefill API. No UI is rendered for this — the brief
+  // removed the agent library banner.
   useEffect(() => {
     if (!agentSlug) return
     const load = async () => {
@@ -89,9 +101,9 @@ export default function PromptGeneratorForm({ userId }: PromptGeneratorFormProps
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [agentSlug])
 
-  // Pre-fill the Phase 1 fields when audit/agent params are supplied.
-  // We only set fields that are currently empty so we never stomp on the
-  // user's typed-in values during the same session.
+  // Pre-fill businessName / prospectName from URL params when arriving from
+  // a "Build for client" link. We only set fields that are currently empty
+  // so we never stomp on the user's typed-in values during the same session.
   useEffect(() => {
     if (prefilledBusiness && !businessName) setBusinessName(prefilledBusiness)
     if (prefilledClientName && !prospectName) setProspectName(prefilledClientName)
@@ -109,30 +121,23 @@ export default function PromptGeneratorForm({ userId }: PromptGeneratorFormProps
         body: JSON.stringify({
           business_name: businessName,
           website_url: websiteUrl,
-          // Agent Library context — when building from a template, Claude
-          // customises the agent template for this specific business rather
-          // than generating a generic Coffee Date Demo prompt.
+          // Agent / audit context — still passed through silently.
           agent_slug: agentSlug || undefined,
           agent_name: agentNameParam || undefined,
           android_prompt_template: agentTemplate?.android_prompt_template || undefined,
           audit_id: auditId || undefined,
-        })
+        }),
       })
 
       if (!response.ok) throw new Error("Research failed")
 
       const data = await response.json()
 
-      // Pre-fill all phase 2 state variables
-      setServiceDescription(data.service_description || "")
-      setValueProp(data.value_proposition || "")
-      setNicheQuestion(data.niche_question || "")
+      // Pre-fill the editable Phase 2 field plus the hidden context fields.
+      setQualifyingQuestion(data.qualifying_question || "")
+      setCompanySummary(data.company_summary || "")
       setRegionTone(data.region_tone || "")
       setIndustryTraining(data.industry_training || "")
-      setOpeningHours(data.opening_hours || "")
-      setPromiseLine(data.promise_line || "")
-      setAdditionalContext(data.additional_context || "")
-      // Hidden — never rendered, only used to populate androids.niche on save.
       setNicheSlug(data.niche_slug || "")
 
       setPhase(2)
@@ -148,34 +153,21 @@ export default function PromptGeneratorForm({ userId }: PromptGeneratorFormProps
     try {
       const dataToSend = {
         businessName,
+        websiteUrl,
         androidName,
         prospectName,
-        // serviceType drives androids.niche on save (kept for backwards
-        // compatibility with downstream joins). We feed it the niche slug
-        // returned by Claude's prefill research, replacing the role of the
-        // old niche dropdown.
-        serviceType: nicheSlug || industryTraining,
-        shortService: serviceDescription,
-        nicheQuestion,
-        valueProp,
-        calendarLink,
-        regionTone,
-        industryTraining,
-        website: websiteUrl,
-        openingHours,
-        promiseLine,
-        additionalContext,
         openingServicePhrase,
         positiveResponse,
         negativeResponse,
-        aiPrefilled: true,
-        // Agent Library / Audit attribution — these are saved on the Android
-        // row so we can trace which agent template and audit this was built
-        // from when reviewing the pipeline later.
-        agentId: agentTemplate?.id || null,
-        agentSlug: agentSlug || null,
-        agentName: agentNameParam || agentTemplate?.name || null,
-        auditId: auditId || null,
+        calendarLink,
+        faq: faq.trim() || undefined,
+        qualifyingQuestion,
+        // serviceType still drives androids.niche on insert. We prefer the
+        // slug but fall back to the human industry label if Claude omitted it.
+        serviceType: nicheSlug || industryTraining || undefined,
+        companySummary,
+        regionTone,
+        industryTraining,
       }
       const result = await generatePrompt(dataToSend, userId)
       if (result.success && result.androidId && result.prompt) {
@@ -205,19 +197,13 @@ export default function PromptGeneratorForm({ userId }: PromptGeneratorFormProps
 
   const handleStartOver = () => {
     setPhase(1)
-    setServiceDescription("")
-    setValueProp("")
-    setNicheQuestion("")
+    setQualifyingQuestion("")
+    setCompanySummary("")
     setRegionTone("")
     setIndustryTraining("")
-    setOpeningHours("")
-    setPromiseLine("")
-    setAdditionalContext("")
     setNicheSlug("")
   }
 
-  // Phase 1 validation now requires the new Opening Service Phrase field
-  // plus the two Dan Wardrobe Method response messages (positive / negative).
   const isPhase1Valid =
     businessName.trim() &&
     websiteUrl.trim() &&
@@ -227,6 +213,8 @@ export default function PromptGeneratorForm({ userId }: PromptGeneratorFormProps
     positiveResponse.trim() &&
     negativeResponse.trim() &&
     calendarLink.trim()
+
+  const isPhase2Valid = qualifyingQuestion.trim()
 
   if (generatedPrompt) {
     return (
@@ -259,109 +247,71 @@ export default function PromptGeneratorForm({ userId }: PromptGeneratorFormProps
   }
 
   return (
-    <>
-      {/* Agent Library context — shown when the user clicked "Build this
-          agent" in /agents or "Build for client" on an audit recommendation.
-          Visible across both phases so the operator never loses track of the
-          agent they're building and the client it's for. */}
-      {(agentTemplate || agentNameParam) && (
-        <div className="border border-[#00AAFF]/25 bg-[#00AAFF]/[0.05] rounded-xl px-5 py-4 mb-5">
-          <div className="flex items-start gap-3">
-            <div className="bg-[#00AAFF]/15 border border-[#00AAFF]/25 rounded-lg p-2 flex-shrink-0">
-              <Bot className="h-4 w-4 text-[#00AAFF]" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[#00AAFF] text-xs font-semibold uppercase tracking-wider mb-1">
-                Building agent
-              </p>
-              <p className="text-white font-bold mb-1">
-                {agentTemplate?.name || agentNameParam}
-              </p>
-              {agentTemplate?.one_liner && (
-                <p className="text-white/50 text-sm leading-relaxed">
-                  {agentTemplate.one_liner}
-                </p>
-              )}
-              {prefilledBusiness && (
-                <p className="text-white/70 text-sm mt-2">
-                  For client: <span className="font-semibold">{prefilledBusiness}</span>
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
     <Card className="glass glass-border">
       <CardHeader>
         <CardTitle className="text-white">Build Android</CardTitle>
         <CardDescription className="text-white/60">
           {phase === 1
             ? "Enter your client's details and Claude will research their business"
-            : "Review and edit the pre-filled details before generating"
-          }
+            : "Review and edit the qualifying question before generating"}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Phase 1 - Human inputs */}
+        {/* Phase 1 — operator inputs. */}
         {phase === 1 && (
           <div className="space-y-6">
             <div className="space-y-2">
               <Label htmlFor="businessName" className="text-white">
-                Client business name <span className="text-red-400">*</span>
+                Business Name <span className="text-red-400">*</span>
               </Label>
               <Input
                 id="businessName"
-                placeholder='e.g. "BrightSky Roofing"'
+                placeholder="e.g. Next Ride Motorcycles"
                 value={businessName}
                 onChange={(e) => setBusinessName(e.target.value)}
                 className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
               />
-              <p className="text-xs text-white/40">The business you are building this demo for</p>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="websiteUrl" className="text-white">
-                Client website URL <span className="text-red-400">*</span>
+                Website URL <span className="text-red-400">*</span>
               </Label>
               <Input
                 id="websiteUrl"
-                placeholder="https://brightskyroofing.com"
+                placeholder="e.g. https://www.nextride.com"
                 value={websiteUrl}
                 onChange={(e) => setWebsiteUrl(e.target.value)}
                 className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
               />
-              <p className="text-xs text-white/40">Claude will visit this site to research the business</p>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="androidName" className="text-white">
-                Android name <span className="text-red-400">*</span>
+                AI Persona Name <span className="text-red-400">*</span>
               </Label>
               <Input
                 id="androidName"
-                placeholder='e.g. "Grace", "Nova", "Jasper"'
+                placeholder="e.g. Grace"
                 value={androidName}
                 onChange={(e) => setAndroidName(e.target.value)}
                 className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
               />
-              <p className="text-xs text-white/40">The AI persona name shown in the demo</p>
+              <p className="text-xs text-white/40">The name your AI assistant will use in the conversation</p>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="prospectName" className="text-white">
-                Prospect name <span className="text-red-400">*</span>
+                Prospect First Name <span className="text-red-400">*</span>
               </Label>
               <Input
                 id="prospectName"
-                placeholder='e.g. "Sarah", "Mike", "Dr Mitchell"'
+                placeholder="e.g. Mike"
                 value={prospectName}
                 onChange={(e) => setProspectName(e.target.value)}
                 className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
               />
-              <p className="text-xs text-white/40">
-                The AI will address the prospect by this name during the demo
-              </p>
+              <p className="text-xs text-white/40">The AI will address the prospect by this name throughout</p>
             </div>
 
             <div className="space-y-2">
@@ -375,9 +325,7 @@ export default function PromptGeneratorForm({ userId }: PromptGeneratorFormProps
                 onChange={(e) => setOpeningServicePhrase(e.target.value)}
                 className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
               />
-              <p className="text-xs text-white/40">
-                How the AI will describe your service in the opening message
-              </p>
+              <p className="text-xs text-white/40">How the AI describes your service in the opening message</p>
             </div>
 
             <div className="space-y-2">
@@ -386,14 +334,13 @@ export default function PromptGeneratorForm({ userId }: PromptGeneratorFormProps
               </Label>
               <Textarea
                 id="positiveResponse"
-                placeholder="The exact message you want sent when the prospect confirms it's them"
                 value={positiveResponse}
                 onChange={(e) => setPositiveResponse(e.target.value)}
                 rows={3}
                 className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
               />
               <p className="text-xs text-white/40">
-                Write this in your own voice — it will be sent word for word
+                Sent word for word when the prospect confirms it&apos;s them. Edit if needed.
               </p>
             </div>
 
@@ -403,29 +350,45 @@ export default function PromptGeneratorForm({ userId }: PromptGeneratorFormProps
               </Label>
               <Textarea
                 id="negativeResponse"
-                placeholder="The exact message you want sent when the prospect says wrong number or not interested"
                 value={negativeResponse}
-                onChange={(e) => setNegativeResponse(e.target.value)}
+                onChange={(e) => {
+                  setNegativeResponse(e.target.value)
+                  setNegativeUserEdited(true)
+                }}
                 rows={3}
                 className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
               />
               <p className="text-xs text-white/40">
-                Write this in your own voice — it will be sent word for word
+                Sent word for word when the prospect says wrong number or not interested. Edit if needed.
               </p>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="calendarLink" className="text-white">
-                Your calendar link <span className="text-red-400">*</span>
+                Calendar Link <span className="text-red-400">*</span>
               </Label>
               <Input
                 id="calendarLink"
-                placeholder="https://calendly.com/yourname"
+                placeholder="e.g. https://calendly.com/yourbusiness"
                 value={calendarLink}
                 onChange={(e) => setCalendarLink(e.target.value)}
                 className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
               />
-              <p className="text-xs text-white/40">Where prospects book a follow-up call</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="faq" className="text-white">
+                FAQ
+              </Label>
+              <Textarea
+                id="faq"
+                placeholder="Add any frequently asked questions and answers your AI should know. e.g. Q: What areas do you cover? A: We cover all of Texas."
+                value={faq}
+                onChange={(e) => setFaq(e.target.value)}
+                rows={5}
+                className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
+              />
+              <p className="text-xs text-white/40">Optional — add Q&amp;A your AI should be able to answer</p>
             </div>
 
             {prefillError && (
@@ -454,172 +417,39 @@ export default function PromptGeneratorForm({ userId }: PromptGeneratorFormProps
           </div>
         )}
 
-        {/* Phase 2 - Pre-filled fields */}
+        {/* Phase 2 — Claude has researched. Only the qualifying question is
+            editable here (per the simplification brief). The other research
+            fields (company summary, region/tone, industry) are baked into
+            the system prompt without operator review. */}
         {phase === 2 && (
           <>
-            {/* Success banner */}
             <div className="bg-[#00A8FF]/10 border border-[#00A8FF]/30 rounded-lg p-4 flex items-center gap-3">
               <Check className="h-5 w-5 text-[#00A8FF]" />
               <p className="text-white text-sm">
-                Claude has researched <span className="font-semibold">{businessName}</span> and pre-filled the form below. Review and edit before generating.
+                Claude has researched <span className="font-semibold">{businessName}</span>. Review the qualifying
+                question below and generate when ready.
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Read-only display of Phase 1 inputs */}
-              <div className="space-y-2">
-                <Label className="text-white">Business Name</Label>
-                <Input
-                  value={businessName}
-                  disabled
-                  className="bg-white/5 border-white/10 text-white/70"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-white">Android Name</Label>
-                <Input
-                  value={androidName}
-                  disabled
-                  className="bg-white/5 border-white/10 text-white/70"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-white">Website</Label>
-                <Input
-                  value={websiteUrl}
-                  disabled
-                  className="bg-white/5 border-white/10 text-white/70"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-white">Calendar Link</Label>
-                <Input
-                  value={calendarLink}
-                  disabled
-                  className="bg-white/5 border-white/10 text-white/70"
-                />
-              </div>
-
-              {/* AI pre-filled fields */}
-              <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="serviceDescription" className="text-white">
-                  Service Description
-                </Label>
-                <Input
-                  id="serviceDescription"
-                  placeholder='e.g. "We install, repair, and replace residential roofs."'
-                  value={serviceDescription}
-                  onChange={(e) => setServiceDescription(e.target.value)}
-                  className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
-                />
-                <p className="text-xs text-white/40">A short summary of what the business does</p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="valueProp" className="text-white">
-                  Value Proposition
-                </Label>
-                <Input
-                  id="valueProp"
-                  placeholder='e.g. "Fast turnaround, fair pricing, reliable service."'
-                  value={valueProp}
-                  onChange={(e) => setValueProp(e.target.value)}
-                  className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
-                />
-                <p className="text-xs text-white/40">What makes the business different or better?</p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="nicheQuestion" className="text-white">
-                  Niche Question
-                </Label>
-                <Input
-                  id="nicheQuestion"
-                  placeholder='e.g. "Are you looking for a quote or comparing options?"'
-                  value={nicheQuestion}
-                  onChange={(e) => setNicheQuestion(e.target.value)}
-                  className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
-                />
-                <p className="text-xs text-white/40">A natural conversation opener</p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="regionTone" className="text-white">
-                  Region / Tone
-                </Label>
-                <Input
-                  id="regionTone"
-                  placeholder='e.g. "UK professional", "US casual"'
-                  value={regionTone}
-                  onChange={(e) => setRegionTone(e.target.value)}
-                  className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
-                />
-                <p className="text-xs text-white/40">Communication style and region</p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="industryTraining" className="text-white">
-                  Industry Training
-                </Label>
-                <Input
-                  id="industryTraining"
-                  placeholder='e.g. "Roofing", "Legal Services"'
-                  value={industryTraining}
-                  onChange={(e) => setIndustryTraining(e.target.value)}
-                  className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
-                />
-                <p className="text-xs text-white/40">The industry the Android must understand</p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="openingHours" className="text-white">
-                  Opening Hours
-                </Label>
-                <Input
-                  id="openingHours"
-                  placeholder='e.g. "Mon–Fri 8–5"'
-                  value={openingHours}
-                  onChange={(e) => setOpeningHours(e.target.value)}
-                  className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
-                />
-                <p className="text-xs text-white/40">Used when referencing availability</p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="promiseLine" className="text-white">
-                  Promise Line
-                </Label>
-                <Input
-                  id="promiseLine"
-                  placeholder='e.g. "Fast, friendly, and reliable service."'
-                  value={promiseLine}
-                  onChange={(e) => setPromiseLine(e.target.value)}
-                  className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
-                />
-                <p className="text-xs text-white/40">A trust-building phrase capturing their brand promise</p>
-              </div>
-
-              <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="additionalContext" className="text-white">
-                  Additional Context
-                </Label>
-                <Input
-                  id="additionalContext"
-                  placeholder="Any other relevant context about the business..."
-                  value={additionalContext}
-                  onChange={(e) => setAdditionalContext(e.target.value)}
-                  className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
-                />
-                <p className="text-xs text-white/40">Relevant context about typical customers, common questions, or business specifics</p>
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="qualifyingQuestion" className="text-white">
+                Qualifying Question <span className="text-red-400">*</span>
+              </Label>
+              <Textarea
+                id="qualifyingQuestion"
+                value={qualifyingQuestion}
+                onChange={(e) => setQualifyingQuestion(e.target.value)}
+                rows={2}
+                className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
+              />
+              <p className="text-xs text-white/40">
+                One question to qualify the prospect. Pre-filled from your website — edit if needed.
+              </p>
             </div>
 
             <Button
               onClick={handleGenerate}
-              disabled={isGenerating}
+              disabled={isGenerating || !isPhase2Valid}
               className="w-full bg-[#00A8FF] text-white hover:bg-[#0099EE]"
             >
               {isGenerating ? (
@@ -647,6 +477,5 @@ export default function PromptGeneratorForm({ userId }: PromptGeneratorFormProps
         )}
       </CardContent>
     </Card>
-    </>
   )
 }

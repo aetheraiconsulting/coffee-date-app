@@ -3,44 +3,31 @@
 import { createClient } from "@/lib/supabase/server"
 import { buildCoffeeDatePrompt } from "@/lib/templates/coffee-date-template"
 
+// Field set matches the simplified Coffee Date Android builder. Every field
+// the operator supplies in the form flows through this interface unchanged.
 interface PromptFormData {
   businessName: string
+  websiteUrl?: string
   androidName: string
-  prospectName?: string
-  serviceType: string
-  shortService: string
-  nicheQuestion: string
-  valueProp: string
+  prospectName: string
+  openingServicePhrase: string
+  positiveResponse: string
+  negativeResponse: string
   calendarLink: string
-  regionTone: string
-  industryTraining: string
-  website: string
-  openingHours: string
-  promiseLine: string
-  additionalContext?: string
-  // The phrase the AI uses to describe the original service interaction in
-  // the opening message — replaces the role of the old niche dropdown for
-  // the opener line. e.g. "getting a motorcycle quote".
-  openingServicePhrase?: string
-  // Dan Wardrobe Method — exact word-for-word follow-up messages the user
-  // wants the Android to send when the prospect either confirms or pushes
-  // back on the opener.
-  positiveResponse?: string
-  negativeResponse?: string
-  aiPrefilled?: boolean
-  // Agent Library / Audit attribution
-  agentId?: string | null
-  agentSlug?: string | null
-  agentName?: string | null
-  auditId?: string | null
+  faq?: string
+  qualifyingQuestion: string
+  serviceType?: string
+  companySummary?: string
+  regionTone?: string
+  industryTraining?: string
 }
 
 // Final safety pass on the generated Android prompt:
-//  1. Strip any residual <cite ...> / </cite> / </cite> tags that Claude's
-//     web_search tool can leak into text we later include in the system prompt.
-//  2. Replace any lingering [name] / {name} / [prospect_name] placeholders with
-//     the real prospect name, so the Android never addresses the prospect with a
-//     literal token during the demo.
+//  1. Strip any residual <cite ...> / </cite> tags Claude's web_search tool
+//     can leak into text we later embed in the system prompt.
+//  2. Replace any lingering [name] / {name} / [prospect_name] placeholders
+//     with the real prospect name, so the Android never addresses the
+//     prospect with a literal token during the demo.
 function cleanPrompt(text: string, prospectName: string): string {
   let out = text
     .replace(/<cite\b[^>]*\/>/gi, "")
@@ -64,53 +51,36 @@ export async function generatePrompt(formData: PromptFormData, userId: string) {
     const rawPrompt = buildCoffeeDatePrompt(formData)
     const prompt = cleanPrompt(rawPrompt, (formData.prospectName || "").trim())
 
-    // Create the android with the generated prompt.
-    // We also populate the top-level `niche` column so other pages (e.g. the
-    // Opportunities demo section) can match Androids to a niche without having
-    // to unpack the `business_context` JSONB.
+    // Create the android with the generated prompt. The top-level `niche`
+    // column is still populated from `serviceType` so downstream joins
+    // (Opportunities, Pipeline, Agent Library) keep working without a
+    // user-visible niche dropdown.
     const { data: android, error } = await supabase
       .from("androids")
       .insert({
         user_id: userId,
         name: formData.androidName,
-        niche: formData.serviceType,
+        niche: formData.serviceType || null,
         prompt,
-        ai_prefilled: formData.aiPrefilled || false,
-        // Attribution columns added in migration 048. When the Android was
-        // built from an Agent Library template or an audit recommendation
-        // we persist the foreign keys here so the Clients / Pipeline views
-        // can trace the provenance.
-        agent_id: formData.agentId || null,
-        audit_id: formData.auditId || null,
+        ai_prefilled: true,
         business_context: {
+          prospect_name: formData.prospectName,
+          opening_service_phrase: formData.openingServicePhrase,
+          positive_response: formData.positiveResponse,
+          negative_response: formData.negativeResponse,
+          qualifying_question: formData.qualifyingQuestion,
+          faq: formData.faq || null,
+          company_summary: formData.companySummary || null,
+          region_tone: formData.regionTone || null,
+          industry_training: formData.industryTraining || null,
+          // Lightweight identity fields for demo-chat header rendering.
           businessName: formData.businessName,
           company_name: formData.businessName,
           androidName: formData.androidName,
-          prospect_name: formData.prospectName || null,
-          serviceType: formData.serviceType,
-          shortService: formData.shortService,
-          niche: formData.serviceType,
-          nicheQuestion: formData.nicheQuestion,
-          valueProp: formData.valueProp,
+          website: formData.websiteUrl || null,
           calendarLink: formData.calendarLink,
-          regionTone: formData.regionTone,
-          industryTraining: formData.industryTraining,
-          website: formData.website,
-          openingHours: formData.openingHours,
-          promiseLine: formData.promiseLine,
-          additionalContext: formData.additionalContext,
-          // Snake-cased on the JSONB so demo-chat.tsx can read it directly
-          // off android.business_context.opening_service_phrase to render
-          // the FIRST MESSAGE SENT fallback when the regex doesn't match.
-          opening_service_phrase: formData.openingServicePhrase || null,
-          // Dan Wardrobe Method word-for-word responses. Stored snake-cased
-          // for downstream readers (demo-chat, audits, observability).
-          positive_response: formData.positiveResponse || null,
-          negative_response: formData.negativeResponse || null,
-          // Denormalised agent/audit pointers for cheaper UI reads.
-          built_from_agent: formData.agentSlug || null,
-          built_from_audit: formData.auditId || null,
-          agent_name: formData.agentName || null,
+          // Niche slug mirror so Opportunities matching has cheap JSONB read.
+          niche: formData.serviceType || null,
         },
       })
       .select()
