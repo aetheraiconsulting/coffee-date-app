@@ -359,15 +359,28 @@ export default function DemoChat({ android, userId, autoPresent = false }: DemoC
                     {companyName}
                   </p>
                 </div>
-                <Button
-                  onClick={() => setIsDarkMode(!isDarkMode)}
-                  size="icon"
-                  variant="ghost"
-                  className="h-8 w-8"
-                  style={{ color: isDarkMode ? "#ffffff" : "#333333" }}
-                >
-                  {isDarkMode ? "☀️" : "🌙"}
-                </Button>
+                <div className="flex items-center gap-1">
+                  <Button
+                    onClick={() => setResetDialogOpen(true)}
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8"
+                    title="Reset demo"
+                    aria-label="Reset demo"
+                    style={{ color: isDarkMode ? "#ffffff" : "#333333" }}
+                  >
+                    <RotateCcw className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    onClick={() => setIsDarkMode(!isDarkMode)}
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8"
+                    style={{ color: isDarkMode ? "#ffffff" : "#333333" }}
+                  >
+                    {isDarkMode ? "☀️" : "🌙"}
+                  </Button>
+                </div>
               </div>
             </header>
 
@@ -469,6 +482,87 @@ export default function DemoChat({ android, userId, autoPresent = false }: DemoC
             </div>
           </div>
         </div>
+
+        {/* Reset confirmation — also rendered inside the presentation-mode
+            early return so the reset button in the presentation header has
+            a visible confirm dialog. z-index sits above the 99999 backdrop. */}
+        {resetDialogOpen && (
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="reset-dialog-title-presentation"
+            onClick={() => setResetDialogOpen(false)}
+            style={{
+              position: "fixed",
+              inset: 0,
+              zIndex: 100001,
+              background: "rgba(0,0,0,0.6)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "16px",
+            }}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                background: "#0F1318",
+                border: "1px solid rgba(255,255,255,0.1)",
+                borderRadius: "12px",
+                padding: "20px 22px",
+                maxWidth: "360px",
+                width: "100%",
+                boxShadow: "0 20px 50px rgba(0,0,0,0.5)",
+              }}
+            >
+              <h2
+                id="reset-dialog-title-presentation"
+                style={{
+                  color: "#FFFFFF",
+                  fontSize: "16px",
+                  fontWeight: 600,
+                  margin: 0,
+                  marginBottom: "16px",
+                }}
+              >
+                Reset the conversation?
+              </h2>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px" }}>
+                <button
+                  onClick={() => setResetDialogOpen(false)}
+                  className="hover:border-white/30 transition-colors"
+                  style={{
+                    padding: "8px 14px",
+                    fontSize: "13px",
+                    background: "transparent",
+                    border: "1px solid rgba(255,255,255,0.15)",
+                    borderRadius: "8px",
+                    color: "rgba(255,255,255,0.7)",
+                    cursor: "pointer",
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleResetConfirm}
+                  className="hover:bg-aether/90 transition-colors"
+                  style={{
+                    padding: "8px 14px",
+                    fontSize: "13px",
+                    background: "#089FEF",
+                    border: "1px solid #089FEF",
+                    borderRadius: "8px",
+                    color: "#FFFFFF",
+                    cursor: "pointer",
+                    fontWeight: 500,
+                  }}
+                >
+                  Reset
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     )
   }
