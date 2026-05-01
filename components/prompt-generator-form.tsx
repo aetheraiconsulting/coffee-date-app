@@ -6,33 +6,18 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Loader2, Sparkles, Copy, Check, Search, ChevronDown, ArrowLeft, Bot } from "lucide-react"
+import { Loader2, Sparkles, Copy, Check, ArrowLeft, Bot } from "lucide-react"
 import { generatePrompt } from "@/app/actions/generate-prompt"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { createClient } from "@/lib/supabase/client"
 
 interface PromptGeneratorFormProps {
   userId: string
 }
 
-interface Niche {
-  id: string
-  niche_name: string
-  industry: {
-    name: string
-  }
-}
-
 export default function PromptGeneratorForm({ userId }: PromptGeneratorFormProps) {
   const router = useRouter()
   const supabase = createClient()
-  // When the user lands here from the Opportunities page we deep-link with
-  // `?niche=<niche_name>` so the niche is pre-selected and the dropdown is
-  // collapsed behind a tidy "Building for niche" pill.
   const searchParams = useSearchParams()
-  const prefilledNiche = searchParams.get("niche")
-  const [nicheLocked, setNicheLocked] = useState<boolean>(!!prefilledNiche)
 
   // Agent Library context — when the user clicks "Build this agent" in
   // /agents, or "Build for client" on a matched audit recommendation, we
@@ -57,10 +42,14 @@ export default function PromptGeneratorForm({ userId }: PromptGeneratorFormProps
   // Phase 1 inputs (human required). `prospectName` is the actual name the
   // Android will use when talking to the prospect — we bake this into the
   // generated prompt so there are no runtime placeholders like [Name].
+  // `openingServicePhrase` is the user-supplied phrase the AI uses to
+  // describe the original service interaction in the opening message
+  // (e.g. "getting a motorcycle quote", "selling your property for cash").
   const [businessName, setBusinessName] = useState("")
   const [websiteUrl, setWebsiteUrl] = useState("")
   const [androidName, setAndroidName] = useState("")
   const [prospectName, setProspectName] = useState("")
+  const [openingServicePhrase, setOpeningServicePhrase] = useState("")
   const [calendarLink, setCalendarLink] = useState("")
 
   // Phase 2 inputs (AI pre-filled, editable)
@@ -72,18 +61,11 @@ export default function PromptGeneratorForm({ userId }: PromptGeneratorFormProps
   const [openingHours, setOpeningHours] = useState("")
   const [promiseLine, setPromiseLine] = useState("")
   const [additionalContext, setAdditionalContext] = useState("")
-
-  // Niche selection
-  const [niches, setNiches] = useState<Niche[]>([])
-  const [nicheSearchQuery, setNicheSearchQuery] = useState("")
-  const [nichePopoverOpen, setNichePopoverOpen] = useState(false)
-  const [nicheId, setNicheId] = useState<string | null>(null)
-  const [nicheName, setNicheName] = useState("")
-  const [customNiche, setCustomNiche] = useState("")
-
-  useEffect(() => {
-    fetchNiches()
-  }, [])
+  // Hidden niche slug — populated by Claude during prefill research and
+  // saved straight onto androids.niche so the downstream Opportunities,
+  // Pipeline, and Agent Library joins keep working without a user-visible
+  // dropdown. The user never sees this value.
+  const [nicheSlug, setNicheSlug] = useState("")
 
   // Load the agent template so we can 1) show a context banner and 2) pass
   // the android_prompt_template through to the prefill API as a Claude seed.
@@ -109,45 +91,6 @@ export default function PromptGeneratorForm({ userId }: PromptGeneratorFormProps
     if (prefilledClientName && !prospectName) setProspectName(prefilledClientName)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prefilledBusiness, prefilledClientName])
-
-  // Once niches have loaded, try to match the ?niche= param against the list.
-  // If there's no match, fall back to the custom "Other" flow with the raw value.
-  useEffect(() => {
-    if (!prefilledNiche || niches.length === 0 || nicheId) return
-    const match = niches.find(
-      (n) => n.niche_name.toLowerCase().trim() === prefilledNiche.toLowerCase().trim(),
-    )
-    if (match) {
-      setNicheId(match.id)
-      setNicheName(match.niche_name)
-    } else {
-      setNicheId(null)
-      setNicheName("Other")
-      setCustomNiche(prefilledNiche)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [niches, prefilledNiche])
-
-  const fetchNiches = async () => {
-    try {
-      const response = await fetch("/api/niches")
-      if (response.ok) {
-        const data = await response.json()
-        setNiches(data)
-      }
-    } catch (error) {
-      console.error("Error fetching niches:", error)
-    }
-  }
-
-  const handleNicheSelect = (id: string | null, name: string) => {
-    setNicheId(id)
-    setNicheName(name)
-    if (id === null && name === "Other") {
-      setCustomNiche("")
-    }
-    setNichePopoverOpen(false)
-  }
 
   const handlePrefill = async () => {
     setPrefillLoading(true)
@@ -183,6 +126,8 @@ export default function PromptGeneratorForm({ userId }: PromptGeneratorFormProps
       setOpeningHours(data.opening_hours || "")
       setPromiseLine(data.promise_line || "")
       setAdditionalContext(data.additional_context || "")
+      // Hidden — never rendered, only used to populate androids.niche on save.
+      setNicheSlug(data.niche_slug || "")
 
       setPhase(2)
     } catch {
@@ -199,10 +144,11 @@ export default function PromptGeneratorForm({ userId }: PromptGeneratorFormProps
         businessName,
         androidName,
         prospectName,
-        nicheId,
-        nicheName,
-        customNiche,
-        serviceType: nicheId ? nicheName : customNiche || nicheName,
+        // serviceType drives androids.niche on save (kept for backwards
+        // compatibility with downstream joins). We feed it the niche slug
+        // returned by Claude's prefill research, replacing the role of the
+        // old niche dropdown.
+        serviceType: nicheSlug || industryTraining,
         shortService: serviceDescription,
         nicheQuestion,
         valueProp,
@@ -213,6 +159,7 @@ export default function PromptGeneratorForm({ userId }: PromptGeneratorFormProps
         openingHours,
         promiseLine,
         additionalContext,
+        openingServicePhrase,
         aiPrefilled: true,
         // Agent Library / Audit attribution — these are saved on the Android
         // row so we can trace which agent template and audit this was built
@@ -258,25 +205,17 @@ export default function PromptGeneratorForm({ userId }: PromptGeneratorFormProps
     setOpeningHours("")
     setPromiseLine("")
     setAdditionalContext("")
-    setNicheId(null)
-    setNicheName("")
-    setCustomNiche("")
+    setNicheSlug("")
   }
 
-  // Prospect name is now required alongside the other Phase 1 fields.
+  // Phase 1 validation now requires the new Opening Service Phrase field.
   const isPhase1Valid =
     businessName.trim() &&
     websiteUrl.trim() &&
     androidName.trim() &&
     prospectName.trim() &&
+    openingServicePhrase.trim() &&
     calendarLink.trim()
-  const isNicheValid = nicheId !== null || (nicheName === "Other" && customNiche.trim() !== "")
-
-  const filteredNiches = niches.filter(
-    (niche) =>
-      niche.niche_name.toLowerCase().includes(nicheSearchQuery.toLowerCase()) ||
-      niche.industry.name.toLowerCase().includes(nicheSearchQuery.toLowerCase()),
-  )
 
   if (generatedPrompt) {
     return (
@@ -342,31 +281,11 @@ export default function PromptGeneratorForm({ userId }: PromptGeneratorFormProps
         </div>
       )}
 
-      {/* Contextual banner — shown when the user deep-linked in from the
-          Opportunities page with `?niche=<niche>`. Keeps the niche visible
-          at the top of the page throughout both phases of the form. */}
-      {prefilledNiche && (
-        <div className="border border-[#00AAFF]/20 bg-[#00AAFF]/5 rounded-xl px-4 sm:px-5 py-3 sm:py-4 mb-5 flex items-center justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            <p className="text-[#00AAFF] text-xs font-semibold uppercase tracking-wider mb-0.5">
-              Building for niche
-            </p>
-            <p className="text-white font-semibold truncate">{prefilledNiche}</p>
-          </div>
-          <a
-            href="/prompt-generator"
-            className="text-xs text-white/40 hover:text-white/60 whitespace-nowrap flex-shrink-0 px-2 py-2 min-h-[44px] flex items-center"
-          >
-            Clear
-          </a>
-        </div>
-      )}
-
     <Card className="glass glass-border">
       <CardHeader>
         <CardTitle className="text-white">Build Android</CardTitle>
         <CardDescription className="text-white/60">
-          {phase === 1 
+          {phase === 1
             ? "Enter your client's details and Claude will research their business"
             : "Review and edit the pre-filled details before generating"
           }
@@ -431,6 +350,22 @@ export default function PromptGeneratorForm({ userId }: PromptGeneratorFormProps
               />
               <p className="text-xs text-white/40">
                 The AI will address the prospect by this name during the demo
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="openingServicePhrase" className="text-white">
+                Opening Service Phrase <span className="text-red-400">*</span>
+              </Label>
+              <Input
+                id="openingServicePhrase"
+                placeholder="e.g. getting a motorcycle quote, selling your property for cash"
+                value={openingServicePhrase}
+                onChange={(e) => setOpeningServicePhrase(e.target.value)}
+                className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
+              />
+              <p className="text-xs text-white/40">
+                How the AI will describe your service in the opening message
               </p>
             </div>
 
@@ -522,114 +457,6 @@ export default function PromptGeneratorForm({ userId }: PromptGeneratorFormProps
                   className="bg-white/5 border-white/10 text-white/70"
                 />
               </div>
-
-              {/* Niche selection. When the user arrived from the Opportunities
-                  page via ?niche=..., we skip the dropdown and show a compact
-                  "Building for niche" pill with a Change button. */}
-              {nicheLocked && (nicheName || customNiche) ? (
-                <div className="md:col-span-2 border border-[#00A8FF]/25 bg-[#00A8FF]/5 rounded-lg px-4 py-3 flex items-center justify-between">
-                  <div>
-                    <p className="text-white/40 text-[11px] uppercase tracking-wider mb-0.5">
-                      Building for niche
-                    </p>
-                    <p className="text-white font-semibold">
-                      {nicheName === "Other" ? customNiche : nicheName}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setNicheLocked(false)}
-                    className="text-xs text-white/50 hover:text-white underline underline-offset-2"
-                  >
-                    Change
-                  </button>
-                </div>
-              ) : (
-              <div className="space-y-2 md:col-span-2">
-                <Label className="text-white">
-                  Business Niche <span className="text-red-400">*</span>
-                </Label>
-                <Popover open={nichePopoverOpen} onOpenChange={setNichePopoverOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      role="combobox"
-                      aria-expanded={nichePopoverOpen}
-                      className="w-full justify-between bg-white/5 border-white/10 text-white hover:bg-white/10 hover:text-white"
-                    >
-                      {nicheName || "Select a niche..."}
-                      <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent
-                    className="w-[400px] p-0 bg-black/95 border border-white/20 backdrop-blur-sm"
-                    align="start"
-                  >
-                    <div className="p-2 border-b border-white/10">
-                      <div className="relative">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-white/40" />
-                        <Input
-                          placeholder="Search niches..."
-                          value={nicheSearchQuery}
-                          onChange={(e) => setNicheSearchQuery(e.target.value)}
-                          className="pl-9 bg-white/5 border-white/10 text-white placeholder:text-white/40"
-                        />
-                      </div>
-                    </div>
-                    <ScrollArea className="h-[250px]">
-                      <div className="p-2 space-y-1">
-                        <button
-                          onClick={() => handleNicheSelect(null, "Other")}
-                          className={`w-full text-left p-3 rounded-lg transition-colors ${
-                            nicheName === "Other"
-                              ? "bg-[#00A8FF]/20 border border-[#00A8FF]"
-                              : "hover:bg-white/10 border border-white/10"
-                          }`}
-                        >
-                          <div className="font-semibold text-white">Other</div>
-                          <div className="text-sm text-white/70">Enter a custom niche</div>
-                        </button>
-
-                        {filteredNiches.map((niche) => (
-                          <button
-                            key={niche.id}
-                            onClick={() => handleNicheSelect(niche.id, niche.niche_name)}
-                            className={`w-full text-left p-3 rounded-lg transition-colors ${
-                              nicheId === niche.id
-                                ? "bg-[#00A8FF]/20 border border-[#00A8FF]"
-                                : "hover:bg-white/10 border border-white/10"
-                            }`}
-                          >
-                            <div className="font-semibold text-white">{niche.niche_name}</div>
-                            <div className="text-sm text-white/70">{niche.industry.name}</div>
-                          </button>
-                        ))}
-                      </div>
-                    </ScrollArea>
-                  </PopoverContent>
-                </Popover>
-                <p className="text-xs text-white/40">
-                  Choose the niche closest to your client&apos;s service
-                </p>
-              </div>
-              )}
-
-              {/* Custom niche input only shows when the user picked "Other"
-                  and hasn't opted into the locked pill view. */}
-              {!nicheLocked && nicheName === "Other" && (
-                <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="customNiche" className="text-white">
-                    Custom Niche <span className="text-red-400">*</span>
-                  </Label>
-                  <Input
-                    id="customNiche"
-                    placeholder="Describe the niche..."
-                    value={customNiche}
-                    onChange={(e) => setCustomNiche(e.target.value)}
-                    className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
-                  />
-                </div>
-              )}
 
               {/* AI pre-filled fields */}
               <div className="space-y-2 md:col-span-2">
@@ -747,7 +574,7 @@ export default function PromptGeneratorForm({ userId }: PromptGeneratorFormProps
 
             <Button
               onClick={handleGenerate}
-              disabled={isGenerating || !isNicheValid}
+              disabled={isGenerating}
               className="w-full bg-[#00A8FF] text-white hover:bg-[#0099EE]"
             >
               {isGenerating ? (

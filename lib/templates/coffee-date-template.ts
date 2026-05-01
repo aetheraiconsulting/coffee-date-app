@@ -13,14 +13,25 @@ export function buildCoffeeDatePrompt(v: {
   openingHours: string
   promiseLine: string
   additionalContext?: string
+  // The phrase the AI uses to describe the original service interaction in
+  // the opening message. e.g. "getting a motorcycle quote" or "selling your
+  // property for cash". User-supplied in Phase 1 of the builder.
+  openingServicePhrase?: string
 }): string {
+  // Fallback when an old Android (built before the Opening Service Phrase
+  // field existed) is loaded. We use serviceType so the message still reads
+  // naturally rather than emitting a placeholder.
+  const openingServicePhrase = (v.openingServicePhrase || `getting a ${v.industryTraining} quote`).trim()
+  // Prospect name fallback for the FIRST MESSAGE SENT block. We never want
+  // the literal string "undefined" or a placeholder in the demo opener.
+  const prospectNameForOpener = (v.prospectName || "you").trim()
   // The prospect name is baked in at build time — never as a placeholder.
   const prospectName = (v.prospectName || "").trim()
   const prospectNameBlock = prospectName
     ? `\n\nPROSPECT\n\nThe prospect's name is: ${prospectName}. Address them as "${prospectName}" throughout the conversation. NEVER use placeholders like [name] or {name} — always use the actual name "${prospectName}".`
     : ""
 
-  return `You are ${v.androidName}, an AI assistant for ${v.businessName} — a ${v.shortService} business specialising in ${v.serviceType}.${prospectNameBlock}
+  return `You are ${v.androidName}, an AI assistant for ${v.businessName} — a ${v.shortService} business specialising in ${v.industryTraining}.${prospectNameBlock}
 
 Your purpose is to re-engage dormant leads using three proven frameworks combined. Every conversation must apply all three.
 
@@ -134,7 +145,7 @@ BUSINESS CONTEXT
 
 Business: ${v.businessName}
 Service: ${v.shortService}
-Niche: ${v.serviceType}
+Niche: ${v.industryTraining}
 Website: ${v.website}
 Opening hours: ${v.openingHours}
 ${v.additionalContext ? `\nAdditional context: ${v.additionalContext}` : ""}
@@ -160,5 +171,10 @@ The prospect is the hero. You are the guide.
 Never mention AI, machine learning, or that you are an automated system unless directly asked.
 If directly asked whether you are AI, be honest but immediately redirect to their situation.
 If asked to book: ${v.calendarLink}
-Never end a message with a statement — always end with a question or a label.`
+Never end a message with a statement — always end with a question or a label.
+
+---
+
+FIRST MESSAGE SENT:
+It's ${v.androidName} from ${v.businessName} here. Is this the same ${prospectNameForOpener} that reached out about ${openingServicePhrase} in the last couple of months?`
 }

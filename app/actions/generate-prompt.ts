@@ -18,6 +18,10 @@ interface PromptFormData {
   openingHours: string
   promiseLine: string
   additionalContext?: string
+  // The phrase the AI uses to describe the original service interaction in
+  // the opening message — replaces the role of the old niche dropdown for
+  // the opener line. e.g. "getting a motorcycle quote".
+  openingServicePhrase?: string
   aiPrefilled?: boolean
   // Agent Library / Audit attribution
   agentId?: string | null
@@ -90,6 +94,10 @@ export async function generatePrompt(formData: PromptFormData, userId: string) {
           openingHours: formData.openingHours,
           promiseLine: formData.promiseLine,
           additionalContext: formData.additionalContext,
+          // Snake-cased on the JSONB so demo-chat.tsx can read it directly
+          // off android.business_context.opening_service_phrase to render
+          // the FIRST MESSAGE SENT fallback when the regex doesn't match.
+          opening_service_phrase: formData.openingServicePhrase || null,
           // Denormalised agent/audit pointers for cheaper UI reads.
           built_from_agent: formData.agentSlug || null,
           built_from_audit: formData.auditId || null,
